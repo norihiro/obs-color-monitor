@@ -24,6 +24,7 @@ OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
 extern struct obs_source_info colormonitor_vectorscope;
+extern gs_effect_t *vss_effect;
 
 bool obs_module_load(void)
 {
@@ -34,5 +35,9 @@ bool obs_module_load(void)
 
 void obs_module_unload()
 {
+	if (vss_effect) {
+		gs_effect_destroy(vss_effect);
+		vss_effect = NULL;
+	}
 	blog(LOG_INFO, "plugin unloaded");
 }

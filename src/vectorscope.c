@@ -8,6 +8,8 @@
 #define VS_SIZE 256
 #define SOURCE_CHECK_NS 3000000000
 
+gs_effect_t *vss_effect;
+
 struct vss_source
 {
 	gs_texrender_t *texrender;
@@ -24,6 +26,7 @@ struct vss_source
 	char *target_name;
 
 	int target_scale;
+	int intensity;
 	bool bypass_vectorscope;
 
 	bool rendered;
@@ -45,6 +48,13 @@ static void *vss_create(obs_data_t *settings, obs_source_t *source)
 
 	obs_enter_graphics();
 	src->texrender = gs_texrender_create(GS_BGRA, GS_ZS_NONE);
+	if (!vss_effect) {
+		char *f = obs_module_file("vectorscope.effect");
+		vss_effect = gs_effect_create_from_file(f, NULL);
+		if (!vss_effect)
+			blog(LOG_ERROR, "Cannot load '%s'", f);
+		bfree(f);
+	}
 	obs_leave_graphics();
 	pthread_mutex_init(&src->target_update_mutex, NULL);
 
@@ -97,6 +107,10 @@ static void vss_update(void *data, obs_data_t *settings)
 	if (src->target_scale<1)
 		src->target_scale = 1;
 
+	src->intensity = obs_data_get_int(settings, "intensity");
+	if (src->intensity<1)
+		src->intensity = 1;
+
 	src->bypass_vectorscope = obs_data_get_bool(settings, "bypass_vectorscope");
 }
 
@@ -129,42 +143,39 @@ static obs_properties_t *vss_get_properties(void *unused)
 	obs_enum_sources(add_sources, prop);
 
 	obs_properties_add_int(props, "target_scale", obs_module_text("Scale"), 1, 128, 1);
+	obs_properties_add_int(props, "intensity", obs_module_text("Intensity"), 1, 255, 1);
 
 	obs_properties_add_bool(props, "bypass_vectorscope", obs_module_text("Bypass"));
 
 	return props;
 }
 
-static uint32_t vss_get_width(void *unused)
+static uint32_t vss_get_width(void *data)
 {
-	UNUSED_PARAMETER(unused);
-	return VS_SIZE;
+	struct vss_source *src = data;
+	return src->bypass_vectorscope ? src->known_width : VS_SIZE;
 }
 
-static uint32_t vss_get_height(void *unused)
+static uint32_t vss_get_height(void *data)
 {
-	UNUSED_PARAMETER(unused);
-	return VS_SIZE;
+	struct vss_source *src = data;
+	return src->bypass_vectorscope ? src->known_height : VS_SIZE;
 }
 
 static inline void vss_draw_vectorscope(struct vss_source *src, uint8_t *video_data, uint32_t video_line)
 {
 	if (!src->tex_buf)
-		src->tex_buf = bzalloc(VS_SIZE*VS_SIZE*4);
+		src->tex_buf = bzalloc(VS_SIZE*VS_SIZE);
 	uint8_t *dbuf = src->tex_buf;
 
-	for (int i=0; i<VS_SIZE*VS_SIZE; i++) {
-		dbuf[i*4+0] = 0;
-		dbuf[i*4+1] = 0;
-		dbuf[i*4+2] = 0;
-		dbuf[i*4+3] = 255;
-	}
+	for (int i=0; i<VS_SIZE*VS_SIZE; i++)
+		dbuf[i] = 0;
 
-	const int height = src->known_height;
-	const int width = src->known_width;
-	for (int y=0; y<height; y++) {
+	const uint32_t height = src->known_height;
+	const uint32_t width = src->known_width;
+	for (uint32_t y=0; y<height; y++) {
 		uint8_t *v = video_data + video_line * y;
-		for (int x=0; x<width; x++) {
+		for (uint32_t x=0; x<width; x++) {
 			const uint8_t r = *v++;
 			const uint8_t g = *v++;
 			const uint8_t b = *v++;
@@ -178,14 +189,13 @@ static inline void vss_draw_vectorscope(struct vss_source *src, uint8_t *video_d
 			const int v = (+128*r -107*g -21*b)/256 + 128;
 			if (u<0 || 255<u || v<0 || 255<v)
 				continue;
-			dbuf[u*4 + VS_SIZE*4*v + 0] ++;
-			dbuf[u*4 + VS_SIZE*4*v + 1] ++;
-			dbuf[u*4 + VS_SIZE*4*v + 2] ++;
+			uint8_t *c = dbuf + (u + VS_SIZE*v);
+			if (*c<255) ++*c;
 		}
 	}
 
 	gs_texture_destroy(src->tex_vs);
-	src->tex_vs = gs_texture_create(VS_SIZE, VS_SIZE, GS_BGRA, 1, (const uint8_t**)&src->tex_buf, 0);
+	src->tex_vs = gs_texture_create(VS_SIZE, VS_SIZE, GS_R8, 1, (const uint8_t**)&src->tex_buf, 0);
 }
 
 static void vss_render_target(struct vss_source *src)
@@ -256,9 +266,17 @@ static void vss_render(void *data, gs_effect_t *effect)
 
 	vss_render_target(src);
 
-	if (src->tex_vs) {
+	if (src->bypass_vectorscope && src->tex_vs) {
 		gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
 		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), src->tex_vs);
+		while (gs_effect_loop(effect, "Draw")) {
+			gs_draw_sprite(src->tex_vs, 0, src->known_width, src->known_height);
+		}
+	}
+	else if (src->tex_vs) {
+		gs_effect_t *effect = vss_effect ? vss_effect : obs_get_base_effect(OBS_EFFECT_DEFAULT);
+		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), src->tex_vs);
+		gs_effect_set_float(gs_effect_get_param_by_name(effect, "intensity"), src->intensity);
 		while (gs_effect_loop(effect, "Draw")) {
 			gs_draw_sprite(src->tex_vs, 0, VS_SIZE, VS_SIZE);
 		}
