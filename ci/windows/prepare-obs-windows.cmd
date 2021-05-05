@@ -18,6 +18,8 @@ echo   git checkout %OBSLatestTag%
 git checkout %OBSLatestTag%
 echo:
 
+echo add_subdirectory(obs-frontend-api) > UI/CMakeLists.txt
+
 if not exist build32 mkdir build32
 if not exist build64 mkdir build64
 
