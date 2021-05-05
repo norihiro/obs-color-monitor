@@ -26,7 +26,9 @@ cd ..
 echo "=> Cloning obs-studio from GitHub.."
 git clone https://github.com/obsproject/obs-studio
 cd obs-studio
-OBSLatestTag=$(git describe --tags --abbrev=0)
+if [ -z "$OBSLatestTag" ]; then
+	OBSLatestTag=$(git describe --tags --abbrev=0)
+fi
 git checkout $OBSLatestTag
 patch -p1 < $plugindir/ci/macos/obs-studio-build.patch
 

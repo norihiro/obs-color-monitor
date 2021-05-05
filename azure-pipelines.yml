@@ -136,6 +136,8 @@ jobs:
 
     - script: ./ci/macos/install-build-obs-macos.sh
       displayName: 'Build OBS'
+      env:
+        OBSLatestTag: 26.1.2
 
     - script: ./ci/macos/build-macos.sh
       displayName: 'Build Plugin'
