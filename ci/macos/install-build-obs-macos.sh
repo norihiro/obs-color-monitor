@@ -31,6 +31,7 @@ if [ -z "$OBSLatestTag" ]; then
 fi
 git checkout $OBSLatestTag
 patch -p1 < $plugindir/ci/macos/obs-studio-build.patch
+echo 'add_subdirectory(obs-frontend-api)' > UI/CMakeLists.txt
 
 export TERM=
 ./CI/full-build-macos.sh
