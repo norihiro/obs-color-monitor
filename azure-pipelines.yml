@@ -134,9 +134,6 @@ jobs:
     - checkout: self
       submodules: true
 
-    - script: ./ci/macos/install-dependencies-macos.sh
-      displayName: 'Install dependencies'
-
     - script: ./ci/macos/install-build-obs-macos.sh
       displayName: 'Build OBS'
 
