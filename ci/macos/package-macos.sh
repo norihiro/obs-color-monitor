@@ -44,12 +44,12 @@ fi
 
 echo "=> ZIP package build"
 ziproot=package-zip/$PLUGIN_NAME
+zipfile=${PLUGIN_NAME}-macos.zip
 mkdir -p $ziproot/bin
 cp ./build/$PLUGIN_NAME.so $ziproot/bin/
 cp -a data $ziproot/
 mkdir -p ./release
-(cd package-zip && zip $PLUGIN_NAME.zip $PLUGIN_NAME)
-mv package-zip/$PLUGIN_NAME.zip ./release/
+(cd package-zip && zip -r ../release/$zipfile $PLUGIN_NAME)
 
 # echo "=> Actual package build"
 # packagesbuild ./installer/installer-macOS.generated.pkgproj
