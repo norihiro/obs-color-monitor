@@ -58,6 +58,7 @@ configure_file(
 set(PLUGIN_SOURCES
 	src/plugin-main.c
 	src/vectorscope.c
+	src/waveform.c
 )
 
 set(PLUGIN_HEADERS
