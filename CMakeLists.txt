@@ -59,10 +59,13 @@ set(PLUGIN_SOURCES
 	src/plugin-main.c
 	src/vectorscope.c
 	src/waveform.c
+	src/obs-convenience.c
 )
 
 set(PLUGIN_HEADERS
-	src/plugin-macros.generated.h)
+	src/plugin-macros.generated.h
+	src/obs-convenience.h
+)
 
 # --- Platform-independent build settings ---
 add_library(${CMAKE_PROJECT_NAME} MODULE ${PLUGIN_SOURCES} ${PLUGIN_HEADERS})
@@ -177,14 +180,14 @@ if(UNIX AND NOT APPLE)
 	target_link_libraries(${CMAKE_PROJECT_NAME} obs-frontend-api)
 
 	file(GLOB locale_files data/locale/*.ini)
-	file(GLOB effect_files data/*.effect)
+	file(GLOB data_files data/*.effect data/*.png)
 
 	install(TARGETS ${CMAKE_PROJECT_NAME}
 		LIBRARY DESTINATION "${CMAKE_INSTALL_FULL_LIBDIR}/obs-plugins")
 
 	install(FILES ${locale_files}
 		DESTINATION "${CMAKE_INSTALL_FULL_DATAROOTDIR}/obs/obs-plugins/${CMAKE_PROJECT_NAME}/locale")
-	install(FILES ${effect_files}
+	install(FILES ${data_files}
 		DESTINATION "${CMAKE_INSTALL_FULL_DATAROOTDIR}/obs/obs-plugins/${CMAKE_PROJECT_NAME}")
 endif()
 # --- End of section ---
