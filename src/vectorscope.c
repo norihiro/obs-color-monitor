@@ -228,13 +228,13 @@ static inline void vss_draw_vectorscope(struct vss_source *src, uint8_t *video_d
 			switch (src->colorspace_calc) {
 				case 1:// BT.601
 					// y = (+306*r +601*g +117*b)/1024 +0;
-					u = (-172*r -338*g +512*b)/1024 +128;
-					v = (+512*r -428*g -82*b)/1024 +128;
+					u = (-150*r -296*g +448*b)/1024 +128;
+					v = (+448*r -374*g -72*b)/1024 +128;
 					break;
 				case 2: // BT.709
 					// y = (+218*r +732*g +74*b)/1024 +16;
-					u = (-89*r -301*g +392*b)/1024 +128;
-					v = (+553*r -501*g -50*b)/1024 +128;
+					u = (-102*r -346*g +450*b)/1024 +128;
+					v = (+450*r -408*g -40*b)/1024 +128;
 					break;
 					u = -1;
 					v = -1;
