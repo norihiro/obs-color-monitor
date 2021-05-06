@@ -27,6 +27,9 @@ struct vss_source
 
 	int target_scale;
 	int intensity;
+	int colorspace;
+	int colorspace_calc; // get from ovi if auto
+	bool colorspace_updated;
 	bool bypass_vectorscope;
 
 	bool rendered;
@@ -111,6 +114,11 @@ static void vss_update(void *data, obs_data_t *settings)
 	if (src->intensity<1)
 		src->intensity = 1;
 
+	int colorspace = obs_data_get_int(settings, "colorspace");
+	if (colorspace!=src->colorspace) {
+		src->colorspace = colorspace;
+		src->colorspace_updated = 1;
+	}
 	src->bypass_vectorscope = obs_data_get_bool(settings, "bypass_vectorscope");
 }
 
@@ -144,6 +152,10 @@ static obs_properties_t *vss_get_properties(void *unused)
 
 	obs_properties_add_int(props, "target_scale", obs_module_text("Scale"), 1, 128, 1);
 	obs_properties_add_int(props, "intensity", obs_module_text("Intensity"), 1, 255, 1);
+	prop = obs_properties_add_list(props, "colorspace", obs_module_text("Color space"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	obs_property_list_add_int(prop, "Auto", 0);
+	obs_property_list_add_int(prop, "601", 1);
+	obs_property_list_add_int(prop, "709", 2);
 
 	obs_properties_add_bool(props, "bypass_vectorscope", obs_module_text("Bypass"));
 
@@ -176,20 +188,30 @@ static inline void vss_draw_vectorscope(struct vss_source *src, uint8_t *video_d
 	for (uint32_t y=0; y<height; y++) {
 		uint8_t *v = video_data + video_line * y;
 		for (uint32_t x=0; x<width; x++) {
-			const uint8_t r = *v++;
-			const uint8_t g = *v++;
 			const uint8_t b = *v++;
+			const uint8_t g = *v++;
+			const uint8_t r = *v++;
 			const uint8_t a = *v++;
 			if (!a) continue;
-			// TODO: is this correct conversion?
-			// const int y = +0.299*r +0.587*g +0.114*b;
-			// const int u = -0.168736*r -0.331264*g +0.5*b + 128;
-			// const int v = 0.5*r + -0.418688*g -0.081312*b + 128;
-			const int u = (-43*r -84*g +128*b)/256 + 128;
-			const int v = (+128*r -107*g -21*b)/256 + 128;
+			int u;
+			int v;
+			switch (src->colorspace_calc) {
+				case 1:// BT.601
+					// y = (+306*r +601*g +117*b)/1024 +0;
+					u = (-172*r -338*g +512*b)/1024 +128;
+					v = (+512*r -428*g -82*b)/1024 +128;
+					break;
+				case 2: // BT.709
+					// y = (+218*r +732*g +74*b)/1024 +16;
+					u = (-89*r -301*g +392*b)/1024 +128;
+					v = (+553*r -501*g -50*b)/1024 +128;
+					break;
+					u = -1;
+					v = -1;
+			}
 			if (u<0 || 255<u || v<0 || 255<v)
 				continue;
-			uint8_t *c = dbuf + (u + VS_SIZE*v);
+			uint8_t *c = dbuf + (u + VS_SIZE*(255-v));
 			if (*c<255) ++*c;
 		}
 	}
@@ -263,6 +285,25 @@ static void vss_render(void *data, gs_effect_t *effect)
 {
 	UNUSED_PARAMETER(effect);
 	struct vss_source *src = data;
+
+	if (src->colorspace_updated || src->colorspace_calc<1) {
+		src->colorspace_calc = src->colorspace;
+		src->colorspace_updated = 0;
+		if (src->colorspace_calc<1 || 2<src->colorspace_calc) {
+			struct obs_video_info ovi;
+			if (obs_get_video_info(&ovi)) {
+				switch (ovi.colorspace) {
+					case VIDEO_CS_601:
+						src->colorspace_calc = 1;
+						break;
+					case VIDEO_CS_709:
+					default:
+						src->colorspace_calc = 2;
+						break;
+				}
+			}
+		}
+	}
 
 	vss_render_target(src);
 
