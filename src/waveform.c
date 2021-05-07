@@ -8,6 +8,10 @@
 #define WV_SIZE 256
 #define SOURCE_CHECK_NS 3000000000
 
+#define DISP_OVERLAY 0
+#define DISP_STACK   1
+#define DISP_PARADE  2
+
 gs_effect_t *wvs_effect;
 
 struct wvs_source
@@ -28,6 +32,7 @@ struct wvs_source
 	char *target_name;
 
 	int target_scale;
+	int display;
 	int intensity;
 	bool bypass_waveform;
 
@@ -108,6 +113,8 @@ static void wvs_update(void *data, obs_data_t *settings)
 	if (src->target_scale<1)
 		src->target_scale = 1;
 
+	src->display = obs_data_get_int(settings, "display");
+
 	src->intensity = obs_data_get_int(settings, "intensity");
 	if (src->intensity<1)
 		src->intensity = 1;
@@ -144,6 +151,10 @@ static obs_properties_t *wvs_get_properties(void *unused)
 	obs_enum_sources(add_sources, prop);
 
 	obs_properties_add_int(props, "target_scale", obs_module_text("Scale"), 1, 128, 1);
+	prop = obs_properties_add_list(props, "display", obs_module_text("Display"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	obs_property_list_add_int(prop, "Overlay", DISP_OVERLAY);
+	obs_property_list_add_int(prop, "Stack",   DISP_STACK);
+	obs_property_list_add_int(prop, "Parade",  DISP_PARADE);
 	obs_properties_add_int(props, "intensity", obs_module_text("Intensity"), 1, 255, 1);
 
 	obs_properties_add_bool(props, "bypass_waveform", obs_module_text("Bypass"));
@@ -154,13 +165,21 @@ static obs_properties_t *wvs_get_properties(void *unused)
 static uint32_t wvs_get_width(void *data)
 {
 	struct wvs_source *src = data;
+	if (src->bypass_waveform)
+		return src->known_width;
+	if (src->display==DISP_PARADE)
+		return src->known_width*3;
 	return src->known_width;
 }
 
 static uint32_t wvs_get_height(void *data)
 {
 	struct wvs_source *src = data;
-	return src->bypass_waveform ? src->known_height : WV_SIZE*3;
+	if (src->bypass_waveform)
+		return src->known_height;
+	if (src->display==DISP_STACK)
+		return WV_SIZE*3;
+	return WV_SIZE;
 }
 
 static void wvs_enum_sources(void *data, obs_source_enum_proc_t enum_callback, void *param)
@@ -182,30 +201,30 @@ static inline void wvs_draw_waveform(struct wvs_source *src, uint8_t *video_data
 	if (width<=0) return;
 	if (!src->tex_buf || src->tex_width!=width) {
 		bfree(src->tex_buf);
-		src->tex_buf = bzalloc(width*WV_SIZE*3);
+		src->tex_buf = bzalloc(width*WV_SIZE*4);
 		src->tex_width = width;
 	}
 	uint8_t *dbuf = src->tex_buf;
 
-	for (int i=0; i<width*WV_SIZE*3; i++)
+	for (int i=0; i<width*WV_SIZE*4; i++)
 		dbuf[i] = 0;
 
 	for (int y=0; y<height; y++) {
 		uint8_t *v = video_data + video_line * y;
 		for (int x=0; x<width; x++) {
-			const uint8_t r = *v++;
-			const uint8_t g = *v++;
 			const uint8_t b = *v++;
+			const uint8_t g = *v++;
+			const uint8_t r = *v++;
 			const uint8_t a = *v++;
 			if (!a) continue;
-			inc_uint8(dbuf + x + (3*WV_SIZE-1 - r) * width);
-			inc_uint8(dbuf + x + (2*WV_SIZE-1 - g) * width);
-			inc_uint8(dbuf + x + (1*WV_SIZE-1 - b) * width);
+			inc_uint8(dbuf + x*4 + (WV_SIZE-1 - b) * width*4 + 0);
+			inc_uint8(dbuf + x*4 + (WV_SIZE-1 - g) * width*4 + 1);
+			inc_uint8(dbuf + x*4 + (WV_SIZE-1 - r) * width*4 + 2);
 		}
 	}
 
 	gs_texture_destroy(src->tex_wv);
-	src->tex_wv = gs_texture_create(width, WV_SIZE*3, GS_R8, 1, (const uint8_t**)&src->tex_buf, 0);
+	src->tex_wv = gs_texture_create(width, WV_SIZE, GS_BGRX, 1, (const uint8_t**)&src->tex_buf, 0);
 }
 
 static void wvs_render_target(struct wvs_source *src)
@@ -287,8 +306,24 @@ static void wvs_render(void *data, gs_effect_t *effect)
 		gs_effect_t *effect = wvs_effect ? wvs_effect : obs_get_base_effect(OBS_EFFECT_DEFAULT);
 		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), src->tex_wv);
 		gs_effect_set_float(gs_effect_get_param_by_name(effect, "intensity"), src->intensity);
-		while (gs_effect_loop(effect, "Draw")) {
-			gs_draw_sprite(src->tex_wv, 0, src->tex_width, WV_SIZE*3);
+		const char *name = "Draw";
+		int w = src->tex_width;
+		int h = WV_SIZE;
+		if (wvs_effect) switch(src->display) {
+			case DISP_STACK:
+				name = "DrawStack";
+				h *= 3;
+				break;
+			case DISP_PARADE:
+				name = "DrawParade";
+				w *= 3;
+				break;
+			default:
+				name = "DrawOverlay";
+				break;
+		}
+		while (gs_effect_loop(effect, name)) {
+			gs_draw_sprite(src->tex_wv, 0, w, h);
 		}
 	}
 }
