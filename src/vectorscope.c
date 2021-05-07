@@ -15,6 +15,7 @@ gs_effect_t *vss_effect = NULL;
 
 struct vss_source
 {
+	obs_source_t *self;
 	gs_texrender_t *texrender;
 	gs_stagesurf_t* stagesurface;
 	uint32_t known_width;
@@ -52,10 +53,9 @@ static void vss_update(void *, obs_data_t *);
 
 static void *vss_create(obs_data_t *settings, obs_source_t *source)
 {
-	UNUSED_PARAMETER(source);
-
 	struct vss_source *src = bzalloc(sizeof(struct vss_source));
 
+	src->self = source;
 	obs_enter_graphics();
 	src->texrender = gs_texrender_create(GS_BGRA, GS_ZS_NONE);
 	if (!vss_effect) {
@@ -202,6 +202,16 @@ static uint32_t vss_get_height(void *data)
 {
 	struct vss_source *src = data;
 	return src->bypass_vectorscope ? src->known_height : VS_SIZE;
+}
+
+static void vss_enum_sources(void *data, obs_source_enum_proc_t enum_callback, void *param)
+{
+	struct vss_source *src = data;
+	obs_source_t *target = obs_weak_source_get_source(src->weak_target);
+	if (target) {
+		enum_callback(src->self, target, param);
+		obs_source_release(target);
+	}
 }
 
 static inline void vss_draw_vectorscope(struct vss_source *src, uint8_t *video_data, uint32_t video_line)
@@ -449,6 +459,7 @@ struct obs_source_info colormonitor_vectorscope = {
 	.get_properties = vss_get_properties,
 	.get_width = vss_get_width,
 	.get_height = vss_get_height,
+	.enum_active_sources = vss_enum_sources,
 	.video_render = vss_render,
 	.video_tick = vss_tick,
 };

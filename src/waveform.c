@@ -12,6 +12,7 @@ gs_effect_t *wvs_effect;
 
 struct wvs_source
 {
+	obs_source_t *self;
 	gs_texrender_t *texrender;
 	gs_stagesurf_t* stagesurface;
 	uint32_t known_width;
@@ -43,10 +44,9 @@ static void wvs_update(void *, obs_data_t *);
 
 static void *wvs_create(obs_data_t *settings, obs_source_t *source)
 {
-	UNUSED_PARAMETER(source);
-
 	struct wvs_source *src = bzalloc(sizeof(struct wvs_source));
 
+	src->self = source;
 	obs_enter_graphics();
 	src->texrender = gs_texrender_create(GS_BGRA, GS_ZS_NONE);
 	if (!wvs_effect) {
@@ -161,6 +161,16 @@ static uint32_t wvs_get_height(void *data)
 {
 	struct wvs_source *src = data;
 	return src->bypass_waveform ? src->known_height : WV_SIZE*3;
+}
+
+static void wvs_enum_sources(void *data, obs_source_enum_proc_t enum_callback, void *param)
+{
+	struct wvs_source *src = data;
+	obs_source_t *target = obs_weak_source_get_source(src->weak_target);
+	if (target) {
+		enum_callback(src->self, target, param);
+		obs_source_release(target);
+	}
 }
 
 static inline void inc_uint8(uint8_t *c) { if (*c<255) ++*c; }
@@ -315,6 +325,7 @@ struct obs_source_info colormonitor_waveform = {
 	.get_properties = wvs_get_properties,
 	.get_width = wvs_get_width,
 	.get_height = wvs_get_height,
+	.enum_active_sources = wvs_enum_sources,
 	.video_render = wvs_render,
 	.video_tick = wvs_tick,
 };
