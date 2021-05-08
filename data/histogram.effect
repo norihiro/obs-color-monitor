@@ -1,0 +1,86 @@
+uniform float4x4 ViewProj;
+uniform texture2d image;
+uniform float3 hi_max;
+uniform float4x4 color = {
+	1.00, 0.41, 0.41, 0.0,
+	0.00, 1.00, 0.00, 0.0,
+	0.53, 0.53, 1.00, 0.0,
+	0.00, 0.00, 0.00, 1.0
+};
+
+sampler_state def_sampler {
+	Filter   = Linear;
+	AddressU = Clamp;
+	AddressV = Clamp;
+};
+
+struct VertInOut {
+	float4 pos : POSITION;
+	float2 uv  : TEXCOORD0;
+};
+
+VertInOut VSDefault(VertInOut vert_in)
+{
+	VertInOut vert_out;
+	vert_out.pos = mul(float4(vert_in.pos.xyz, 1.0), ViewProj);
+	vert_out.uv  = vert_in.uv;
+	return vert_out;
+}
+
+float4 PSDrawOverlay(VertInOut vert_in) : TARGET
+{
+	float4 rgb;
+	rgb.xyz = image.Sample(def_sampler, float2(vert_in.uv.x, 0.5)).xyz;
+	if (rgb.x >= (1-vert_in.uv.y) * hi_max.x) rgb.x=1.0; else rgb.x=0.0;
+	if (rgb.y >= (1-vert_in.uv.y) * hi_max.y) rgb.y=1.0; else rgb.y=0.0;
+	if (rgb.z >= (1-vert_in.uv.y) * hi_max.z) rgb.z=1.0; else rgb.z=0.0;
+	rgb.a = 1.0;
+	return rgb * color;
+}
+
+float4 PSDrawStack(VertInOut vert_in) : TARGET
+{
+	int i = int(vert_in.uv.y * 3);
+	float v = vert_in.uv.y * 3 - i;
+	float r = image.Sample(def_sampler, float2(vert_in.uv.x, 0.5))[i];
+	if (r >= (1-v) * hi_max[i]) r=1.0; else r=0.0;
+	float4 c = color[i];
+	return float4(c.x*r, c.y*r, c.z*r, 1.0);
+}
+
+float4 PSDrawParade(VertInOut vert_in) : TARGET
+{
+	int i = int(vert_in.uv.x * 3);
+	float u = vert_in.uv.x * 3 - i;
+	float r = image.Sample(def_sampler, float2(u, 0.5))[i];
+	if (r >= (1-vert_in.uv.y) * hi_max[i]) r=1.0; else r=0.0;
+	float4 c = color[i];
+	return float4(c.x*r, c.y*r, c.z*r, 1.0);
+}
+
+technique DrawOverlay
+{
+	pass
+	{
+		vertex_shader = VSDefault(vert_in);
+		pixel_shader  = PSDrawOverlay(vert_in);
+	}
+}
+
+technique DrawStack
+{
+	pass
+	{
+		vertex_shader = VSDefault(vert_in);
+		pixel_shader  = PSDrawStack(vert_in);
+	}
+}
+
+technique DrawParade
+{
+	pass
+	{
+		vertex_shader = VSDefault(vert_in);
+		pixel_shader  = PSDrawParade(vert_in);
+	}
+}

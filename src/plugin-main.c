@@ -25,13 +25,16 @@ OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
 extern struct obs_source_info colormonitor_vectorscope;
 extern struct obs_source_info colormonitor_waveform;
+extern struct obs_source_info colormonitor_histogram;
 extern gs_effect_t *vss_effect;
 extern gs_effect_t *wvs_effect;
+extern gs_effect_t *his_effect;
 
 bool obs_module_load(void)
 {
 	obs_register_source(&colormonitor_vectorscope);
 	obs_register_source(&colormonitor_waveform);
+	obs_register_source(&colormonitor_histogram);
 	blog(LOG_INFO, "plugin loaded successfully (version %s)", PLUGIN_VERSION);
 	return true;
 }
@@ -45,6 +48,10 @@ void obs_module_unload()
 	if (wvs_effect) {
 		gs_effect_destroy(wvs_effect);
 		wvs_effect = NULL;
+	}
+	if (his_effect) {
+		gs_effect_destroy(his_effect);
+		his_effect = NULL;
 	}
 	blog(LOG_INFO, "plugin unloaded");
 }

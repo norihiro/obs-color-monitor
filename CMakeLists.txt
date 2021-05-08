@@ -59,6 +59,7 @@ set(PLUGIN_SOURCES
 	src/plugin-main.c
 	src/vectorscope.c
 	src/waveform.c
+	src/histogram.c
 	src/obs-convenience.c
 )
 
