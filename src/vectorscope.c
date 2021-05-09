@@ -129,17 +129,17 @@ static void vss_update(void *data, obs_data_t *settings)
 		weak_source_old = NULL;
 	}
 
-	src->target_scale = obs_data_get_int(settings, "target_scale");
+	src->target_scale = (int)obs_data_get_int(settings, "target_scale");
 	if (src->target_scale<1)
 		src->target_scale = 1;
 
-	src->intensity = obs_data_get_int(settings, "intensity");
+	src->intensity = (int)obs_data_get_int(settings, "intensity");
 	if (src->intensity<1)
 		src->intensity = 1;
 
-	src->graticule = obs_data_get_int(settings, "graticule");
+	src->graticule = (int)obs_data_get_int(settings, "graticule");
 
-	int colorspace = obs_data_get_int(settings, "colorspace");
+	int colorspace = (int)obs_data_get_int(settings, "colorspace");
 	if (colorspace!=src->colorspace) {
 		src->colorspace = colorspace;
 		src->colorspace_updated = 1;
@@ -358,7 +358,7 @@ static void create_graticule_vbuf(struct vss_source *src)
 		vec3_set(vdata->points + i*6 + 3, x-dx, y+dy, 0.0f);
 		vec3_set(vdata->points + i*6 + 4, x+dx, y-dy, 0.0f);
 		vec3_set(vdata->points + i*6 + 5, x+dx, y+dy, 0.0f);
-		set_v2_uv(tvarray + i*6, 6./7., 0, 7./7., 1);
+		set_v2_uv(tvarray + i*6, 6.f/7.f, 0.f, 7.f/7.f, 1.f);
 	}
 	for (int i=0; i<6; i++) {
 		float x = pp[ppi][i][0];
@@ -368,7 +368,7 @@ static void create_graticule_vbuf(struct vss_source *src)
 		else if (y > 128) x += 20;
 		else              x -= 20;
 		set_v3_rect(vdata->points + (i+12)*6, x-8, y-8, 16, 16);
-		set_v2_uv(tvarray + (i+12)*6, i/7., 0, (i+1)/7., 1);
+		set_v2_uv(tvarray + (i+12)*6, i/7.f, 0.f, (i+1)/7.f, 1.f);
 	}
 
 	obs_leave_graphics();
@@ -414,7 +414,7 @@ static void vss_render(void *data, gs_effect_t *effect)
 	if (src->tex_vs) {
 		gs_effect_t *effect = vss_effect ? vss_effect : obs_get_base_effect(OBS_EFFECT_DEFAULT);
 		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), src->tex_vs);
-		gs_effect_set_float(gs_effect_get_param_by_name(effect, "intensity"), src->intensity);
+		gs_effect_set_float(gs_effect_get_param_by_name(effect, "intensity"), (float)src->intensity);
 		while (gs_effect_loop(effect, "Draw")) {
 			gs_draw_sprite(src->tex_vs, 0, VS_SIZE, VS_SIZE);
 		}

@@ -109,13 +109,13 @@ static void his_update(void *data, obs_data_t *settings)
 		weak_source_old = NULL;
 	}
 
-	src->target_scale = obs_data_get_int(settings, "target_scale");
+	src->target_scale = (int)obs_data_get_int(settings, "target_scale");
 	if (src->target_scale<1)
 		src->target_scale = 1;
 
-	src->display = obs_data_get_int(settings, "display");
+	src->display = (int)obs_data_get_int(settings, "display");
 
-	src->level_height = obs_data_get_int(settings, "level_height");
+	src->level_height = (int)obs_data_get_int(settings, "level_height");
 
 	src->bypass_histogram = obs_data_get_bool(settings, "bypass_histogram");
 }
@@ -206,9 +206,9 @@ static inline void his_draw_histogram(struct his_source *src, uint8_t *video_dat
 	for (int i=0; i<HI_SIZE*4; i++)
 		dbuf[i] = 0;
 
-	for (int y=0; y<height; y++) {
+	for (uint32_t y=0; y<height; y++) {
 		uint8_t *v = video_data + video_line * y;
-		for (int x=0; x<width; x++) {
+		for (uint32_t x=0; x<width; x++) {
 			const uint8_t b = *v++;
 			const uint8_t g = *v++;
 			const uint8_t r = *v++;

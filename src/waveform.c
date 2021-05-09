@@ -109,13 +109,13 @@ static void wvs_update(void *data, obs_data_t *settings)
 		weak_source_old = NULL;
 	}
 
-	src->target_scale = obs_data_get_int(settings, "target_scale");
+	src->target_scale = (int)obs_data_get_int(settings, "target_scale");
 	if (src->target_scale<1)
 		src->target_scale = 1;
 
-	src->display = obs_data_get_int(settings, "display");
+	src->display = (int)obs_data_get_int(settings, "display");
 
-	src->intensity = obs_data_get_int(settings, "intensity");
+	src->intensity = (int)obs_data_get_int(settings, "intensity");
 	if (src->intensity<1)
 		src->intensity = 1;
 
@@ -206,12 +206,12 @@ static inline void wvs_draw_waveform(struct wvs_source *src, uint8_t *video_data
 	}
 	uint8_t *dbuf = src->tex_buf;
 
-	for (int i=0; i<width*WV_SIZE*4; i++)
+	for (uint32_t i=0; i<width*WV_SIZE*4; i++)
 		dbuf[i] = 0;
 
-	for (int y=0; y<height; y++) {
+	for (uint32_t y=0; y<height; y++) {
 		uint8_t *v = video_data + video_line * y;
-		for (int x=0; x<width; x++) {
+		for (uint32_t x=0; x<width; x++) {
 			const uint8_t b = *v++;
 			const uint8_t g = *v++;
 			const uint8_t r = *v++;
@@ -305,7 +305,7 @@ static void wvs_render(void *data, gs_effect_t *effect)
 	else if (src->tex_wv) {
 		gs_effect_t *effect = wvs_effect ? wvs_effect : obs_get_base_effect(OBS_EFFECT_DEFAULT);
 		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), src->tex_wv);
-		gs_effect_set_float(gs_effect_get_param_by_name(effect, "intensity"), src->intensity);
+		gs_effect_set_float(gs_effect_get_param_by_name(effect, "intensity"), (float)src->intensity);
 		const char *name = "Draw";
 		int w = src->tex_width;
 		int h = WV_SIZE;
