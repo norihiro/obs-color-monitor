@@ -35,7 +35,7 @@ float4 PSDrawOverlay(VertInOut vert_in) : TARGET
 	if (rgb.y >= (1-vert_in.uv.y) * hi_max.y) rgb.y=1.0; else rgb.y=0.0;
 	if (rgb.z >= (1-vert_in.uv.y) * hi_max.z) rgb.z=1.0; else rgb.z=0.0;
 	rgb.a = 1.0;
-	return rgb * color;
+	return rgb;
 }
 
 float4 PSDrawStack(VertInOut vert_in) : TARGET
