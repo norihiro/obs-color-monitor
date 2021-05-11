@@ -41,6 +41,7 @@ struct vss_source
 	bool bypass_vectorscope;
 
 	bool rendered;
+	bool enumerating; // not thread safe but I have no other idea.
 };
 
 static const char *vss_get_name(void *unused)
@@ -207,11 +208,15 @@ static uint32_t vss_get_height(void *data)
 static void vss_enum_sources(void *data, obs_source_enum_proc_t enum_callback, void *param)
 {
 	struct vss_source *src = data;
+	if (src->enumerating)
+		return;
+	src->enumerating = 1;
 	obs_source_t *target = obs_weak_source_get_source(src->weak_target);
 	if (target) {
 		enum_callback(src->self, target, param);
 		obs_source_release(target);
 	}
+	src->enumerating = 0;
 }
 
 static inline void vss_draw_vectorscope(struct vss_source *src, uint8_t *video_data, uint32_t video_line)

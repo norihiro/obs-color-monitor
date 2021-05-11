@@ -37,6 +37,7 @@ struct wvs_source
 	bool bypass_waveform;
 
 	bool rendered;
+	bool enumerating; // not thread safe but I have no other idea.
 };
 
 static const char *wvs_get_name(void *unused)
@@ -185,11 +186,15 @@ static uint32_t wvs_get_height(void *data)
 static void wvs_enum_sources(void *data, obs_source_enum_proc_t enum_callback, void *param)
 {
 	struct wvs_source *src = data;
+	if (src->enumerating)
+		return;
+	src->enumerating = 1;
 	obs_source_t *target = obs_weak_source_get_source(src->weak_target);
 	if (target) {
 		enum_callback(src->self, target, param);
 		obs_source_release(target);
 	}
+	src->enumerating = 0;
 }
 
 static inline void inc_uint8(uint8_t *c) { if (*c<255) ++*c; }
