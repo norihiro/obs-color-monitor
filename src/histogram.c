@@ -34,6 +34,7 @@ struct his_source
 	int target_scale;
 	int display;
 	int level_height;
+	bool logscale;
 	bool bypass_histogram;
 
 	bool rendered;
@@ -118,6 +119,8 @@ static void his_update(void *data, obs_data_t *settings)
 
 	src->level_height = (int)obs_data_get_int(settings, "level_height");
 
+	src->logscale = obs_data_get_bool(settings, "logscale");
+
 	src->bypass_histogram = obs_data_get_bool(settings, "bypass_histogram");
 }
 
@@ -156,6 +159,7 @@ static obs_properties_t *his_get_properties(void *unused)
 	obs_property_list_add_int(prop, "Stack",   DISP_STACK);
 	obs_property_list_add_int(prop, "Parade",  DISP_PARADE);
 	obs_properties_add_int(props, "level_height", obs_module_text("Height"), 50, 2048, 1);
+	obs_properties_add_bool(props, "logscale", obs_module_text("Log scale"));
 
 	obs_properties_add_bool(props, "bypass_histogram", obs_module_text("Bypass"));
 
@@ -232,6 +236,15 @@ static inline void his_draw_histogram(struct his_source *src, uint8_t *video_dat
 		if (dbuf[i*4+0] > src->hi_max[0]) src->hi_max[0] = dbuf[i*4+0];
 		if (dbuf[i*4+1] > src->hi_max[1]) src->hi_max[1] = dbuf[i*4+1];
 		if (dbuf[i*4+2] > src->hi_max[2]) src->hi_max[2] = dbuf[i*4+2];
+	}
+
+	if (src->logscale) {
+		for (int j=0; j<3; j++) {
+			const float s = 65535.0f / logf(src->hi_max[j] + 1);
+			for (int i=0; i<HI_SIZE; i++)
+				dbuf[i*4+j] = dbuf[i*4+j] ? logf(dbuf[i*4+j] + 1) * s : 0;
+			src->hi_max[j] = 65535;
+		}
 	}
 
 	gs_texture_destroy(src->tex_hi);
@@ -316,7 +329,7 @@ static void his_render(void *data, gs_effect_t *effect)
 	else if (src->tex_hi) {
 		gs_effect_t *effect = his_effect ? his_effect : obs_get_base_effect(OBS_EFFECT_DEFAULT);
 		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), src->tex_hi);
-		struct vec3 hi_max; for (int i=0; i<3; i++) hi_max.ptr[i]=(float)src->hi_max[i] / 65535;
+		struct vec3 hi_max; for (int i=0; i<3; i++) hi_max.ptr[i]=(float)src->hi_max[i] / 65535.f;
 		gs_effect_set_vec3(gs_effect_get_param_by_name(effect, "hi_max"), &hi_max);
 		const char *name = "Draw";
 		int w = HI_SIZE;
