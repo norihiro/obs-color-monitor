@@ -2,6 +2,7 @@
 #include <util/platform.h>
 #include <util/threading.h>
 #include "plugin-macros.generated.h"
+#include <graphics/matrix4.h>
 
 #define debug(format, ...)
 
@@ -31,9 +32,12 @@ struct wvs_source
 	obs_weak_source_t *weak_target;
 	char *target_name;
 
+	gs_vertbuffer_t *graticule_line_vbuf;
+
 	int target_scale;
 	int display;
 	int intensity;
+	int graticule_lines, graticule_lines_prev;
 	bool bypass_waveform;
 
 	bool rendered;
@@ -80,6 +84,7 @@ static void wvs_destroy(void *data)
 
 	gs_texture_destroy(src->tex_wv);
 	bfree(src->tex_buf);
+	gs_vertexbuffer_destroy(src->graticule_line_vbuf);
 	obs_leave_graphics();
 
 	bfree(src->target_name);
@@ -120,11 +125,14 @@ static void wvs_update(void *data, obs_data_t *settings)
 	if (src->intensity<1)
 		src->intensity = 1;
 
+	src->graticule_lines = (int)obs_data_get_int(settings, "graticule_lines");
+
 	src->bypass_waveform = obs_data_get_bool(settings, "bypass_waveform");
 }
 
 static void wvs_get_defaults(obs_data_t *settings)
 {
+	obs_data_set_default_int(settings, "graticule_lines", 5);
 }
 
 static bool add_sources(void *data, obs_source_t *source)
@@ -157,6 +165,13 @@ static obs_properties_t *wvs_get_properties(void *unused)
 	obs_property_list_add_int(prop, "Stack",   DISP_STACK);
 	obs_property_list_add_int(prop, "Parade",  DISP_PARADE);
 	obs_properties_add_int(props, "intensity", obs_module_text("Intensity"), 1, 255, 1);
+	prop = obs_properties_add_list(props, "graticule_lines", obs_module_text("Graticule"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	obs_property_list_add_int(prop, "None", 0);
+	obs_property_list_add_int(prop, "0%, 100%", 1);
+	obs_property_list_add_int(prop, "0%, 50%, 100%", 2);
+	obs_property_list_add_int(prop, "each 25%", 4);
+	obs_property_list_add_int(prop, "each 20%", 5);
+	obs_property_list_add_int(prop, "each 10%", 10);
 
 	obs_properties_add_bool(props, "bypass_waveform", obs_module_text("Bypass"));
 
@@ -232,6 +247,22 @@ static inline void wvs_draw_waveform(struct wvs_source *src, uint8_t *video_data
 	src->tex_wv = gs_texture_create(width, WV_SIZE, GS_BGRX, 1, (const uint8_t**)&src->tex_buf, 0);
 }
 
+static void create_graticule_vbuf(struct wvs_source *src)
+{
+	obs_enter_graphics();
+	gs_vertexbuffer_destroy(src->graticule_line_vbuf);
+	src->graticule_line_vbuf = NULL;
+	if (src->graticule_lines > 0) {
+		gs_render_start(true);
+		for (int i=0; i<=src->graticule_lines; i++) {
+			gs_vertex2f(0.0f, 255.0f * i / src->graticule_lines);
+			gs_vertex2f(1.0f, 255.0f * i / src->graticule_lines);
+		}
+		src->graticule_line_vbuf = gs_render_save();
+	}
+	obs_leave_graphics();
+}
+
 static void wvs_render_target(struct wvs_source *src)
 {
 	if (src->rendered)
@@ -293,6 +324,29 @@ end:
 	obs_source_release(target);
 }
 
+static void wvs_render_graticule(struct wvs_source *src)
+{
+	gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_SOLID);
+	gs_effect_set_color(gs_effect_get_param_by_name(effect, "color"), 0x80FFBF00); // amber
+	while (gs_effect_loop(effect, "Solid")) {
+		bool stack = src->display==DISP_STACK;
+		bool parade = src->display==DISP_PARADE;
+		for (int i=0; i<(stack?3:1); i++) {
+			struct matrix4 tr = {
+				{ parade ? src->known_width*3.0f : src->known_width, 0.0f, 0.0f, 0.0f },
+				{ 0.0f, 1.0f, 0.0f, 0.0f },
+				{ 0.0f, 0.0f, 1.0f, 0.0f },
+				{ 0.0f, stack ? WV_SIZE * i : 0.0f, 0.0f, 1.0f, }
+			};
+			gs_matrix_push();
+			gs_matrix_mul(&tr);
+			gs_load_vertexbuffer(src->graticule_line_vbuf);
+			gs_draw(GS_LINES, stack && i ? 2 : 0, 0);
+			gs_matrix_pop();
+		}
+	}
+}
+
 static void wvs_render(void *data, gs_effect_t *effect)
 {
 	UNUSED_PARAMETER(effect);
@@ -330,6 +384,14 @@ static void wvs_render(void *data, gs_effect_t *effect)
 		while (gs_effect_loop(effect, name)) {
 			gs_draw_sprite(src->tex_wv, 0, w, h);
 		}
+	}
+
+	if (src->graticule_lines > 0 && !src->bypass_waveform) {
+		if (src->graticule_lines != src->graticule_lines_prev) {
+			create_graticule_vbuf(src);
+			src->graticule_lines_prev = src->graticule_lines;
+		}
+		wvs_render_graticule(src);
 	}
 }
 
