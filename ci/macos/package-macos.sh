@@ -44,7 +44,7 @@ fi
 
 echo "=> ZIP package build"
 ziproot=package-zip/$PLUGIN_NAME
-zipfile=${PLUGIN_NAME}-macos.zip
+zipfile=${PLUGIN_NAME}-${GIT_HASH}-macos.zip
 mkdir -p $ziproot/bin
 cp ./build/$PLUGIN_NAME.so $ziproot/bin/
 cp -a data $ziproot/
