@@ -10,8 +10,17 @@
 #define VS_SIZE 256
 #define SOURCE_CHECK_NS 3000000000
 #define N_GRATICULES 18
+#define SKIN_TONE_LINE 0x99ABCB // BGR
 
 gs_effect_t *vss_effect = NULL;
+
+#define RGB2Y_601(r, g, b) ((+306*(r) +601*(g) +117*(b))/1024 +  0)
+#define RGB2U_601(r, g, b) ((-150*(r) -296*(g) +448*(b))/1024 +128)
+#define RGB2V_601(r, g, b) ((+448*(r) -374*(g) - 72*(b))/1024 +128)
+
+#define RGB2Y_709(r, g, b) ((+218*(r) +732*(g) + 74*(b))/1024 + 16)
+#define RGB2U_709(r, g, b) ((-102*(r) -346*(g) +450*(b))/1024 +128)
+#define RGB2V_709(r, g, b) ((+450*(r) -408*(g) - 40*(b))/1024 +128)
 
 struct vss_source
 {
@@ -31,13 +40,15 @@ struct vss_source
 
 	gs_image_file_t graticule_img;
 	gs_vertbuffer_t *graticule_vbuf;
+	gs_vertbuffer_t *graticule_line_vbuf;
 
 	int target_scale;
 	int intensity;
 	int graticule;
+	int graticule_skintone_color;
 	int colorspace;
 	int colorspace_calc; // get from ovi if auto
-	bool colorspace_updated;
+	bool update_graticule;
 	bool bypass_vectorscope;
 
 	bool rendered;
@@ -100,6 +111,7 @@ static void vss_destroy(void *data)
 	bfree(src->tex_buf);
 	gs_image_file_free(&src->graticule_img);
 	gs_vertexbuffer_destroy(src->graticule_vbuf);
+	gs_vertexbuffer_destroy(src->graticule_line_vbuf);
 	obs_leave_graphics();
 
 	bfree(src->target_name);
@@ -140,10 +152,16 @@ static void vss_update(void *data, obs_data_t *settings)
 
 	src->graticule = (int)obs_data_get_int(settings, "graticule");
 
+	int graticule_skintone_color = (int)obs_data_get_int(settings, "graticule_skintone_color") & 0xFFFFFF;
+	if (graticule_skintone_color!=src->graticule_skintone_color) {
+		src->graticule_skintone_color = graticule_skintone_color;
+		src->update_graticule = 1;
+	}
+
 	int colorspace = (int)obs_data_get_int(settings, "colorspace");
 	if (colorspace!=src->colorspace) {
 		src->colorspace = colorspace;
-		src->colorspace_updated = 1;
+		src->update_graticule = 1;
 	}
 	src->bypass_vectorscope = obs_data_get_bool(settings, "bypass_vectorscope");
 }
@@ -151,6 +169,7 @@ static void vss_update(void *data, obs_data_t *settings)
 static void vss_get_defaults(obs_data_t *settings)
 {
 	obs_data_set_default_int(settings, "graticule", 1);
+	obs_data_set_default_int(settings, "graticule_skintone_color", SKIN_TONE_LINE);
 }
 
 static bool add_sources(void *data, obs_source_t *source)
@@ -182,6 +201,8 @@ static obs_properties_t *vss_get_properties(void *unused)
 	prop = obs_properties_add_list(props, "graticule", obs_module_text("Graticule"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, "None", 0);
 	obs_property_list_add_int(prop, "Green", 1);
+
+	obs_properties_add_color(props, "graticule_skintone_color", obs_module_text("Skin tone color"));
 
 	prop = obs_properties_add_list(props, "colorspace", obs_module_text("Color space"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, "Auto", 0);
@@ -241,16 +262,15 @@ static inline void vss_draw_vectorscope(struct vss_source *src, uint8_t *video_d
 			int u;
 			int v;
 			switch (src->colorspace_calc) {
-				case 1:// BT.601
-					// y = (+306*r +601*g +117*b)/1024 +0;
-					u = (-150*r -296*g +448*b)/1024 +128;
-					v = (+448*r -374*g -72*b)/1024 +128;
+				case 1: // BT.601
+					u = RGB2U_601(r, g, b);
+					v = RGB2V_601(r, g, b);
 					break;
 				case 2: // BT.709
-					// y = (+218*r +732*g +74*b)/1024 +16;
-					u = (-102*r -346*g +450*b)/1024 +128;
-					v = (+450*r -408*g -40*b)/1024 +128;
+					u = RGB2U_709(r, g, b);
+					v = RGB2V_709(r, g, b);
 					break;
+				default:
 					u = -1;
 					v = -1;
 			}
@@ -351,20 +371,8 @@ static void create_graticule_vbuf(struct vss_source *src)
 		},
 	};
 	const int ppi = src->colorspace_calc-1;
-	for (int i=0; i<12; i++) {
-		const float x = pp[ppi][i][0];
-		const float y = 256.f-pp[ppi][i][1];
-		const float dx = 8.0f; // (x-y) * 8.0f / hypotf(y-128, x-128);
-		const float dy = 8.0f; // (x+y-256) * 8.0f / hypotf(y-128, x-128);
-		// set_v3_rect(vdata->points + i*6, x-8, y-8, 16, 16);
-		vec3_set(vdata->points + i*6 + 0, x-dx, y-dy, 0.0f);
-		vec3_set(vdata->points + i*6 + 1, x+dx, y-dy, 0.0f);
-		vec3_set(vdata->points + i*6 + 2, x-dx, y+dy, 0.0f);
-		vec3_set(vdata->points + i*6 + 3, x-dx, y+dy, 0.0f);
-		vec3_set(vdata->points + i*6 + 4, x+dx, y-dy, 0.0f);
-		vec3_set(vdata->points + i*6 + 5, x+dx, y+dy, 0.0f);
-		set_v2_uv(tvarray + i*6, 6.f/7.f, 0.f, 7.f/7.f, 1.f);
-	}
+
+	// label
 	for (int i=0; i<6; i++) {
 		float x = pp[ppi][i][0];
 		float y = 256.f-pp[ppi][i][1];
@@ -372,9 +380,57 @@ static void create_graticule_vbuf(struct vss_source *src)
 		else if (x > 184) y -= 20;
 		else if (y > 128) x += 20;
 		else              x -= 20;
-		set_v3_rect(vdata->points + (i+12)*6, x-8, y-8, 16, 16);
-		set_v2_uv(tvarray + (i+12)*6, i/7.f, 0.f, (i+1)/7.f, 1.f);
+		set_v3_rect(vdata->points + i*6, x-8, y-8, 16, 16);
+		set_v2_uv(tvarray + i*6, i/6.f, 0.f, (i+1)/6.f, 1.f);
 	}
+
+	// box
+	gs_vertexbuffer_destroy(src->graticule_line_vbuf);
+	src->graticule_line_vbuf = NULL;
+	gs_render_start(true);
+	for (int i=0; i<12; i++) {
+		const float x = pp[ppi][i][0];
+		const float y = 256.f-pp[ppi][i][1];
+		const float box[16][2] = {
+			{ -6, -6 }, { -2, -6 },
+			{ -6, -6 }, { -6, -2 },
+			{ +6, -6 }, { +2, -6 },
+			{ +6, -6 }, { +6, -2 },
+			{ -6, +6 }, { -2, +6 },
+			{ -6, +6 }, { -6, +2 },
+			{ +6, +6 }, { +2, +6 },
+			{ +6, +6 }, { +6, +2 },
+		};
+		for (int j=0; j<16; j++)
+			gs_vertex2f(x+box[j][0], y+box[j][1]);
+	}
+
+	// skin tone line
+	float stl_u, stl_v, stl_norm;
+	int stl_b = src->graticule_skintone_color >> 16 & 0xFF;
+	int stl_g = src->graticule_skintone_color >> 8 & 0xFF;
+	int stl_r = src->graticule_skintone_color & 0xFF;
+	switch(src->colorspace_calc) {
+		case 1: // BT.601
+			stl_u = RGB2U_601(stl_r, stl_g, stl_b);
+			stl_v = RGB2V_601(stl_r, stl_g, stl_b);
+			break;
+		default: // BT.709
+			stl_u = RGB2U_709(stl_r, stl_g, stl_b);
+			stl_v = RGB2V_709(stl_r, stl_g, stl_b);
+			break;
+	}
+	stl_norm = hypotf(stl_u-128.0f, stl_v-128.0f);
+	if (stl_norm > 1.0f) {
+		stl_u = (stl_u-128.0f) * 128.f/stl_norm + 128.0f;
+		stl_v = (stl_v-128.0f) * 128.f/stl_norm + 128.0f;
+		printf("RGB: %d %d %d UV: %f %f\n", stl_r, stl_g, stl_b, stl_u, stl_v);
+		gs_vertex2f(128.0f, 128.0f);
+		gs_vertex2f(stl_u, 255.f-stl_v);
+	}
+
+	// boxes and skin tone line
+	src->graticule_line_vbuf = gs_render_save();
 
 	obs_leave_graphics();
 }
@@ -384,9 +440,9 @@ static void vss_render(void *data, gs_effect_t *effect)
 	UNUSED_PARAMETER(effect);
 	struct vss_source *src = data;
 
-	if (src->colorspace_updated || src->colorspace_calc<1) {
+	if (src->update_graticule || src->colorspace_calc<1) {
 		src->colorspace_calc = src->colorspace;
-		src->colorspace_updated = 0;
+		src->update_graticule = 0;
 		if (src->colorspace_calc<1 || 2<src->colorspace_calc) {
 			struct obs_video_info ovi;
 			if (obs_get_video_info(&ovi)) {
@@ -403,6 +459,8 @@ static void vss_render(void *data, gs_effect_t *effect)
 		}
 		gs_vertexbuffer_destroy(src->graticule_vbuf);
 		src->graticule_vbuf = NULL;
+		gs_vertexbuffer_destroy(src->graticule_line_vbuf);
+		src->graticule_line_vbuf = NULL;
 	}
 
 	vss_render_target(src);
@@ -428,7 +486,16 @@ static void vss_render(void *data, gs_effect_t *effect)
 	if (src->graticule_img.loaded && src->graticule) {
 		create_graticule_vbuf(src);
 		gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
-		draw_uv_vbuffer(src->graticule_vbuf, src->graticule_img.texture, effect, N_GRATICULES*6);
+		draw_uv_vbuffer(src->graticule_vbuf, src->graticule_img.texture, effect, N_GRATICULES*2);
+	}
+
+	if (src->graticule && src->graticule_line_vbuf) {
+		gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_SOLID);
+		gs_effect_set_color(gs_effect_get_param_by_name(effect, "color"), 0x8000FF00); // green
+		gs_load_vertexbuffer(src->graticule_line_vbuf);
+		while (gs_effect_loop(effect, "Solid")) {
+			gs_draw(GS_LINES, 0, 0);
+		}
 	}
 }
 

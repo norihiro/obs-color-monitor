@@ -7,9 +7,9 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="112"
+   width="96"
    height="16"
-   viewBox="0 0 29.633333 4.2333335"
+   viewBox="0 0 25.400005 4.2333335"
    version="1.1"
    id="svg8"
    inkscape:version="1.0.1 (3bc2e813f5, 2020-09-07)"
@@ -26,9 +26,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:zoom="25.859905"
-     inkscape:cx="94.951687"
-     inkscape:cy="6.3753542"
+     inkscape:zoom="9.1428571"
+     inkscape:cx="47.0704"
+     inkscape:cy="20.050442"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      inkscape:document-rotation="0"
@@ -134,28 +134,5 @@
          x="23.283335"
          y="3.087323"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.52778px;font-family:monospace;-inkscape-font-specification:'monospace, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#00ff00;stroke:none;stroke-width:0.264583px">Mg</tspan></text>
-    <rect
-       style="opacity:1;fill:none;fill-rule:evenodd;stroke:#00ff00;stroke-width:0.264583;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke markers fill"
-       id="rect935"
-       width="2.9104171"
-       height="2.9104171"
-       x="26.061459"
-       y="4.8947916" />
-    <path
-       style="fill:none;fill-rule:evenodd;stroke:#00ff00;stroke-width:0.264583;stroke-linecap:square;paint-order:stroke markers fill"
-       d="m 26.855208,0.66145816 h -0.79375 V 1.4552085"
-       id="path844" />
-    <path
-       style="fill:none;fill-rule:evenodd;stroke:#00ff00;stroke-width:0.264582;stroke-linecap:square;paint-order:stroke markers fill"
-       d="m 28.178124,0.66145767 h 0.793751 V 1.455209"
-       id="path844-7" />
-    <path
-       style="fill:none;fill-rule:evenodd;stroke:#00ff00;stroke-width:0.264583;stroke-linecap:square;paint-order:stroke markers fill"
-       d="m 26.855208,3.5718751 h -0.79375 V 2.7781248"
-       id="path844-2" />
-    <path
-       style="fill:none;fill-rule:evenodd;stroke:#00ff00;stroke-width:0.264583;stroke-linecap:square;paint-order:stroke markers fill"
-       d="m 28.178125,3.5718752 h 0.79375 V 2.7781248"
-       id="path844-7-7" />
   </g>
 </svg>
