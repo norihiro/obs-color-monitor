@@ -37,6 +37,9 @@ static bool add_sources(void *data, obs_source_t *source)
 
 void property_list_add_sources(obs_property_t *prop, obs_source_t *self)
 {
+	// current scene
+	obs_property_list_add_string(prop, obs_module_text("Program"), "");
+
 	// scenes, same order as the scene list
 	obs_frontend_source_list sceneList = {};
 	obs_frontend_get_scenes(&sceneList);

@@ -2,6 +2,7 @@
 #include <graphics/image-file.h>
 #include <util/platform.h>
 #include <util/threading.h>
+#include <obs-frontend-api.h>
 #include "plugin-macros.generated.h"
 #include "obs-convenience.h"
 #include "common.h"
@@ -492,7 +493,14 @@ static void vss_tick(void *data, float unused)
 	struct vss_source *src = data;
 
 	pthread_mutex_lock(&src->target_update_mutex);
-	if (src->target_name && *src->target_name && !src->weak_target && src->target_check_time) {
+	if (src->target_name && !*src->target_name) {
+		obs_source_t *target = obs_frontend_get_current_scene();
+		if (src->weak_target)
+			obs_weak_source_release(src->weak_target);
+		src->weak_target = target ? obs_source_get_weak_source(target) : NULL;
+		obs_source_release(target);
+	}
+	else if (src->target_name && *src->target_name && !src->weak_target && src->target_check_time) {
 		uint64_t t = os_gettime_ns();
 		if (t - src->target_check_time > SOURCE_CHECK_NS) {
 			src->target_check_time = t;
