@@ -14,12 +14,10 @@ fi
 
 echo "=> Preparing package build"
 GIT_HASH=$(git rev-parse --short HEAD)
-GIT_BRANCH_OR_TAG=$(git name-rev --name-only HEAD | awk -F/ '{print $NF}')
+GIT_TAG=$(/usr/bin/git describe --tags)
 
-PKG_VERSION="$GIT_HASH-$GIT_BRANCH_OR_TAG"
-
-FILENAME_UNSIGNED="$PLUGIN_NAME-$PKG_VERSION-Unsigned.pkg"
-FILENAME="$PLUGIN_NAME-$PKG_VERSION.pkg"
+FILENAME_UNSIGNED="$PLUGIN_NAME-${GIT_TAG}-Unsigned.pkg"
+FILENAME="$PLUGIN_NAME-${GIT_TAG}.pkg"
 
 echo "=> Modifying $PLUGIN_NAME.so"
 install_name_tool \
@@ -44,7 +42,7 @@ fi
 
 echo "=> ZIP package build"
 ziproot=package-zip/$PLUGIN_NAME
-zipfile=${PLUGIN_NAME}-macos.zip
+zipfile=${PLUGIN_NAME}-${GIT_TAG}-macos.zip
 mkdir -p $ziproot/bin
 cp ./build/$PLUGIN_NAME.so $ziproot/bin/
 cp -a data $ziproot/
@@ -53,7 +51,6 @@ mkdir -p ./release
 
 echo "=> DMG package build"
 if pip3 install dmgbuild || pip install dmgbuild; then
-	GIT_TAG=$(/usr/bin/git describe --tags)
 	sed \
 		-e "s;%PLUGIN_NAME%;$PLUGIN_NAME;g" \
 		-e "s;%VERSION%;${GIT_TAG};g" \
