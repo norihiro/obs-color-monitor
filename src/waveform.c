@@ -3,6 +3,7 @@
 #include <util/threading.h>
 #include "plugin-macros.generated.h"
 #include <graphics/matrix4.h>
+#include "common.h"
 
 #define debug(format, ...)
 
@@ -135,29 +136,15 @@ static void wvs_get_defaults(obs_data_t *settings)
 	obs_data_set_default_int(settings, "graticule_lines", 5);
 }
 
-static bool add_sources(void *data, obs_source_t *source)
+static obs_properties_t *wvs_get_properties(void *data)
 {
-	obs_property_t *prop = data;
-	uint32_t caps = obs_source_get_output_flags(source);
-
-	if (~caps & OBS_SOURCE_VIDEO)
-		return true;
-
-	const char *name = obs_source_get_name(source);
-	obs_property_list_add_string(prop, name, name);
-	return true;
-}
-
-static obs_properties_t *wvs_get_properties(void *unused)
-{
-	UNUSED_PARAMETER(unused);
+	struct wvs_source *src = data;
 	obs_properties_t *props;
 	obs_property_t *prop;
 	props = obs_properties_create();
 
 	prop = obs_properties_add_list(props, "target_name", obs_module_text("Source"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
-	obs_enum_scenes(add_sources, prop);
-	obs_enum_sources(add_sources, prop);
+	property_list_add_sources(prop, src ? src->self : NULL);
 
 	obs_properties_add_int(props, "target_scale", obs_module_text("Scale"), 1, 128, 1);
 	prop = obs_properties_add_list(props, "display", obs_module_text("Display"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
