@@ -27,6 +27,7 @@ install_name_tool \
 		@executable_path/../Frameworks/QtGui.framework/Versions/5/QtGui \
 	-change /tmp/obsdeps/lib/QtCore.framework/Versions/5/QtCore \
 		@executable_path/../Frameworks/QtCore.framework/Versions/5/QtCore \
+	-change @rpath/libobs-frontend-api.dylib @executable_path/../Frameworks/libobs-frontend-api.dylib \
 	./build/$PLUGIN_NAME.so
 
 # Check if replacement worked
