@@ -108,8 +108,6 @@ jobs:
     vmImage: 'ubuntu-18.04'
   variables:
       BUILD_REASON: $(Build.Reason)
-      BRANCH_SHORT_NAME: $(Build.SourceBranchName)
-      BRANCH_FULL_NAME: $(Build.SourceBranch)
   steps:
     - checkout: self
       submodules: true
