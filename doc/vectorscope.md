@@ -32,6 +32,7 @@ Default is `1`. Available range is an integer number between `1` - `255`.
 Choice of graticule.
 
 | Choice | Description |
+|--------|-------------|
 | `None` | No graticule will be displayed. |
 | `Green` (default) | 6 boxes for primary colors, these labels, and skin tone line will be displayed in green. |
 

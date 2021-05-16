@@ -4,9 +4,9 @@
 
 This plugin provides three sources to monitor color balances.
 
-- Vectorscope
-- Waveform
-- Histogram
+- [Vectorscope](doc/vectorscope.md)
+- [Waveform](doc/waveform.md)
+- [Histogram](doc/histogram.md)
 
 ## Quick Usage
 

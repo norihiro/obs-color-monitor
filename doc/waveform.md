@@ -29,6 +29,7 @@ Default is `1`, which means not to scale. Available range is an integer number b
 
 Choice of displaying mode; Overlay, Stack, or Parade.
 | Display | Description |
+|---------|-------------|
 | Overlay (default) | Each color components will be displayed on the same place by each color. |
 | Stack | R, G, B waveforms are displayed from the top to the bottom. |
 | Parade | R, G, B waveforms are displayed from the left to the right. |
@@ -45,6 +46,7 @@ Default is `1`. Available range is an integer number between `1` - `255`.
 Choice of graticule.
 
 | Choice | Description |
+|--------|-------------|
 | `None` | No graticule will be displayed. |
 | `0%, 100%` | 2 lines will be displayed at 0% and 100%. |
 | `0%, 50%, 100%` | 3 lines will be displayed. |
