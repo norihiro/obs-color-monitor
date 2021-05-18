@@ -500,6 +500,13 @@ static void vss_tick(void *data, float unused)
 		src->weak_target = target ? obs_source_get_weak_source(target) : NULL;
 		obs_source_release(target);
 	}
+	if (is_preview_name(src->target_name)) {
+		obs_source_t *target = obs_frontend_get_current_preview_scene();
+		if (src->weak_target)
+			obs_weak_source_release(src->weak_target);
+		src->weak_target = target ? obs_source_get_weak_source(target) : NULL;
+		obs_source_release(target);
+	}
 	else if (src->target_name && *src->target_name && !src->weak_target && src->target_check_time) {
 		uint64_t t = os_gettime_ns();
 		if (t - src->target_check_time > SOURCE_CHECK_NS) {
