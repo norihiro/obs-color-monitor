@@ -8,7 +8,7 @@ Vectorscope shows population of each chrominance components of a source to help 
 
 ### Source
 
-Selects one of Program, Scene, or Source.
+Selects one of Program, Preview, Scene, or Source.
 Default is Program.
 
 ### Scale
