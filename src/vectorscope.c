@@ -28,6 +28,7 @@ struct vss_source
 {
 	obs_source_t *self;
 	gs_texrender_t *texrender;
+	gs_texrender_t *texrender_uv;
 	gs_stagesurf_t* stagesurface;
 	uint32_t known_width;
 	uint32_t known_height;
@@ -72,6 +73,7 @@ static void *vss_create(obs_data_t *settings, obs_source_t *source)
 	src->self = source;
 	obs_enter_graphics();
 	src->texrender = gs_texrender_create(GS_BGRA, GS_ZS_NONE);
+	src->texrender_uv = gs_texrender_create(GS_BGRA, GS_ZS_NONE);
 	if (!vss_effect) {
 		char *f = obs_module_file("vectorscope.effect");
 		vss_effect = gs_effect_create_from_file(f, NULL);
@@ -108,6 +110,7 @@ static void vss_destroy(void *data)
 	obs_enter_graphics();
 	gs_stagesurface_destroy(src->stagesurface);
 	gs_texrender_destroy(src->texrender);
+	gs_texrender_destroy(src->texrender_uv);
 
 	gs_texture_destroy(src->tex_vs);
 	bfree(src->tex_buf);
@@ -239,38 +242,25 @@ static inline void vss_draw_vectorscope(struct vss_source *src, uint8_t *video_d
 
 	const uint32_t height = src->known_height;
 	const uint32_t width = src->known_width;
+	uint8_t *vd = video_data;
+	uint32_t vd_add = video_line - width*4;
 	for (uint32_t y=0; y<height; y++) {
-		uint8_t *v = video_data + video_line * y;
+		// uint8_t *vd = video_data + video_line * y;
 		for (uint32_t x=0; x<width; x++) {
-			const uint8_t b = *v++;
-			const uint8_t g = *v++;
-			const uint8_t r = *v++;
-			const uint8_t a = *v++;
-			if (!a) continue;
-			int u;
-			int v;
-			switch (src->colorspace_calc) {
-				case 1: // BT.601
-					u = RGB2U_601(r, g, b);
-					v = RGB2V_601(r, g, b);
-					break;
-				case 2: // BT.709
-					u = RGB2U_709(r, g, b);
-					v = RGB2V_709(r, g, b);
-					break;
-				default:
-					u = -1;
-					v = -1;
-			}
-			if (u<0 || 255<u || v<0 || 255<v)
-				continue;
+			const uint8_t u = *vd++;
+			const uint8_t v = *vd++;
+			const uint8_t b = *vd++;
+			const uint8_t a = *vd++;
 			uint8_t *c = dbuf + (u + VS_SIZE*(255-v));
 			if (*c<255) ++*c;
 		}
+		vd += vd_add;
 	}
 
-	gs_texture_destroy(src->tex_vs);
-	src->tex_vs = gs_texture_create(VS_SIZE, VS_SIZE, GS_R8, 1, (const uint8_t**)&src->tex_buf, 0);
+	if (!src->tex_vs)
+		src->tex_vs = gs_texture_create(VS_SIZE, VS_SIZE, GS_R8, 1, (const uint8_t**)&src->tex_buf, GS_DYNAMIC);
+	else
+		gs_texture_set_image(src->tex_vs, src->tex_buf, VS_SIZE, false);
 }
 
 static void vss_render_target(struct vss_source *src)
@@ -304,8 +294,6 @@ static void vss_render_target(struct vss_source *src)
 
 		obs_source_video_render(target);
 
-		gs_blend_state_pop();
-
 		gs_texrender_end(src->texrender);
 
 		if (width != src->known_width || height != src->known_height) {
@@ -315,19 +303,35 @@ static void vss_render_target(struct vss_source *src)
 			src->known_height = height;
 		}
 
-		gs_stage_texture(src->stagesurface, gs_texrender_get_texture(src->texrender));
-		uint8_t *video_data = NULL;
-		uint32_t video_linesize;
-		if (gs_stagesurface_map(src->stagesurface, &video_data, &video_linesize)) {
-			if (src->bypass_vectorscope) {
-				gs_texture_destroy(src->tex_vs);
-				src->tex_vs = gs_texture_create(width, height, GS_BGRA, 1, (const uint8_t**)&video_data, 0);
-			}
-			else
-				vss_draw_vectorscope(src, video_data, video_linesize);
-		}
-		gs_stagesurface_unmap(src->stagesurface);
+		if (src->bypass_vectorscope) {
+			gs_blend_state_pop();
 
+			goto end;
+		}
+
+		gs_texrender_reset(src->texrender_uv);
+		if (vss_effect && gs_texrender_begin(src->texrender_uv, width, height)) {
+			gs_ortho(0.0f, (float)width, 0.0f, (float)height, -100.0f, 100.0f);
+
+			gs_effect_t *effect = vss_effect;
+			gs_texture_t *tex = gs_texrender_get_texture(src->texrender);
+			if (tex) {
+				gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), tex);
+				while (gs_effect_loop(effect, src->colorspace_calc==1 ? "ConvertRGB_UV601" : "ConvertRGB_UV709")) {
+					gs_draw_sprite(tex, 0, width, height);
+				}
+			}
+			gs_texrender_end(src->texrender_uv);
+
+			gs_stage_texture(src->stagesurface, gs_texrender_get_texture(src->texrender_uv));
+			uint8_t *video_data = NULL;
+			uint32_t video_linesize;
+			if (gs_stagesurface_map(src->stagesurface, &video_data, &video_linesize)) {
+				vss_draw_vectorscope(src, video_data, video_linesize);
+				gs_stagesurface_unmap(src->stagesurface);
+			}
+		}
+		gs_blend_state_pop();
 	}
 
 end:
@@ -412,7 +416,6 @@ static void create_graticule_vbuf(struct vss_source *src)
 	if (stl_norm > 1.0f) {
 		stl_u = (stl_u-128.0f) * 128.f/stl_norm + 128.0f;
 		stl_v = (stl_v-128.0f) * 128.f/stl_norm + 128.0f;
-		printf("RGB: %d %d %d UV: %f %f\n", stl_r, stl_g, stl_b, stl_u, stl_v);
 		gs_vertex2f(128.0f, 128.0f);
 		gs_vertex2f(stl_u, 255.f-stl_v);
 	}
@@ -453,11 +456,12 @@ static void vss_render(void *data, gs_effect_t *effect)
 
 	vss_render_target(src);
 
-	if (src->bypass_vectorscope && src->tex_vs) {
+	if (src->bypass_vectorscope) {
 		gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
-		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), src->tex_vs);
+		gs_texture_t *tex = gs_texrender_get_texture(src->texrender);
+		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), tex);
 		while (gs_effect_loop(effect, "Draw")) {
-			gs_draw_sprite(src->tex_vs, 0, src->known_width, src->known_height);
+			gs_draw_sprite(tex, 0, src->known_width, src->known_height);
 		}
 		return;
 	}
