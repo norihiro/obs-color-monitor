@@ -460,6 +460,8 @@ static void vss_render(void *data, gs_effect_t *effect)
 	if (src->bypass_vectorscope) {
 		gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
 		gs_texture_t *tex = gs_texrender_get_texture(src->texrender);
+		if (!tex)
+			return;
 		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), tex);
 		while (gs_effect_loop(effect, "Draw")) {
 			gs_draw_sprite(tex, 0, src->known_width, src->known_height);
