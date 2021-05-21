@@ -134,6 +134,7 @@ static void wvs_update(void *data, obs_data_t *settings)
 
 static void wvs_get_defaults(obs_data_t *settings)
 {
+	obs_data_set_default_int(settings, "target_scale", 2);
 	obs_data_set_default_int(settings, "graticule_lines", 5);
 }
 
