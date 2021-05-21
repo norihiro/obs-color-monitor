@@ -212,6 +212,7 @@ static inline void wvs_draw_waveform(struct wvs_source *src, uint8_t *video_data
 		bfree(src->tex_buf);
 		src->tex_buf = bzalloc(width*WV_SIZE*4);
 		src->tex_width = width;
+		gs_texture_destroy(src->tex_wv); src->tex_wv = NULL;
 	}
 	uint8_t *dbuf = src->tex_buf;
 
@@ -232,8 +233,10 @@ static inline void wvs_draw_waveform(struct wvs_source *src, uint8_t *video_data
 		}
 	}
 
-	gs_texture_destroy(src->tex_wv);
-	src->tex_wv = gs_texture_create(width, WV_SIZE, GS_BGRX, 1, (const uint8_t**)&src->tex_buf, 0);
+	if (!src->tex_wv)
+		src->tex_wv = gs_texture_create(width, WV_SIZE, GS_BGRX, 1, (const uint8_t**)&src->tex_buf, GS_DYNAMIC);
+	else
+		gs_texture_set_image(src->tex_wv, src->tex_buf, width*4, false);
 }
 
 static void create_graticule_vbuf(struct wvs_source *src)
@@ -294,19 +297,15 @@ static void wvs_render_target(struct wvs_source *src)
 			src->known_height = height;
 		}
 
-		gs_stage_texture(src->stagesurface, gs_texrender_get_texture(src->texrender));
-		uint8_t *video_data = NULL;
-		uint32_t video_linesize;
-		if (gs_stagesurface_map(src->stagesurface, &video_data, &video_linesize)) {
-			if (src->bypass_waveform) {
-				gs_texture_destroy(src->tex_wv);
-				src->tex_wv = gs_texture_create(width, height, GS_BGRA, 1, (const uint8_t**)&video_data, 0);
-			}
-			else
+		if (!src->bypass_waveform) {
+			gs_stage_texture(src->stagesurface, gs_texrender_get_texture(src->texrender));
+			uint8_t *video_data = NULL;
+			uint32_t video_linesize;
+			if (gs_stagesurface_map(src->stagesurface, &video_data, &video_linesize)) {
 				wvs_draw_waveform(src, video_data, video_linesize);
+			}
+			gs_stagesurface_unmap(src->stagesurface);
 		}
-		gs_stagesurface_unmap(src->stagesurface);
-
 	}
 
 end:
@@ -343,14 +342,19 @@ static void wvs_render(void *data, gs_effect_t *effect)
 
 	wvs_render_target(src);
 
-	if (src->bypass_waveform && src->tex_wv) {
+	if (src->bypass_waveform) {
 		gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
-		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), src->tex_wv);
+		gs_texture_t *tex = gs_texrender_get_texture(src->texrender);
+		if (!tex)
+			return;
+		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), tex);
 		while (gs_effect_loop(effect, "Draw")) {
-			gs_draw_sprite(src->tex_wv, 0, src->known_width, src->known_height);
+			gs_draw_sprite(tex, 0, src->known_width, src->known_height);
 		}
+		return;
 	}
-	else if (src->tex_wv) {
+
+	if (src->tex_wv) {
 		gs_effect_t *effect = wvs_effect ? wvs_effect : obs_get_base_effect(OBS_EFFECT_DEFAULT);
 		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), src->tex_wv);
 		gs_effect_set_float(gs_effect_get_param_by_name(effect, "intensity"), (float)src->intensity);
@@ -375,7 +379,7 @@ static void wvs_render(void *data, gs_effect_t *effect)
 		}
 	}
 
-	if (src->graticule_lines > 0 && !src->bypass_waveform) {
+	if (src->graticule_lines > 0) {
 		if (src->graticule_lines != src->graticule_lines_prev) {
 			create_graticule_vbuf(src);
 			src->graticule_lines_prev = src->graticule_lines;

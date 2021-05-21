@@ -236,8 +236,10 @@ static inline void his_draw_histogram(struct his_source *src, uint8_t *video_dat
 		}
 	}
 
-	gs_texture_destroy(src->tex_hi);
-	src->tex_hi = gs_texture_create(HI_SIZE, 1, GS_RGBA16, 1, (const uint8_t**)&src->tex_buf, 0);
+	if (!src->tex_hi)
+		src->tex_hi = gs_texture_create(HI_SIZE, 1, GS_RGBA16, 1, (const uint8_t**)&src->tex_buf, GS_DYNAMIC);
+	else
+		gs_texture_set_image(src->tex_hi, src->tex_buf, sizeof(uint16_t)*HI_SIZE*4, false);
 }
 
 static void his_render_target(struct his_source *src)
@@ -282,19 +284,15 @@ static void his_render_target(struct his_source *src)
 			src->known_height = height;
 		}
 
-		gs_stage_texture(src->stagesurface, gs_texrender_get_texture(src->texrender));
-		uint8_t *video_data = NULL;
-		uint32_t video_linesize;
-		if (gs_stagesurface_map(src->stagesurface, &video_data, &video_linesize)) {
-			if (src->bypass_histogram) {
-				gs_texture_destroy(src->tex_hi);
-				src->tex_hi = gs_texture_create(width, height, GS_BGRA, 1, (const uint8_t**)&video_data, 0);
-			}
-			else
+		if (!src->bypass_histogram) {
+			gs_stage_texture(src->stagesurface, gs_texrender_get_texture(src->texrender));
+			uint8_t *video_data = NULL;
+			uint32_t video_linesize;
+			if (gs_stagesurface_map(src->stagesurface, &video_data, &video_linesize)) {
 				his_draw_histogram(src, video_data, video_linesize);
+			}
+			gs_stagesurface_unmap(src->stagesurface);
 		}
-		gs_stagesurface_unmap(src->stagesurface);
-
 	}
 
 end:
@@ -308,14 +306,18 @@ static void his_render(void *data, gs_effect_t *effect)
 
 	his_render_target(src);
 
-	if (src->bypass_histogram && src->tex_hi) {
+	if (src->bypass_histogram) {
 		gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
-		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), src->tex_hi);
-		while (gs_effect_loop(effect, "Draw")) {
-			gs_draw_sprite(src->tex_hi, 0, src->known_width, src->known_height);
-		}
+		gs_texture_t *tex = gs_texrender_get_texture(src->texrender);
+		if (!tex)
+			return;
+		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), tex);
+		while (gs_effect_loop(effect, "Draw"))
+			gs_draw_sprite(tex, 0, src->known_width, src->known_height);
+		return;
 	}
-	else if (src->tex_hi) {
+
+	if (src->tex_hi) {
 		gs_effect_t *effect = his_effect ? his_effect : obs_get_base_effect(OBS_EFFECT_DEFAULT);
 		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), src->tex_hi);
 		struct vec3 hi_max; for (int i=0; i<3; i++) hi_max.ptr[i]=(float)src->hi_max[i] / 65535.f;
