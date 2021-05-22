@@ -20,7 +20,7 @@ Scale factor before calculating vectorscope.
 The width and height of the source will be scaled by this number.
 Main purpose is to shorten the rendering time.
 Larger value will degrade the accuracy and intensity.
-Default is `1`, which means not to scale. Available range is an integer number beween `1` - `128`.
+Default is `2`, which means width and height are both scaled by half. Available range is an integer number beween `1` - `128`.
 
 ### Display
 
