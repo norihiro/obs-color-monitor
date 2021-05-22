@@ -16,6 +16,7 @@ static const char *prof_render_name = "vss_render";
 static const char *prof_render_name_b = "vss_render_bypass";
 static const char *prof_render_target_name = "render_target";
 static const char *prof_convert_yuv_name = "convert_yuv";
+static const char *prof_stage_surface_name = "stage_surface";
 static const char *prof_draw_vectorscope_name = "draw_vectorscope";
 static const char *prof_draw_name = "draw";
 static const char *prof_draw_graticule_name = "graticule";
@@ -356,10 +357,12 @@ static void vss_render_target(struct vss_source *src)
 			gs_texrender_end(src->texrender_uv);
 			PROFILE_END(prof_convert_yuv_name);
 
-			PROFILE_START(prof_draw_vectorscope_name);
+			PROFILE_START(prof_stage_surface_name);
 			gs_stage_texture(src->stagesurface, gs_texrender_get_texture(src->texrender_uv));
+			PROFILE_END(prof_stage_surface_name);
 			uint8_t *video_data = NULL;
 			uint32_t video_linesize;
+			PROFILE_START(prof_draw_vectorscope_name);
 			if (gs_stagesurface_map(src->stagesurface, &video_data, &video_linesize)) {
 				vss_draw_vectorscope(src, video_data, video_linesize);
 				gs_stagesurface_unmap(src->stagesurface);
