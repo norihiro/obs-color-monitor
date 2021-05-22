@@ -9,6 +9,21 @@
 
 #define debug(format, ...)
 
+#ifdef ENABLE_PROFILE
+#define PROFILE_START(x) profile_start(x)
+#define PROFILE_END(x) profile_end(x)
+static const char *prof_render_name = "vss_render";
+static const char *prof_render_name_b = "vss_render_bypass";
+static const char *prof_render_target_name = "render_target";
+static const char *prof_convert_yuv_name = "convert_yuv";
+static const char *prof_draw_vectorscope_name = "draw_vectorscope";
+static const char *prof_draw_name = "draw";
+static const char *prof_draw_graticule_name = "graticule";
+#else // ENABLE_PROFILE
+#define PROFILE_START(x)
+#define PROFILE_END(x)
+#endif // ! ENABLE_PROFILE
+
 #define VS_SIZE 256
 #define SOURCE_CHECK_NS 3000000000
 #define N_GRATICULES 18
@@ -270,8 +285,6 @@ static void vss_render_target(struct vss_source *src)
 		return;
 	src->rendered = 1;
 
-	gs_texrender_reset(src->texrender);
-
 	obs_source_t *target = src->weak_target ? obs_weak_source_get_source(src->weak_target) : NULL;
 	if (!target && *src->target_name)
 		return;
@@ -292,6 +305,9 @@ static void vss_render_target(struct vss_source *src)
 	if (width<=0 || height<=0)
 		goto end;
 
+	PROFILE_START(prof_render_target_name);
+
+	gs_texrender_reset(src->texrender);
 	if (gs_texrender_begin(src->texrender, width, height)) {
 		struct vec4 background;
 		vec4_zero(&background);
@@ -316,6 +332,8 @@ static void vss_render_target(struct vss_source *src)
 			src->known_height = height;
 		}
 
+		PROFILE_END(prof_render_target_name);
+
 		if (src->bypass_vectorscope) {
 			gs_blend_state_pop();
 
@@ -324,6 +342,7 @@ static void vss_render_target(struct vss_source *src)
 
 		gs_texrender_reset(src->texrender_uv);
 		if (vss_effect && gs_texrender_begin(src->texrender_uv, width, height)) {
+			PROFILE_START(prof_convert_yuv_name);
 			gs_ortho(0.0f, (float)width, 0.0f, (float)height, -100.0f, 100.0f);
 
 			gs_effect_t *effect = vss_effect;
@@ -335,7 +354,9 @@ static void vss_render_target(struct vss_source *src)
 				}
 			}
 			gs_texrender_end(src->texrender_uv);
+			PROFILE_END(prof_convert_yuv_name);
 
+			PROFILE_START(prof_draw_vectorscope_name);
 			gs_stage_texture(src->stagesurface, gs_texrender_get_texture(src->texrender_uv));
 			uint8_t *video_data = NULL;
 			uint32_t video_linesize;
@@ -343,9 +364,12 @@ static void vss_render_target(struct vss_source *src)
 				vss_draw_vectorscope(src, video_data, video_linesize);
 				gs_stagesurface_unmap(src->stagesurface);
 			}
+			PROFILE_END(prof_draw_vectorscope_name);
 		}
 		gs_blend_state_pop();
 	}
+	else
+		PROFILE_END(prof_render_target_name);
 
 end:
 	if (target)
@@ -444,6 +468,7 @@ static void vss_render(void *data, gs_effect_t *effect)
 {
 	UNUSED_PARAMETER(effect);
 	struct vss_source *src = data;
+	PROFILE_START(src->bypass_vectorscope ? prof_render_name_b : prof_render_name);
 
 	if (src->update_graticule || src->colorspace_calc<1) {
 		src->colorspace_calc = src->colorspace;
@@ -474,14 +499,15 @@ static void vss_render(void *data, gs_effect_t *effect)
 		gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
 		gs_texture_t *tex = gs_texrender_get_texture(src->texrender);
 		if (!tex)
-			return;
+			goto end;
 		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), tex);
 		while (gs_effect_loop(effect, "Draw")) {
 			gs_draw_sprite(tex, 0, src->known_width, src->known_height);
 		}
-		return;
+		goto end;
 	}
 
+	PROFILE_START(prof_draw_name);
 	if (src->tex_vs) {
 		gs_effect_t *effect = vss_effect ? vss_effect : obs_get_base_effect(OBS_EFFECT_DEFAULT);
 		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), src->tex_vs);
@@ -490,7 +516,9 @@ static void vss_render(void *data, gs_effect_t *effect)
 			gs_draw_sprite(src->tex_vs, 0, VS_SIZE, VS_SIZE);
 		}
 	}
+	PROFILE_END(prof_draw_name);
 
+	PROFILE_START(prof_draw_graticule_name);
 	if (src->graticule_img.loaded && src->graticule) {
 		create_graticule_vbuf(src);
 		gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
@@ -505,6 +533,10 @@ static void vss_render(void *data, gs_effect_t *effect)
 			gs_draw(GS_LINES, 0, 0);
 		}
 	}
+	PROFILE_END(prof_draw_graticule_name);
+
+end:;
+	PROFILE_END(src->bypass_vectorscope ? prof_render_name_b : prof_render_name);
 }
 
 static void vss_tick(void *data, float unused)

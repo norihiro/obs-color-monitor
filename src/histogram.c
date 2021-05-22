@@ -7,6 +7,19 @@
 
 #define debug(format, ...)
 
+#ifdef ENABLE_PROFILE
+#define PROFILE_START(x) profile_start(x)
+#define PROFILE_END(x) profile_end(x)
+static const char *prof_render_name = "his_render";
+static const char *prof_render_name_b = "his_render_bypass";
+static const char *prof_render_target_name = "render_target";
+static const char *prof_draw_histogram_name = "draw_histogram";
+static const char *prof_draw_name = "draw";
+#else // ENABLE_PROFILE
+#define PROFILE_START(x)
+#define PROFILE_END(x)
+#endif // ! ENABLE_PROFILE
+
 #define HI_SIZE 256
 #define SOURCE_CHECK_NS 3000000000
 
@@ -248,8 +261,6 @@ static void his_render_target(struct his_source *src)
 		return;
 	src->rendered = 1;
 
-	gs_texrender_reset(src->texrender);
-
 	obs_source_t *target = src->weak_target ? obs_weak_source_get_source(src->weak_target) : NULL;
 	if (!target && *src->target_name)
 		return;
@@ -270,6 +281,10 @@ static void his_render_target(struct his_source *src)
 	if (width<=0 || height<=0)
 		goto end;
 
+	PROFILE_START(prof_render_target_name);
+
+	gs_texrender_reset(src->texrender);
+
 	if (gs_texrender_begin(src->texrender, width, height)) {
 		struct vec4 background;
 		vec4_zero(&background);
@@ -287,6 +302,7 @@ static void his_render_target(struct his_source *src)
 			obs_render_main_texture();
 
 		gs_texrender_end(src->texrender);
+		PROFILE_END(prof_render_target_name);
 
 		if (width != src->known_width || height != src->known_height) {
 			gs_stagesurface_destroy(src->stagesurface);
@@ -296,6 +312,7 @@ static void his_render_target(struct his_source *src)
 		}
 
 		if (!src->bypass_histogram) {
+			PROFILE_START(prof_draw_histogram_name);
 			gs_stage_texture(src->stagesurface, gs_texrender_get_texture(src->texrender));
 			uint8_t *video_data = NULL;
 			uint32_t video_linesize;
@@ -303,8 +320,11 @@ static void his_render_target(struct his_source *src)
 				his_draw_histogram(src, video_data, video_linesize);
 			}
 			gs_stagesurface_unmap(src->stagesurface);
+			PROFILE_END(prof_draw_histogram_name);
 		}
 	}
+	else
+		PROFILE_END(prof_render_target_name);
 
 end:
 	if (target)
@@ -315,6 +335,7 @@ static void his_render(void *data, gs_effect_t *effect)
 {
 	UNUSED_PARAMETER(effect);
 	struct his_source *src = data;
+	PROFILE_START(src->bypass_histogram ? prof_render_name_b : prof_render_name);
 
 	his_render_target(src);
 
@@ -322,13 +343,14 @@ static void his_render(void *data, gs_effect_t *effect)
 		gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
 		gs_texture_t *tex = gs_texrender_get_texture(src->texrender);
 		if (!tex)
-			return;
+			goto end;
 		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), tex);
 		while (gs_effect_loop(effect, "Draw"))
 			gs_draw_sprite(tex, 0, src->known_width, src->known_height);
-		return;
+		goto end;
 	}
 
+	PROFILE_START(prof_draw_name);
 	if (src->tex_hi) {
 		gs_effect_t *effect = his_effect ? his_effect : obs_get_base_effect(OBS_EFFECT_DEFAULT);
 		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), src->tex_hi);
@@ -354,6 +376,10 @@ static void his_render(void *data, gs_effect_t *effect)
 			gs_draw_sprite(src->tex_hi, 0, w, h);
 		}
 	}
+	PROFILE_END(prof_draw_name);
+
+end:;
+	PROFILE_END(src->bypass_histogram ? prof_render_name_b : prof_render_name);
 }
 
 static void his_tick(void *data, float unused)

@@ -8,6 +8,20 @@
 
 #define debug(format, ...)
 
+#ifdef ENABLE_PROFILE
+#define PROFILE_START(x) profile_start(x)
+#define PROFILE_END(x) profile_end(x)
+static const char *prof_render_name = "wvs_render";
+static const char *prof_render_name_b = "wvs_render_bypass";
+static const char *prof_render_target_name = "render_target";
+static const char *prof_draw_waveform_name = "draw_waveform";
+static const char *prof_draw_name = "draw";
+static const char *prof_draw_graticule_name = "graticule";
+#else // ENABLE_PROFILE
+#define PROFILE_START(x)
+#define PROFILE_END(x)
+#endif // ! ENABLE_PROFILE
+
 #define WV_SIZE 256
 #define SOURCE_CHECK_NS 3000000000
 
@@ -261,8 +275,6 @@ static void wvs_render_target(struct wvs_source *src)
 		return;
 	src->rendered = 1;
 
-	gs_texrender_reset(src->texrender);
-
 	obs_source_t *target = src->weak_target ? obs_weak_source_get_source(src->weak_target) : NULL;
 	if (!target && *src->target_name)
 		return;
@@ -283,6 +295,9 @@ static void wvs_render_target(struct wvs_source *src)
 	if (width<=0 || height<=0)
 		goto end;
 
+	PROFILE_START(prof_render_target_name);
+
+	gs_texrender_reset(src->texrender);
 	if (gs_texrender_begin(src->texrender, width, height)) {
 		struct vec4 background;
 		vec4_zero(&background);
@@ -300,6 +315,7 @@ static void wvs_render_target(struct wvs_source *src)
 			obs_render_main_texture();
 
 		gs_texrender_end(src->texrender);
+		PROFILE_END(prof_render_target_name);
 
 		if (width != src->known_width || height != src->known_height) {
 			gs_stagesurface_destroy(src->stagesurface);
@@ -309,15 +325,19 @@ static void wvs_render_target(struct wvs_source *src)
 		}
 
 		if (!src->bypass_waveform) {
+			PROFILE_START(prof_draw_waveform_name);
 			gs_stage_texture(src->stagesurface, gs_texrender_get_texture(src->texrender));
 			uint8_t *video_data = NULL;
 			uint32_t video_linesize;
 			if (gs_stagesurface_map(src->stagesurface, &video_data, &video_linesize)) {
 				wvs_draw_waveform(src, video_data, video_linesize);
+				gs_stagesurface_unmap(src->stagesurface);
 			}
-			gs_stagesurface_unmap(src->stagesurface);
+			PROFILE_END(prof_draw_waveform_name);
 		}
 	}
+	else
+		PROFILE_END(prof_render_target_name);
 
 end:
 	if (target)
@@ -351,6 +371,7 @@ static void wvs_render(void *data, gs_effect_t *effect)
 {
 	UNUSED_PARAMETER(effect);
 	struct wvs_source *src = data;
+	PROFILE_START(src->bypass_waveform ? prof_render_name_b : prof_render_name);
 
 	wvs_render_target(src);
 
@@ -358,14 +379,15 @@ static void wvs_render(void *data, gs_effect_t *effect)
 		gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
 		gs_texture_t *tex = gs_texrender_get_texture(src->texrender);
 		if (!tex)
-			return;
+			goto end;
 		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), tex);
 		while (gs_effect_loop(effect, "Draw")) {
 			gs_draw_sprite(tex, 0, src->known_width, src->known_height);
 		}
-		return;
+		goto end;
 	}
 
+	PROFILE_START(prof_draw_name);
 	if (src->tex_wv) {
 		gs_effect_t *effect = wvs_effect ? wvs_effect : obs_get_base_effect(OBS_EFFECT_DEFAULT);
 		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), src->tex_wv);
@@ -390,7 +412,9 @@ static void wvs_render(void *data, gs_effect_t *effect)
 			gs_draw_sprite(src->tex_wv, 0, w, h);
 		}
 	}
+	PROFILE_END(prof_draw_name);
 
+	PROFILE_START(prof_draw_graticule_name);
 	if (src->graticule_lines > 0) {
 		if (src->graticule_lines != src->graticule_lines_prev) {
 			create_graticule_vbuf(src);
@@ -398,6 +422,10 @@ static void wvs_render(void *data, gs_effect_t *effect)
 		}
 		wvs_render_graticule(src);
 	}
+	PROFILE_END(prof_draw_graticule_name);
+
+end:;
+	PROFILE_END(src->bypass_waveform ? prof_render_name_b : prof_render_name);
 }
 
 static void wvs_tick(void *data, float unused)
