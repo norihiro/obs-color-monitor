@@ -15,6 +15,8 @@ set(MACOS_BUNDLEID "net.nagater.obs-color-monitor")
 # Replace `me@contoso.com` with the maintainer email address you want to put in Linux packages
 set(LINUX_MAINTAINER_EMAIL "norihiro@nagater.net")
 
+option(ENABLE_PROFILE "Enable profiling to see calculation time" OFF)
+
 # TAKE NOTE: No need to edit things past this point
 
 set(CMAKE_PREFIX_PATH "${QTDIR}")
