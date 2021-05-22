@@ -263,12 +263,21 @@ static void wvs_render_target(struct wvs_source *src)
 
 	gs_texrender_reset(src->texrender);
 
-	obs_source_t *target = obs_weak_source_get_source(src->weak_target);
-	if (!target)
+	obs_source_t *target = src->weak_target ? obs_weak_source_get_source(src->weak_target) : NULL;
+	if (!target && *src->target_name)
 		return;
 
-	int target_width = obs_source_get_width(target);
-	int target_height = obs_source_get_height(target);
+	int target_width, target_height;
+	if (target) {
+		target_width = obs_source_get_width(target);
+		target_height = obs_source_get_height(target);
+	}
+	else {
+		struct obs_video_info ovi;
+		obs_get_video_info(&ovi);
+		target_width = ovi.base_width;
+		target_height = ovi.base_height;
+	}
 	int width = target_width / src->target_scale;
 	int height = target_height / src->target_scale;
 	if (width<=0 || height<=0)
@@ -281,12 +290,14 @@ static void wvs_render_target(struct wvs_source *src)
 		gs_clear(GS_CLEAR_COLOR, &background, 0.0f, 0);
 		gs_ortho(0.0f, (float)target_width, 0.0f, (float)target_height, -100.0f, 100.0f);
 
-		gs_blend_state_push();
-		gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
-
-		obs_source_video_render(target);
-
-		gs_blend_state_pop();
+		if (target) {
+			gs_blend_state_push();
+			gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
+			obs_source_video_render(target);
+			gs_blend_state_pop();
+		}
+		else
+			obs_render_main_texture();
 
 		gs_texrender_end(src->texrender);
 
@@ -309,7 +320,8 @@ static void wvs_render_target(struct wvs_source *src)
 	}
 
 end:
-	obs_source_release(target);
+	if (target)
+		obs_source_release(target);
 }
 
 static void wvs_render_graticule(struct wvs_source *src)
@@ -395,11 +407,9 @@ static void wvs_tick(void *data, float unused)
 
 	pthread_mutex_lock(&src->target_update_mutex);
 	if (src->target_name && !*src->target_name) {
-		obs_source_t *target = obs_frontend_get_current_scene();
 		if (src->weak_target)
 			obs_weak_source_release(src->weak_target);
-		src->weak_target = target ? obs_source_get_weak_source(target) : NULL;
-		obs_source_release(target);
+		src->weak_target = NULL;
 	}
 	if (is_preview_name(src->target_name)) {
 		obs_source_t *target = obs_frontend_get_current_preview_scene();
