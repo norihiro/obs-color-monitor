@@ -1,6 +1,6 @@
 variables:
   macosSignAndNotarize: false
-  isReleaseMode: ${{ and(eq(variables['isReleaseMode'], true), startsWith(variables['Build.SourceBranch'], 'refs/tags/')) }}
+  isReleaseMode: ${{and(eq(variables['isReleaseMode'], true), startsWith(variables['Build.SourceBranch'], 'refs/tags/')) }}
 
 trigger:
   branches:
@@ -10,6 +10,9 @@ trigger:
   tags:
     include:
       - '*'
+  paths:
+    exclude:
+      - '**.md'
 
 jobs:
 - job: 'Build_Windows'
