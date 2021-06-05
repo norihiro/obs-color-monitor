@@ -60,12 +60,14 @@ set(PLUGIN_SOURCES
 	src/histogram.c
 	src/common-cpp.cc
 	src/obs-convenience.c
+	src/scope-dock.cpp
 )
 
 set(PLUGIN_HEADERS
 	src/plugin-macros.generated.h
 	src/common.h
 	src/obs-convenience.h
+	src/scope-dock.hpp
 )
 
 # --- Platform-independent build settings ---

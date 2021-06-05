@@ -29,12 +29,15 @@ extern struct obs_source_info colormonitor_histogram;
 extern gs_effect_t *vss_effect;
 extern gs_effect_t *wvs_effect;
 extern gs_effect_t *his_effect;
+void scope_docks_init();
+void scope_docks_release();
 
 bool obs_module_load(void)
 {
 	obs_register_source(&colormonitor_vectorscope);
 	obs_register_source(&colormonitor_waveform);
 	obs_register_source(&colormonitor_histogram);
+	scope_docks_init();
 	blog(LOG_INFO, "plugin loaded successfully (version %s)", PLUGIN_VERSION);
 	return true;
 }
@@ -53,5 +56,6 @@ void obs_module_unload()
 		gs_effect_destroy(his_effect);
 		his_effect = NULL;
 	}
+	scope_docks_release();
 	blog(LOG_INFO, "plugin unloaded");
 }
