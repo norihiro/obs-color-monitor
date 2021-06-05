@@ -33,7 +33,7 @@ include(external/FindLibObs.cmake)
 endif()
 
 find_package(LibObs REQUIRED)
-find_package(Qt5 REQUIRED COMPONENTS Core Widgets)
+find_package(Qt5 REQUIRED COMPONENTS Core Widgets Gui)
 
 configure_file(
     src/plugin-macros.h.in
@@ -61,6 +61,7 @@ set(PLUGIN_SOURCES
 	src/common-cpp.cc
 	src/obs-convenience.c
 	src/scope-dock.cpp
+	src/scope-widget.cpp
 )
 
 set(PLUGIN_HEADERS
@@ -68,6 +69,8 @@ set(PLUGIN_HEADERS
 	src/common.h
 	src/obs-convenience.h
 	src/scope-dock.hpp
+	src/scope-widget.hpp
+	src/obsgui-helper.hpp
 )
 
 # --- Platform-independent build settings ---
@@ -75,14 +78,19 @@ add_library(${CMAKE_PROJECT_NAME} MODULE ${PLUGIN_SOURCES} ${PLUGIN_HEADERS})
 
 include_directories(
 	"${LIBOBS_INCLUDE_DIR}/../UI/obs-frontend-api"
+	${LIBOBS_INCLUDE_DIR}
 	${Qt5Core_INCLUDES}
 	${Qt5Widgets_INCLUDES}
+	${Qt5Gui_INCLUDES}
+	${Qt5Gui_PRIVATE_INCLUDE_DIRS}
 )
 
 target_link_libraries(${CMAKE_PROJECT_NAME}
 	libobs
 	Qt5::Core
 	Qt5::Widgets
+	Qt5::Gui
+	Qt5::GuiPrivate
 )
 
 # --- End of section ---

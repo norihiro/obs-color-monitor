@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include "plugin-macros.generated.h"
 #include "scope-dock.hpp"
+#include "scope-widget.hpp"
 
 #define OBJ_NAME_SUFFIX "_scope_dock"
 
@@ -24,8 +25,8 @@ static void scope_dock_add(const char *name, obs_data_t *props)
 	dock->setMinimumSize(128, 128);
 	dock->setAllowedAreas(Qt::AllDockWidgetAreas);
 
-	QWidget *w = new QWidget();
-	dock->setWidget(w);
+	ScopeWidget *w = new ScopeWidget(dock);
+	dock->SetWidget(w);
 
 	auto *main = (QMainWindow*)obs_frontend_get_main_window();
 	main->addDockWidget(Qt::RightDockWidgetArea, dock);
