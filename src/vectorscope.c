@@ -194,6 +194,7 @@ static void vss_update(void *data, obs_data_t *settings)
 static void vss_get_defaults(obs_data_t *settings)
 {
 	obs_data_set_default_int(settings, "target_scale", 2);
+	obs_data_set_default_int(settings, "intensity", 25);
 	obs_data_set_default_int(settings, "graticule", 1 | GRATICULES_IQ);
 	obs_data_set_default_int(settings, "graticule_skintone_color", SKIN_TONE_LINE);
 }

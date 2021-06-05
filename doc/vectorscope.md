@@ -25,7 +25,7 @@ Default is `2`, which means width and height are both scaled by half. Available 
 Intensity of each pixel.
 Population for each color is multiplied by intensity and drawn on the scope.
 Larger value will increase the visibility of less population colors.
-Default is `1`. Available range is an integer number between `1` - `255`.
+Default is `25`. Available range is an integer number between `1` - `255`.
 
 ### Graticule
 
