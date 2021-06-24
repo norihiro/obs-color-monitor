@@ -34,7 +34,8 @@ Choice of graticule.
 | Choice | Description |
 |--------|-------------|
 | `None` | No graticule will be displayed. |
-| `Green` (default) | 6 boxes for primary colors, these labels, and skin tone line will be displayed in green. |
+| `Green` | 6 boxes for primary colors, these labels, and skin tone line will be displayed in green. |
+| `Green + IQ` (default) | 6 boxes for primary colors, these labels, and I-Q lines will be displayed in green. |
 
 ### Skin tone color
 

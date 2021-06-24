@@ -28,6 +28,7 @@ static const char *prof_draw_graticule_name = "graticule";
 #define VS_SIZE 256
 #define SOURCE_CHECK_NS 3000000000
 #define N_GRATICULES 18
+#define GRATICULES_IQ 256
 #define SKIN_TONE_LINE 0x99ABCB // BGR
 
 gs_effect_t *vss_effect = NULL;
@@ -171,7 +172,10 @@ static void vss_update(void *data, obs_data_t *settings)
 	if (src->intensity<1)
 		src->intensity = 1;
 
-	src->graticule = (int)obs_data_get_int(settings, "graticule");
+	int graticule = (int)obs_data_get_int(settings, "graticule");
+	if ((graticule^src->graticule) & GRATICULES_IQ)
+		src->update_graticule = 1;
+	src->graticule = graticule;
 
 	int graticule_skintone_color = (int)obs_data_get_int(settings, "graticule_skintone_color") & 0xFFFFFF;
 	if (graticule_skintone_color!=src->graticule_skintone_color) {
@@ -190,7 +194,7 @@ static void vss_update(void *data, obs_data_t *settings)
 static void vss_get_defaults(obs_data_t *settings)
 {
 	obs_data_set_default_int(settings, "target_scale", 2);
-	obs_data_set_default_int(settings, "graticule", 1);
+	obs_data_set_default_int(settings, "graticule", 1 | GRATICULES_IQ);
 	obs_data_set_default_int(settings, "graticule_skintone_color", SKIN_TONE_LINE);
 }
 
@@ -209,6 +213,7 @@ static obs_properties_t *vss_get_properties(void *data)
 	prop = obs_properties_add_list(props, "graticule", obs_module_text("Graticule"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, "None", 0);
 	obs_property_list_add_int(prop, "Green", 1);
+	obs_property_list_add_int(prop, "Green, IQ", 1 + GRATICULES_IQ);
 
 	obs_properties_add_color(props, "graticule_skintone_color", obs_module_text("Skin tone color"));
 
@@ -457,8 +462,16 @@ static void create_graticule_vbuf(struct vss_source *src)
 	if (stl_norm > 1.0f) {
 		stl_u = (stl_u-128.0f) * 128.f/stl_norm + 128.0f;
 		stl_v = (stl_v-128.0f) * 128.f/stl_norm + 128.0f;
-		gs_vertex2f(128.0f, 128.0f);
-		gs_vertex2f(stl_u, 255.f-stl_v);
+		if (src->graticule & GRATICULES_IQ) {
+			gs_vertex2f(255.f-stl_u, stl_v);
+			gs_vertex2f(stl_u, 255.f-stl_v);
+			gs_vertex2f(stl_v, stl_u);
+			gs_vertex2f(255.f-stl_v, 255.f-stl_u);
+		}
+		else {
+			gs_vertex2f(127.5f, 127.5f);
+			gs_vertex2f(stl_u, 255.f-stl_v);
+		}
 	}
 
 	// boxes and skin tone line
