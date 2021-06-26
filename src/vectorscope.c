@@ -29,7 +29,7 @@ static const char *prof_draw_graticule_name = "graticule";
 #define SOURCE_CHECK_NS 3000000000
 #define N_GRATICULES 18
 #define GRATICULES_IQ 256
-#define SKIN_TONE_LINE 0x99ABCB // BGR
+#define SKIN_TONE_LINE 0x0054FF // BGR
 
 gs_effect_t *vss_effect = NULL;
 
