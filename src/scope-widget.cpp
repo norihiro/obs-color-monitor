@@ -89,6 +89,7 @@ static void draw(void *param, uint32_t cx, uint32_t cy)
 ScopeWidget::ScopeWidget(QWidget *parent)
 	: QWidget(parent)
 {
+	properties = NULL;
 	setAttribute(Qt::WA_PaintOnScreen);
 	setAttribute(Qt::WA_StaticContents);
 	setAttribute(Qt::WA_NoSystemBackground);
@@ -243,9 +244,8 @@ void ScopeWidget::save_properties(obs_data_t *props)
 
 		if (data->src[i]) {
 			snprintf(s, sizeof(s), "%s-prop", id_list[i]); s[sizeof(s)-1]=0;
-			obs_data_t *prop = obs_data_create();
+			obs_data_t *prop = obs_source_get_settings(data->src[i]);
 			if (prop) {
-				obs_source_update(data->src[i], prop);
 				obs_data_set_obj(props, s, prop);
 				obs_data_release(prop);
 			}

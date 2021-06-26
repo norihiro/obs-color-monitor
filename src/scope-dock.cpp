@@ -90,21 +90,26 @@ static void save_load_scope_docks(obs_data_t *save_data, bool saving, void *)
 	else /* loading */ {
 		obs_data_t *props = obs_data_get_obj(save_data, SAVE_DATA_NAME);
 		if (!props) {
+			blog(LOG_INFO, "save_load_scope_docks: creating default properties");
 			props = obs_data_create();
-			obs_data_array_t *array = obs_data_array_create();
+		}
+
+		obs_data_array_t *array = obs_data_get_array(props, "docks");
+		if (!array || obs_data_array_count(array)==0) {
+			blog(LOG_INFO, "save_load_scope_docks: creating default docks");
+			array = obs_data_array_create();
 			obs_data_t *obj = obs_data_create();
 			ScopeWidget::default_properties(obj);
 			obs_data_set_default_string(obj, "name", "program");
 			obs_data_array_push_back(array, obj);
 			obs_data_set_array(props, "docks", array);
-			obs_data_array_release(array);
 		}
 
-		obs_data_array_t *array = obs_data_get_array(props, "docks");
 		size_t count = obs_data_array_count(array);
 		for (size_t i=0; i<count; i++) {
 			obs_data_t *obj = obs_data_array_item(array, i);
 			const char *name = obs_data_get_string(obj, "name");
+			if (!name) name = "program";
 			scope_dock_add(name, obj);
 			obs_data_release(obj);
 		}
