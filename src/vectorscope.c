@@ -29,7 +29,8 @@ static const char *prof_draw_graticule_name = "graticule";
 #define SOURCE_CHECK_NS 3000000000
 #define N_GRATICULES 18
 #define GRATICULES_IQ 256
-#define SKIN_TONE_LINE 0x99ABCB // BGR
+#define GRATICULES_COLOR_MASK 3
+#define SKIN_TONE_LINE 0x0054FF // BGR
 
 gs_effect_t *vss_effect = NULL;
 
@@ -65,6 +66,7 @@ struct vss_source
 	int target_scale;
 	int intensity;
 	int graticule;
+	int graticule_color;
 	int graticule_skintone_color;
 	int colorspace;
 	int colorspace_calc; // get from ovi if auto
@@ -176,6 +178,10 @@ static void vss_update(void *data, obs_data_t *settings)
 	if ((graticule^src->graticule) & GRATICULES_IQ)
 		src->update_graticule = 1;
 	src->graticule = graticule;
+	switch(graticule & GRATICULES_COLOR_MASK) {
+		case 1: src->graticule_color = 0x80FFBF00; break; // amber
+		case 2: src->graticule_color = 0x8000FF00; break; // green
+	}
 
 	int graticule_skintone_color = (int)obs_data_get_int(settings, "graticule_skintone_color") & 0xFFFFFF;
 	if (graticule_skintone_color!=src->graticule_skintone_color) {
@@ -194,6 +200,7 @@ static void vss_update(void *data, obs_data_t *settings)
 static void vss_get_defaults(obs_data_t *settings)
 {
 	obs_data_set_default_int(settings, "target_scale", 2);
+	obs_data_set_default_int(settings, "intensity", 25);
 	obs_data_set_default_int(settings, "graticule", 1 | GRATICULES_IQ);
 	obs_data_set_default_int(settings, "graticule_skintone_color", SKIN_TONE_LINE);
 }
@@ -212,8 +219,10 @@ static obs_properties_t *vss_get_properties(void *data)
 	obs_properties_add_int(props, "intensity", obs_module_text("Intensity"), 1, 255, 1);
 	prop = obs_properties_add_list(props, "graticule", obs_module_text("Graticule"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, "None", 0);
-	obs_property_list_add_int(prop, "Green", 1);
-	obs_property_list_add_int(prop, "Green, IQ", 1 + GRATICULES_IQ);
+	obs_property_list_add_int(prop, "Amber", 1);
+	obs_property_list_add_int(prop, "Amber, IQ", 1 + GRATICULES_IQ);
+	obs_property_list_add_int(prop, "Green", 2);
+	obs_property_list_add_int(prop, "Green, IQ", 2 + GRATICULES_IQ);
 
 	obs_properties_add_color(props, "graticule_skintone_color", obs_module_text("Skin tone color"));
 
@@ -528,6 +537,7 @@ static void vss_render(void *data, gs_effect_t *effect)
 		gs_effect_t *effect = vss_effect ? vss_effect : obs_get_base_effect(OBS_EFFECT_DEFAULT);
 		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), src->tex_vs);
 		gs_effect_set_float(gs_effect_get_param_by_name(effect, "intensity"), (float)src->intensity);
+		gs_effect_set_default(gs_effect_get_param_by_name(effect, "color"));
 		while (gs_effect_loop(effect, "Draw")) {
 			gs_draw_sprite(src->tex_vs, 0, VS_SIZE, VS_SIZE);
 		}
@@ -537,13 +547,14 @@ static void vss_render(void *data, gs_effect_t *effect)
 	PROFILE_START(prof_draw_graticule_name);
 	if (src->graticule_img.loaded && src->graticule) {
 		create_graticule_vbuf(src);
-		gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
-		draw_uv_vbuffer(src->graticule_vbuf, src->graticule_img.texture, effect, N_GRATICULES*2);
+		gs_effect_t *effect = vss_effect ? vss_effect : obs_get_base_effect(OBS_EFFECT_DEFAULT);
+		gs_effect_set_color(gs_effect_get_param_by_name(effect, "color"), src->graticule_color);
+		draw_uv_vbuffer(src->graticule_vbuf, src->graticule_img.texture, effect, "DrawGraticule", N_GRATICULES*2);
 	}
 
 	if (src->graticule && src->graticule_line_vbuf) {
 		gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_SOLID);
-		gs_effect_set_color(gs_effect_get_param_by_name(effect, "color"), 0x8000FF00); // green
+		gs_effect_set_color(gs_effect_get_param_by_name(effect, "color"), src->graticule_color);
 		gs_load_vertexbuffer(src->graticule_line_vbuf);
 		while (gs_effect_loop(effect, "Solid")) {
 			gs_draw(GS_LINES, 0, 0);

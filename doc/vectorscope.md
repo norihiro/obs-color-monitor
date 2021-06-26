@@ -25,7 +25,7 @@ Default is `2`, which means width and height are both scaled by half. Available 
 Intensity of each pixel.
 Population for each color is multiplied by intensity and drawn on the scope.
 Larger value will increase the visibility of less population colors.
-Default is `1`. Available range is an integer number between `1` - `255`.
+Default is `25`. Available range is an integer number between `1` - `255`.
 
 ### Graticule
 
@@ -34,8 +34,10 @@ Choice of graticule.
 | Choice | Description |
 |--------|-------------|
 | `None` | No graticule will be displayed. |
+| `Amber` | 6 boxes for primary colors, these labels, and skin tone line will be displayed in amber. |
+| `Amber + IQ` (default) | 6 boxes for primary colors, these labels, and I-Q lines will be displayed in amber. |
 | `Green` | 6 boxes for primary colors, these labels, and skin tone line will be displayed in green. |
-| `Green + IQ` (default) | 6 boxes for primary colors, these labels, and I-Q lines will be displayed in green. |
+| `Green + IQ` | 6 boxes for primary colors, these labels, and I-Q lines will be displayed in green. |
 
 ### Skin tone color
 
