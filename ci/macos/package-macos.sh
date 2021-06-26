@@ -13,13 +13,14 @@ if [ "${OSTYPE}" != "Darwin" ]; then
 fi
 
 echo "=> Preparing package build"
-GIT_HASH=$(git rev-parse --short HEAD)
-GIT_TAG=$(/usr/bin/git describe --tags)
+GIT_TAG=$(git describe --tags --long --always)
+GIT_TAG_ONLY=$(git describe --tags --always)
 
 FILENAME_UNSIGNED="$PLUGIN_NAME-${GIT_TAG}-Unsigned.pkg"
 FILENAME="$PLUGIN_NAME-${GIT_TAG}.pkg"
 
 echo "=> Modifying $PLUGIN_NAME.so"
+mkdir -p lib
 install_name_tool \
 	-change /tmp/obsdeps/lib/QtWidgets.framework/Versions/5/QtWidgets \
 		@executable_path/../Frameworks/QtWidgets.framework/Versions/5/QtWidgets \
@@ -30,8 +31,13 @@ install_name_tool \
 	./build/$PLUGIN_NAME.so
 
 # Check if replacement worked
-echo "=> Dependencies for $PLUGIN_NAME"
-otool -L ./build/$PLUGIN_NAME.so
+for dylib in ./build/$PLUGIN_NAME.so lib/*.dylib ; do
+	test -f "$dylib" || continue
+	chmod +r $dylib
+	echo "=> Dependencies for $(basename $dylib)"
+	otool -L $dylib
+	echo
+done
 
 if [[ "$RELEASE_MODE" == "True" ]]; then
 	echo "=> Signing plugin binary: $PLUGIN_NAME.so"
@@ -43,17 +49,20 @@ fi
 echo "=> ZIP package build"
 ziproot=package-zip/$PLUGIN_NAME
 zipfile=${PLUGIN_NAME}-${GIT_TAG}-macos.zip
+rm -rf ${ziproot:?}/
 mkdir -p $ziproot/bin
 cp ./build/$PLUGIN_NAME.so $ziproot/bin/
+cp LICENSE data/LICENSE-$PLUGIN_NAME
 cp -a data $ziproot/
 mkdir -p ./release
+rmdir lib || mv lib $ziproot/
 (cd package-zip && zip -r ../release/$zipfile $PLUGIN_NAME)
 
 echo "=> DMG package build"
 if pip3 install dmgbuild || pip install dmgbuild; then
 	sed \
 		-e "s;%PLUGIN_NAME%;$PLUGIN_NAME;g" \
-		-e "s;%VERSION%;${GIT_TAG};g" \
+		-e "s;%VERSION%;${GIT_TAG_ONLY};g" \
 		-e "s;%PLUGIN_ROOT%;$ziproot;g" \
 		< ci/macos/package-dmg.json.template > package-dmg.json
 	dmgbuild "$PLUGIN_NAME ${GIT_TAG}" "release/${PLUGIN_NAME}-${GIT_TAG}-macos.dmg" -s ./package-dmg.json
