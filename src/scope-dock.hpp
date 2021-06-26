@@ -6,8 +6,8 @@
 class ScopeDock : public QDockWidget {
 	Q_OBJECT
 
-	class ScopeWidget *widget;
 public:
+	class ScopeWidget *widget;
 	std::string name;
 
 public:
