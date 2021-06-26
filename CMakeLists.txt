@@ -33,7 +33,7 @@ include(external/FindLibObs.cmake)
 endif()
 
 find_package(LibObs REQUIRED)
-find_package(Qt5 REQUIRED COMPONENTS Core Widgets)
+find_package(Qt5 REQUIRED COMPONENTS Core Widgets Gui)
 
 configure_file(
     src/plugin-macros.h.in
@@ -60,12 +60,33 @@ set(PLUGIN_SOURCES
 	src/histogram.c
 	src/common-cpp.cc
 	src/obs-convenience.c
+	src/scope-dock.cpp
+	src/scope-widget.cpp
+	src/scope-widget-properties.cpp
+	src-obsstudio/properties-view.cpp
+	src-obsstudio/vertical-scroll-area.cpp
+	src-obsstudio/combobox-ignorewheel.cpp
+	src-obsstudio/spinbox-ignorewheel.cpp
+	src-obsstudio/double-slider.cpp
+	src-obsstudio/slider-ignorewheel.cpp
+	src-obsstudio/qt-wrappers.cpp
 )
 
 set(PLUGIN_HEADERS
 	src/plugin-macros.generated.h
 	src/common.h
 	src/obs-convenience.h
+	src/scope-dock.hpp
+	src/scope-widget.hpp
+	src/obsgui-helper.hpp
+	src/scope-widget-properties.hpp
+	src-obsstudio/properties-view.hpp
+	src-obsstudio/vertical-scroll-area.hpp
+	src-obsstudio/combobox-ignorewheel.hpp
+	src-obsstudio/spinbox-ignorewheel.hpp
+	src-obsstudio/double-slider.hpp
+	src-obsstudio/slider-ignorewheel.hpp
+	src-obsstudio/qt-wrappers.hpp
 )
 
 # --- Platform-independent build settings ---
@@ -73,14 +94,20 @@ add_library(${CMAKE_PROJECT_NAME} MODULE ${PLUGIN_SOURCES} ${PLUGIN_HEADERS})
 
 include_directories(
 	"${LIBOBS_INCLUDE_DIR}/../UI/obs-frontend-api"
+	${LIBOBS_INCLUDE_DIR}
+	src-obsstudio/
 	${Qt5Core_INCLUDES}
 	${Qt5Widgets_INCLUDES}
+	${Qt5Gui_INCLUDES}
+	${Qt5Gui_PRIVATE_INCLUDE_DIRS}
 )
 
 target_link_libraries(${CMAKE_PROJECT_NAME}
 	libobs
 	Qt5::Core
 	Qt5::Widgets
+	Qt5::Gui
+	Qt5::GuiPrivate
 )
 
 # --- End of section ---

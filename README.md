@@ -10,6 +10,11 @@ This plugin provides three sources to monitor color balances.
 
 ## Quick Usage
 
+### Dock
+1. Install the plugin and boot OBS Studio.
+1. Click *View*, *Dock*, and *Scope: program* in menu. you will see a new dock containing vectorscope, waveform, and histogram for the program.
+
+### Projector View
 1. Install the plugin and boot OBS Studio.
 1. Have your source to see vectorscope, waveform, or histogram, eg. a camera.
 1. Create a new scene.
