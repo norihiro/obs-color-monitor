@@ -3,6 +3,9 @@
 #include <obs-frontend-api.h>
 #include <string>
 #include <algorithm>
+#include <QMenu>
+#include <QAction>
+#include <QMouseEvent>
 #include "plugin-macros.generated.h"
 #include "scope-widget.hpp"
 #include "obsgui-helper.hpp"
@@ -13,6 +16,7 @@ struct scope_widget_s
 {
 	obs_display_t *disp;
 	obs_source_t *src[N_SRC];
+	volatile uint32_t src_shown;
 };
 
 static obs_source_t *create_scope_source(const char *id)
@@ -42,12 +46,18 @@ static void draw(void *param, uint32_t cx, uint32_t cy)
 			return; // not to take too much time
 	}
 
+	int n_src = 0;
+	const auto src_shown = data->src_shown;
+	for (int i=0; i<N_SRC; i++) if (src_shown & (1<<i)) {
+		n_src += 1;
+	}
+
 	int y0 = 0;
-	for (int i=0; i<N_SRC; i++) if (data->src[i]) {
+	for (int i=0, k=0; i<N_SRC; i++) if (data->src[i] && (src_shown & (1<<i))) {
 		obs_source_t *s = data->src[i];
 		int w = cx;
-		int h = (cy-y0) / (N_SRC-i);
-		if (i==0)
+		int h = (cy-y0) / (n_src-k);
+		if (k==0)
 			w = h = std::min(w, h);
 
 		gs_projection_push();
@@ -61,6 +71,7 @@ static void draw(void *param, uint32_t cx, uint32_t cy)
 		gs_projection_pop();
 
 		y0 += h;
+		k ++;
 	}
 }
 
@@ -75,6 +86,7 @@ ScopeWidget::ScopeWidget(QWidget *parent)
 	setAttribute(Qt::WA_NativeWindow);
 
 	data = (struct scope_widget_s*)bzalloc(sizeof(struct scope_widget_s));
+	data->src_shown = (1<<N_SRC)-1;
 }
 
 ScopeWidget::~ScopeWidget()
@@ -144,4 +156,38 @@ void ScopeWidget::setShown(bool shown)
 		obs_display_destroy(data->disp);
 		data->disp = NULL;
 	}
+}
+
+void ScopeWidget::mousePressEvent(QMouseEvent *event)
+{
+	if (event->button() == Qt::RightButton) {
+		QMenu popup(this);
+		QAction *act;
+
+		const char *menu_text[] = {
+			"Show &Vectorscope",
+			"Show &Waveform",
+			"Show &Histogram",
+		};
+
+		for (int i=0; i<N_SRC; i++) {
+			uint32_t mask = 1<<i;
+			QAction *act = new QAction(obs_module_text(menu_text[i]), this);
+			act->setCheckable(true);
+			act->setChecked(!!(data->src_shown & mask));
+			auto toggleCB = [=](bool checked) {
+				if (checked)
+					data->src_shown |= mask;
+				else
+					data->src_shown &= ~mask;
+			};
+			connect(act, &QAction::toggled, toggleCB);
+			popup.addAction(act);
+		}
+
+		popup.exec(QCursor::pos());
+		return;
+	}
+
+	QWidget::mousePressEvent(event);
 }

@@ -11,6 +11,7 @@ class ScopeWidget : public QWidget {
 	void resizeEvent(QResizeEvent *event) override;
 	void paintEvent(QPaintEvent *event) override;
 	void closeEvent(QCloseEvent *event) override;
+	void mousePressEvent(QMouseEvent *event) override;
 
 public:
 	ScopeWidget(QWidget *parent);
