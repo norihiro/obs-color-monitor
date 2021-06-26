@@ -1,19 +1,67 @@
 #include <obs-module.h>
+#include <obs.h>
 #include <obs-frontend-api.h>
+#include <string>
+#include <algorithm>
 #include "plugin-macros.generated.h"
 #include "scope-widget.hpp"
 #include "obsgui-helper.hpp"
 
+#define N_SRC 3
+
 struct scope_widget_s
 {
 	obs_display_t *disp;
+	obs_source_t *src[N_SRC];
 };
+
+static obs_source_t *create_scope_source(const char *id)
+{
+	std::string name;
+	name = "dock-";
+	name += id;
+
+	const char *v_id = obs_get_latest_input_type_id(id);
+	obs_source_t *src = obs_source_create_private(v_id, name.c_str(), NULL);
+
+	return src;
+}
 
 static void draw(void *param, uint32_t cx, uint32_t cy)
 {
 	auto *data = (struct scope_widget_s*)param;
 
-	obs_render_main_texture(); // TODO: try this
+	for (int i=0; i<N_SRC; i++) if (!data->src[i]) {
+		static const char *id_list[N_SRC] = {
+			"vectorscope_source",
+			"waveform_source",
+			"histogram_source",
+		};
+		data->src[i] = create_scope_source(id_list[i]);
+		if (data->src[i])
+			return; // not to take too much time
+	}
+
+	int y0 = 0;
+	for (int i=0; i<N_SRC; i++) if (data->src[i]) {
+		obs_source_t *s = data->src[i];
+		int w = cx;
+		int h = (cy-y0) / (N_SRC-i);
+		if (i==0)
+			w = h = std::min(w, h);
+
+		gs_projection_push();
+		gs_viewport_push();
+		gs_set_viewport((cx-w)/2, y0, w, h);
+		gs_ortho(0.0f, obs_source_get_width(s), 0.0f, obs_source_get_height(s), -100.0f, 100.0f);
+
+		obs_source_video_render(s);
+
+		gs_viewport_pop();
+		gs_projection_pop();
+
+		y0 += h;
+	}
 }
 
 ScopeWidget::ScopeWidget(QWidget *parent)
@@ -34,6 +82,10 @@ ScopeWidget::~ScopeWidget()
 	if (data) {
 		obs_display_destroy(data->disp);
 		data->disp = NULL;
+
+		for (int i=0; i<N_SRC; i++) if (data->src[i]) {
+			obs_source_release(data->src[i]);
+		}
 	}
 	bfree(data); data = NULL;
 }
