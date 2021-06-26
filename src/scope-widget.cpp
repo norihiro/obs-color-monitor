@@ -89,6 +89,7 @@ static void draw(void *param, uint32_t cx, uint32_t cy)
 ScopeWidget::ScopeWidget(QWidget *parent)
 	: QWidget(parent)
 {
+	properties = NULL;
 	setAttribute(Qt::WA_PaintOnScreen);
 	setAttribute(Qt::WA_StaticContents);
 	setAttribute(Qt::WA_NoSystemBackground);
