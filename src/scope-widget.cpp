@@ -33,6 +33,7 @@ ScopeWidget::~ScopeWidget()
 {
 	if (data) {
 		obs_display_destroy(data->disp);
+		data->disp = NULL;
 	}
 	bfree(data); data = NULL;
 }
@@ -75,4 +76,20 @@ void ScopeWidget::resizeEvent(QResizeEvent *event)
 void ScopeWidget::paintEvent(QPaintEvent *event)
 {
 	CreateDisplay();
+}
+
+void ScopeWidget::closeEvent(QCloseEvent *event)
+{
+	setShown(false);
+}
+
+void ScopeWidget::setShown(bool shown)
+{
+	if (shown && !data->disp) {
+		CreateDisplay();
+	}
+	if (!shown && data->disp) {
+		obs_display_destroy(data->disp);
+		data->disp = NULL;
+	}
 }

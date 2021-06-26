@@ -16,6 +16,10 @@ public:
 	virtual void closeEvent(QCloseEvent *event);
 
 	void SetWidget(class ScopeWidget *w) { widget = w; setWidget((QWidget*)w); }
+
+private:
+	void showEvent(QShowEvent *event) override;
+	void hideEvent(QHideEvent *event) override;
 };
 
 extern "C" void scope_docks_init();

@@ -51,6 +51,18 @@ ScopeDock::~ScopeDock()
 	}
 }
 
+void ScopeDock::showEvent(QShowEvent *event)
+{
+	blog(LOG_INFO, "ScopeDock::showEvent");
+	widget->setShown(true);
+}
+
+void ScopeDock::hideEvent(QHideEvent *event)
+{
+	blog(LOG_INFO, "ScopeDock::hideEvent");
+	widget->setShown(false);
+}
+
 void scope_docks_init()
 {
 	docks = new std::vector<ScopeDock*>;
