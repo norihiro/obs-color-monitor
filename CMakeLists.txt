@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 # Change obs-plugintemplate to your plugin's name in a machine-readable format
 # (e.g.: obs-myawesomeplugin) and set 
 project(obs-color-monitor)
-set(CMAKE_PROJECT_VERSION 0.2.0) # update cmake to 3.12 or later, then put to 'project'
+set(CMAKE_PROJECT_VERSION 0.2.1) # update cmake to 3.12 or later, then put to 'project'
 
 # Replace `Your Name Here` with the name (yours or your organization's) you want
 # to see as the author of the plugin (in the plugin's metadata itself and in the installers)
