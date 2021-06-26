@@ -35,6 +35,12 @@ float4 PSDrawBare(VertInOut vert_in) : TARGET
 	return float4(color.x*r, color.y*r, color.z*r, 1.0);
 }
 
+float4 PSDrawGraticule(VertInOut vert_in) : TARGET
+{
+	float a = image.Sample(def_sampler, vert_in.uv).a;
+	return float4(color.x, color.y, color.z, color.a*a);
+}
+
 float4 PSConvertRGB_UV601(VertInOut vert_in) : TARGET
 {
 	float4 rgb = image.Sample(cnv_sampler, vert_in.uv);
@@ -63,6 +69,15 @@ technique Draw
 	{
 		vertex_shader = VSDefault(vert_in);
 		pixel_shader  = PSDrawBare(vert_in);
+	}
+}
+
+technique DrawGraticule
+{
+	pass
+	{
+		vertex_shader = VSDefault(vert_in);
+		pixel_shader  = PSDrawGraticule(vert_in);
 	}
 }
 
