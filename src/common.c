@@ -105,7 +105,8 @@ void cm_get_properties(struct cm_source *src, obs_properties_t *props)
 	property_list_add_sources(prop, src ? src->self : NULL);
 	obs_properties_add_int(props, "target_scale", obs_module_text("Scale"), 1, 128, 1);
 
-	obs_properties_add_bool(props, "bypass", obs_module_text("Bypass"));
+	if (!(src->flags & CM_FLAG_ROI))
+		obs_properties_add_bool(props, "bypass", obs_module_text("Bypass"));
 }
 
 bool cm_render_target(struct cm_source *src)
@@ -158,15 +159,17 @@ bool cm_render_target(struct cm_source *src)
 		gs_texrender_end(src->texrender);
 
 		if (width != src->known_width || height != src->known_height) {
-			gs_stagesurface_destroy(src->stagesurface);
-			src->stagesurface = gs_stagesurface_create(width, height, GS_BGRA);
+			if (!(src->flags & CM_FLAG_ROI)) {
+				gs_stagesurface_destroy(src->stagesurface);
+				src->stagesurface = gs_stagesurface_create(width, height, GS_BGRA);
+			}
 			src->known_width = width;
 			src->known_height = height;
 		}
 
 		PROFILE_END(prof_render_target_name);
 
-		if (src->bypass) {
+		if (src->bypass || (src->flags & CM_FLAG_ROI)) {
 			// do nothing
 		}
 		else if (src->flags & CM_FLAG_CONVERT_UV) {

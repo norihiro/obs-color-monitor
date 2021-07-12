@@ -39,8 +39,10 @@ struct cm_source
 	bool bypass;
 };
 
-#define CM_FLAG_CONVERT_UV  1
-// #define CM_FLAG_CONVERT_Y   2
+#define CM_FLAG_CONVERT_RGB 1
+#define CM_FLAG_CONVERT_UV  2
+// #define CM_FLAG_CONVERT_Y   4
+#define CM_FLAG_ROI         8
 
 void cm_create(struct cm_source *src, obs_data_t *settings, obs_source_t *source);
 void cm_destroy(struct cm_source *src);
