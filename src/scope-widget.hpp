@@ -3,7 +3,7 @@
 #include <obs.h>
 #include <QWidget>
 
-#define SCOPE_WIDGET_N_SRC 3
+#define SCOPE_WIDGET_N_SRC 4
 
 class ScopeWidget : public QWidget {
 	Q_OBJECT
@@ -16,6 +16,7 @@ class ScopeWidget : public QWidget {
 	void paintEvent(QPaintEvent *event) override;
 	void closeEvent(QCloseEvent *event) override;
 	void mousePressEvent(QMouseEvent *event) override;
+	void mouseReleaseEvent(QMouseEvent *event) override;
 
 public slots:
 	void createProperties();
