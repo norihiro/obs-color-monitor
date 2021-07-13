@@ -22,6 +22,19 @@ static const char *prof_stage_surface_name = "stage_surface";
 
 // #define ENABLE_ROI_USER // uncomment if you want to use or debug
 
+#define INTERACT_DRAW_ROI_RECT 1
+#define INTERACT_DRAG_FIRST 2
+#define INTERACT_DRAG_MOVE 4
+#define INTERACT_DRAG_RESIZE 8
+#define INTERACT_HANDLE_LO 0x010
+#define INTERACT_HANDLE_RO 0x040
+#define INTERACT_HANDLE_TO 0x100
+#define INTERACT_HANDLE_BO 0x400
+#define INTERACT_HANDLE_LI 0x020
+#define INTERACT_HANDLE_RI 0x080
+#define INTERACT_HANDLE_TI 0x200
+#define INTERACT_HANDLE_BI 0x800
+
 extern gs_effect_t *cm_rgb2yuv_effect;
 static DARRAY(struct roi_source*) da_roi;
 static pthread_mutex_t da_roi_mutex;
@@ -102,7 +115,96 @@ static uint32_t roi_get_height(void *data)
 	return src->cm.known_height;
 }
 
-static void draw_roi_range(const struct roi_source *src, float x0, float y0, float x1, float y1)
+static inline int min_int(int a, int b) { return a<b ? a : b; }
+static inline int max_int(int a, int b) { return a>b ? a : b; }
+static inline void swap_int (int *a, int *b) { int c=*a; *a=*b; *b=c; }
+
+static inline int handle_size(const struct roi_source *src)
+{
+	const int wh_min = min_int(src->cm.known_width, src->cm.known_height);
+	return wh_min / 12;
+}
+
+static inline bool handle_is_outside_x(const struct roi_source *src, int x0, int x1, uint32_t flags)
+{
+	const int wh_min = min_int(src->cm.known_width, src->cm.known_height);
+	int size_th = wh_min / 3;
+	if (flags & (INTERACT_HANDLE_LO | INTERACT_HANDLE_RO))
+		return true;
+	if (flags & (INTERACT_HANDLE_LI | INTERACT_HANDLE_RI))
+		return false;
+	if (x1 - x0 <= size_th)
+		return true;
+	return false;
+}
+
+static inline bool handle_is_outside_y(const struct roi_source *src, int x0, int x1, uint32_t flags)
+{
+	const int wh_min = min_int(src->cm.known_width, src->cm.known_height);
+	int size_th = wh_min / 3;
+	if (flags & (INTERACT_HANDLE_TO | INTERACT_HANDLE_BO))
+		return true;
+	if (flags & (INTERACT_HANDLE_TI | INTERACT_HANDLE_BI))
+		return false;
+	if (x1 - x0 <= size_th)
+		return true;
+	return false;
+}
+
+static inline void draw_roi_rect(const struct roi_source *src, float x0, float y0, float x1, float y1, uint32_t flags)
+{
+	gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_SOLID);
+	gs_effect_set_color(gs_effect_get_param_by_name(effect, "color"), 0xFF00FF00);
+	const int hh = handle_size(src);
+	const bool x_outside = handle_is_outside_x(src, x0, x1, flags);
+	const bool y_outside = handle_is_outside_y(src, y0, y1, flags);
+	const int x0h = x_outside ? x0 - hh : x0 + hh;
+	const int x1h = x_outside ? x1 + hh : x1 - hh;
+	const int y0h = y_outside ? y0 - hh : y0 + hh;
+	const int y1h = y_outside ? y1 + hh : y1 - hh;
+	const int x0e = x_outside ? x0 : x0h;
+	const int x1e = x_outside ? x1 : x1h;
+	const int y0e = y_outside ? y0 : y0h;
+	const int y1e = y_outside ? y1 : y1h;
+	while (gs_effect_loop(effect, "Solid")) {
+		gs_render_start(false);
+		gs_vertex2f(x0, y1); gs_vertex2f(x0, y0);
+		gs_vertex2f(x0, y0); gs_vertex2f(x1, y0);
+		gs_vertex2f(x1, y0); gs_vertex2f(x1, y1);
+		gs_vertex2f(x1, y1); gs_vertex2f(x0, y1);
+		if (flags & (INTERACT_HANDLE_LI | INTERACT_HANDLE_LO)) {
+			gs_vertex2f(x0h, y1e); gs_vertex2f(x0h, y0e);
+			if (!y_outside || x_outside) {
+				gs_vertex2f(x0, y1e); gs_vertex2f(x0h, y1e);
+				gs_vertex2f(x0, y0e); gs_vertex2f(x0h, y0e);
+			}
+		}
+		if (flags & (INTERACT_HANDLE_RI | INTERACT_HANDLE_RO)) {
+			gs_vertex2f(x1h, y1e); gs_vertex2f(x1h, y0e);
+			if (!y_outside || x_outside) {
+				gs_vertex2f(x1, y1e); gs_vertex2f(x1h, y1e);
+				gs_vertex2f(x1, y0e); gs_vertex2f(x1h, y0e);
+			}
+		}
+		if (flags & (INTERACT_HANDLE_TI | INTERACT_HANDLE_TO)) {
+			gs_vertex2f(x1e, y0h); gs_vertex2f(x0e, y0h);
+			if (!x_outside || y_outside) {
+				gs_vertex2f(x1e, y0h); gs_vertex2f(x1e, y0);
+				gs_vertex2f(x0e, y0); gs_vertex2f(x0e, y0h);
+			}
+		}
+		if (flags & (INTERACT_HANDLE_BI | INTERACT_HANDLE_BO)) {
+			gs_vertex2f(x1e, y1h); gs_vertex2f(x0e, y1h);
+			if (!x_outside || y_outside) {
+				gs_vertex2f(x1e, y1h); gs_vertex2f(x1e, y1);
+				gs_vertex2f(x0e, y1); gs_vertex2f(x0e, y1h);
+			}
+		}
+		gs_render_stop(GS_LINES);
+	}
+}
+
+static inline void draw_roi_range(const struct roi_source *src, float x0, float y0, float x1, float y1)
 {
 	gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_SOLID);
 	gs_effect_set_color(gs_effect_get_param_by_name(effect, "color"), 0x80000000);
@@ -238,6 +340,12 @@ static void roi_render(void *data, gs_effect_t *effect)
 
 	draw_roi_range(src, src->x0, src->y0, src->x1, src->y1);
 
+	uint32_t flags_interact = src->flags_interact_gs;
+	if (flags_interact & (INTERACT_DRAG_RESIZE | INTERACT_DRAG_FIRST))
+		draw_roi_rect(src, src->x0sizing, src->y0sizing, src->x1sizing, src->y1sizing, flags_interact);
+	else if (flags_interact & INTERACT_DRAW_ROI_RECT)
+		draw_roi_rect(src, src->x0, src->y0, src->x1, src->y1, flags_interact);
+
 	gs_blend_state_pop();
 
 	PROFILE_END(prof_render_name);
@@ -268,25 +376,157 @@ void roi_stagesurfae_unmap(struct roi_source *src)
 	gs_stagesurface_unmap(src->cm.stagesurface);
 }
 
-static inline int min_int(int a, int b) { return a<b ? a : b; }
-static inline int max_int(int a, int b) { return a>b ? a : b; }
+static uint32_t handle_from_pos(struct roi_source *src, int x, int y)
+{
+	const int wh_min = min_int(src->cm.known_width, src->cm.known_height);
+	const int hh = handle_size(src);
+	bool x_inside = false, y_inside = false;
+
+	uint32_t flags = 0;
+
+	if (handle_is_outside_x(src, src->x0in, src->x1in, 0)) {
+		if (src->x0in - hh <= x && x <= src->x0in)
+			flags |= INTERACT_HANDLE_LO;
+		if (src->x1in <= x && x <= src->x1in + hh)
+			flags |= INTERACT_HANDLE_RO;
+		if (src->x0in - hh <= x && x <= src->x1in + hh)
+			x_inside = true;
+	}
+	else {
+		if (src->x0in <= x && x <= src->x0in + hh)
+			flags |= INTERACT_HANDLE_LI;
+		if (src->x1in - hh <= x && x <= src->x1in)
+			flags |= INTERACT_HANDLE_RI;
+		if (src->x0in <= x && x <= src->x1in)
+			x_inside = true;
+	}
+
+	if (handle_is_outside_y(src, src->y0in, src->y1in, 0)) {
+		if (src->y0in - hh <= y && y <= src->y0in)
+			flags |= INTERACT_HANDLE_TO;
+		if (src->y1in <= y && y <= src->y1in + hh)
+			flags |= INTERACT_HANDLE_BO;
+		if (src->y0in - hh <= y && y <= src->y1in + hh)
+			y_inside = true;
+	}
+	else {
+		if (src->y0in <= y && y <= src->y0in + hh)
+			flags |= INTERACT_HANDLE_TI;
+		if (src->y1in - hh <= y && y <= src->y1in)
+			flags |= INTERACT_HANDLE_BI;
+		if (src->y0in <= y && y <= src->y1in)
+			y_inside = true;
+	}
+
+	if (!x_inside)
+		flags &= ~INTERACT_HANDLE_TO & ~INTERACT_HANDLE_BO & ~INTERACT_HANDLE_TI & ~INTERACT_HANDLE_BI;
+	if (!y_inside)
+		flags &= ~INTERACT_HANDLE_LO & ~INTERACT_HANDLE_RO & ~INTERACT_HANDLE_LI & ~INTERACT_HANDLE_RI;
+	if (x_inside && y_inside)
+		flags |= INTERACT_DRAW_ROI_RECT;
+
+	return flags;
+}
+
+static inline void drag_move_pos(struct roi_source *src, int dx, int dy)
+{
+	src->x0in += dx;
+	src->y0in += dy;
+	src->x1in += dx;
+	src->y1in += dy;
+}
+
+static void roi_mouse_move(void *data, const struct obs_mouse_event *event, bool mouse_leave)
+{
+	struct roi_source *src = data;
+	if (mouse_leave) {
+		src->x_start = INT_MIN;
+		src->y_start = INT_MIN;
+		src->flags_interact = 0;
+		return;
+	}
+
+	int x = event->x;
+	int y = event->y;
+	src->x_mouse = x;
+	src->y_mouse = y;
+
+	if (src->x_start == INT_MIN && src->y_start == INT_MIN) {
+		src->flags_interact = handle_from_pos(src, x, y);
+	}
+	else if (src->x_start!=INT_MIN && src->y_start != INT_MIN) {
+		if (src->flags_interact & INTERACT_DRAG_MOVE) {
+			drag_move_pos(src, x - src->x_start, y - src->y_start);
+			src->x_start = x;
+			src->y_start = y;
+		}
+	}
+}
+
+static inline bool is_resize(uint32_t flags)
+{
+	if (flags & (INTERACT_HANDLE_LO | INTERACT_HANDLE_LI)) return true;
+	if (flags & (INTERACT_HANDLE_RO | INTERACT_HANDLE_RI)) return true;
+	if (flags & (INTERACT_HANDLE_TO | INTERACT_HANDLE_TI)) return true;
+	if (flags & (INTERACT_HANDLE_BO | INTERACT_HANDLE_BI)) return true;
+	return false;
+}
 
 static void roi_mouse_click(void *data, const struct obs_mouse_event *event, int32_t type, bool mouse_up, uint32_t click_count)
 {
 	struct roi_source *src = data;
-	// TODO: implement me
 
-	if (mouse_up) {
-		src->x0in = min_int(src->x_start, event->x);
-		src->y0in = min_int(src->y_start, event->y);
-		src->x1in = max_int(src->x_start, event->x);
-		src->y1in = max_int(src->y_start, event->y);
+	src->x_mouse = event->x;
+	src->y_mouse = event->y;
+
+	if (mouse_up && (src->flags_interact & INTERACT_DRAG_FIRST)) {
+		if (src->x_start==event->x || src->y_start==event->y) {
+			src->x0in = -1;
+			src->x1in = -1;
+			src->y0in = -1;
+			src->y1in = -1;
+		}
+		else {
+			src->x0in = min_int(src->x_start, event->x);
+			src->y0in = min_int(src->y_start, event->y);
+			src->x1in = max_int(src->x_start, event->x);
+			src->y1in = max_int(src->y_start, event->y);
+		}
 		src->x_start = INT_MIN;
 		src->y_start = INT_MIN;
+		src->flags_interact = 0;
 	}
-	else {
+	else if (!mouse_up) {
 		src->x_start = event->x;
 		src->y_start = event->y;
+		if (src->flags_interact & INTERACT_DRAW_ROI_RECT) {
+			if (is_resize(src->flags_interact))
+				src->flags_interact |= INTERACT_DRAG_RESIZE;
+			else
+				src->flags_interact |= INTERACT_DRAG_MOVE;
+		}
+		else
+			src->flags_interact |= INTERACT_DRAG_FIRST;
+	}
+	else if (mouse_up && (src->flags_interact & INTERACT_DRAG_MOVE)) {
+		src->x_start = INT_MIN;
+		src->y_start = INT_MIN;
+		src->flags_interact &= ~INTERACT_DRAG_MOVE;
+	}
+	else if (mouse_up && (src->flags_interact & INTERACT_DRAG_RESIZE)) {
+		if (src->flags_interact & (INTERACT_HANDLE_LO | INTERACT_HANDLE_LI))
+			src->x0in += event->x - src->x_start;
+		if (src->flags_interact & (INTERACT_HANDLE_RO | INTERACT_HANDLE_RI))
+			src->x1in += event->x - src->x_start;
+		if (src->flags_interact & (INTERACT_HANDLE_TO | INTERACT_HANDLE_TI))
+			src->y0in += event->y - src->y_start;
+		if (src->flags_interact & (INTERACT_HANDLE_BO | INTERACT_HANDLE_BI))
+			src->y1in += event->y - src->y_start;
+		if (src->x0in > src->x1in) swap_int(&src->x0in, &src->x1in);
+		if (src->y0in > src->y1in) swap_int(&src->y0in, &src->y1in);
+		src->x_start = INT_MIN;
+		src->y_start = INT_MIN;
+		src->flags_interact &= ~INTERACT_DRAG_RESIZE;
 	}
 }
 
@@ -305,10 +545,33 @@ static void roi_tick(void *data, float unused)
 	if (src->n_y > 0)
 		src->n_y --;
 
+	uint32_t flags_interact = src->flags_interact;
+	src->flags_interact_gs = flags_interact;
 	src->x0 = src->x0in;
 	src->y0 = src->y0in;
 	src->x1 = src->x1in;
 	src->y1 = src->y1in;
+
+	if (flags_interact & INTERACT_DRAG_FIRST) {
+		src->x0sizing = min_int(src->x_start, src->x_mouse);
+		src->y0sizing = min_int(src->y_start, src->y_mouse);
+		src->x1sizing = max_int(src->x_start, src->x_mouse);
+		src->y1sizing = max_int(src->y_start, src->y_mouse);
+	}
+	if (flags_interact & INTERACT_DRAG_RESIZE) {
+		src->x0sizing = src->x0in;
+		src->y0sizing = src->y0in;
+		src->x1sizing = src->x1in;
+		src->y1sizing = src->y1in;
+		if (flags_interact & (INTERACT_HANDLE_LO | INTERACT_HANDLE_LI))
+			src->x0sizing += src->x_mouse - src->x_start;
+		if (flags_interact & (INTERACT_HANDLE_RO | INTERACT_HANDLE_RI))
+			src->x1sizing += src->x_mouse - src->x_start;
+		if (flags_interact & (INTERACT_HANDLE_TO | INTERACT_HANDLE_TI))
+			src->y0sizing += src->y_mouse - src->y_start;
+		if (flags_interact & (INTERACT_HANDLE_BO | INTERACT_HANDLE_BI))
+			src->y1sizing += src->y_mouse - src->y_start;
+	}
 }
 
 struct roi_source *roi_from_source(obs_source_t *s)
@@ -344,6 +607,7 @@ struct obs_source_info colormonitor_roi = {
 	.enum_active_sources = cm_enum_sources,
 	.video_render = roi_render,
 	.video_tick = roi_tick,
+	.mouse_move = roi_mouse_move,
 	.mouse_click = roi_mouse_click,
 };
 

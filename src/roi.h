@@ -11,8 +11,12 @@ struct roi_source
 	struct cm_source cm;
 
 	int x0, x1, y0, y1;
-	volatile int x0in, x1in, y0in, y1in;
+	int x0sizing, x1sizing, y0sizing, y1sizing;
+	int x0in, x1in, y0in, y1in;
+	uint32_t flags_interact;
+	uint32_t flags_interact_gs;
 	int x_start, y_start;
+	int x_mouse, y_mouse;
 
 	int n_rgb, n_uv, n_y;
 	bool b_rgb, b_yuv;
