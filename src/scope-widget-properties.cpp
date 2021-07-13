@@ -14,9 +14,7 @@ static obs_properties_t *scopewidget_properties(const obs_source_t *source)
 {
 	obs_properties_t *props = obs_source_properties(source);
 	obs_property_set_visible(obs_properties_get(props, "target_name"), false);
-	obs_property_set_visible(obs_properties_get(props, "bypass_vectorscope"), false);
-	obs_property_set_visible(obs_properties_get(props, "bypass_waveform"), false);
-	obs_property_set_visible(obs_properties_get(props, "bypass_histogram"), false);
+	obs_property_set_visible(obs_properties_get(props, "bypass"), false);
 	return props;
 }
 

@@ -26,7 +26,7 @@ OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 extern struct obs_source_info colormonitor_vectorscope;
 extern struct obs_source_info colormonitor_waveform;
 extern struct obs_source_info colormonitor_histogram;
-extern gs_effect_t *vss_effect;
+extern gs_effect_t *cm_rgb2yuv_effect;
 extern gs_effect_t *wvs_effect;
 extern gs_effect_t *his_effect;
 void scope_docks_init();
@@ -44,9 +44,9 @@ bool obs_module_load(void)
 
 void obs_module_unload()
 {
-	if (vss_effect) {
-		gs_effect_destroy(vss_effect);
-		vss_effect = NULL;
+	if (cm_rgb2yuv_effect) {
+		gs_effect_destroy(cm_rgb2yuv_effect);
+		cm_rgb2yuv_effect = NULL;
 	}
 	if (wvs_effect) {
 		gs_effect_destroy(wvs_effect);
