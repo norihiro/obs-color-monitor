@@ -140,7 +140,7 @@ jobs:
     - script: ./ci/macos/build-macos.sh
       displayName: 'Build Plugin'
 
-    - task: InstallAppleCertificate@1
+    - task: InstallAppleCertificate@2
       displayName: 'Install release signing certificates'
       condition: eq(variables['isReleaseMode'], true)
       inputs:
