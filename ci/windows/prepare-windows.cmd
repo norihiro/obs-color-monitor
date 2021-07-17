@@ -1,4 +1,4 @@
-if "%buildWin32%" == "false" then goto skippedWin32
+if "%buildWin32%" == "false" goto skippedWin32
 mkdir build32
 cd build32
 cmake -G "Visual Studio 16 2019" ^
