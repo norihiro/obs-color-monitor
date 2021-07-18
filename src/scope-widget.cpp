@@ -127,6 +127,7 @@ static void draw(void *param, uint32_t cx, uint32_t cy)
 
 ScopeWidget::ScopeWidget(QWidget *parent)
 	: QWidget(parent)
+	, eventFilter(BuildEventFilter())
 {
 	properties = NULL;
 	setAttribute(Qt::WA_PaintOnScreen);
@@ -136,6 +137,9 @@ ScopeWidget::ScopeWidget(QWidget *parent)
 	setAttribute(Qt::WA_DontCreateNativeAncestors);
 	setAttribute(Qt::WA_NativeWindow);
 
+	setMouseTracking(true);
+	QObject::installEventFilter(eventFilter.get());
+
 	data = (struct scope_widget_s*)bzalloc(sizeof(struct scope_widget_s));
 	pthread_mutex_init(&data->mutex, NULL);
 	data->src_shown = (1<<N_SRC)-1;
@@ -143,6 +147,8 @@ ScopeWidget::ScopeWidget(QWidget *parent)
 
 ScopeWidget::~ScopeWidget()
 {
+	removeEventFilter(eventFilter.get());
+
 	if (data) {
 		obs_display_destroy(data->disp);
 		data->disp = NULL;
@@ -157,6 +163,36 @@ ScopeWidget::~ScopeWidget()
 		pthread_mutex_destroy(&data->mutex);
 	}
 	bfree(data); data = NULL;
+}
+
+OBSEventFilter *ScopeWidget::BuildEventFilter()
+{
+	return new OBSEventFilter([this](QObject *obj, QEvent *event) {
+		UNUSED_PARAMETER(obj);
+
+		switch (event->type()) {
+		case QEvent::MouseButtonPress:
+		case QEvent::MouseButtonRelease:
+		case QEvent::MouseButtonDblClick:
+			return this->HandleMouseClickEvent(
+				static_cast<QMouseEvent *>(event));
+		case QEvent::MouseMove:
+		case QEvent::Enter:
+		case QEvent::Leave:
+			return this->HandleMouseMoveEvent(
+				static_cast<QMouseEvent *>(event));
+
+		case QEvent::Wheel:
+			return this->HandleMouseWheelEvent(
+				static_cast<QWheelEvent *>(event));
+		case QEvent::KeyPress:
+		case QEvent::KeyRelease:
+			return this->HandleKeyEvent(
+				static_cast<QKeyEvent *>(event));
+		default:
+			return false;
+		}
+	});
 }
 
 void ScopeWidget::CreateDisplay()
@@ -215,75 +251,209 @@ void ScopeWidget::setShown(bool shown)
 	}
 }
 
-static void send_mouse_event(struct scope_widget_s *data, QMouseEvent *qt_event, uint32_t type, bool click, bool mouse_up)
+static obs_source_t *get_source_from_mouse(struct scope_widget_s *data, int x, int y, struct obs_mouse_event *event)
 {
-	struct obs_mouse_event event = {};
-	int x = qt_event->x();
-	int y = qt_event->y();
-
 	for (int i=0; i<N_SRC; i++) {
 		auto &r = data->src_rect[i];
-		if (r.is_inside(x, y)) {
-			event.x = r.x_from_widget(x);
-			event.y = r.y_from_widget(y);
-
-			if (click)
-				obs_source_send_mouse_click(data->src[i], &event, type, mouse_up, 1);
-			// TODO: Not sending mouse_move because not used.
-		}
+		event->x = r.x_from_widget(x);
+		event->y = r.y_from_widget(y);
+		if (r.is_inside(x, y))
+			return data->src[i];
 	}
+
+	return NULL;
 }
 
-void ScopeWidget::mousePressEvent(QMouseEvent *event)
+static int TranslateQtKeyboardEventModifiers(QInputEvent *event,
+					     bool mouseEvent)
 {
-	if (event->button() == Qt::LeftButton) {
-		send_mouse_event(data, event, MOUSE_LEFT, true, false);
+	int obsModifiers = INTERACT_NONE;
+
+	if (event->modifiers().testFlag(Qt::ShiftModifier))
+		obsModifiers |= INTERACT_SHIFT_KEY;
+	if (event->modifiers().testFlag(Qt::AltModifier))
+		obsModifiers |= INTERACT_ALT_KEY;
+#ifdef __APPLE__
+	// Mac: Meta = Control, Control = Command
+	if (event->modifiers().testFlag(Qt::ControlModifier))
+		obsModifiers |= INTERACT_COMMAND_KEY;
+	if (event->modifiers().testFlag(Qt::MetaModifier))
+		obsModifiers |= INTERACT_CONTROL_KEY;
+#else
+	// Handle windows key? Can a browser even trap that key?
+	if (event->modifiers().testFlag(Qt::ControlModifier))
+		obsModifiers |= INTERACT_CONTROL_KEY;
+#endif
+
+	if (!mouseEvent) {
+		if (event->modifiers().testFlag(Qt::KeypadModifier))
+			obsModifiers |= INTERACT_IS_KEY_PAD;
 	}
+
+	return obsModifiers;
+}
+
+static int TranslateQtMouseEventModifiers(QMouseEvent *event)
+{
+	int modifiers = TranslateQtKeyboardEventModifiers(event, true);
+
+	if (event->buttons().testFlag(Qt::LeftButton))
+		modifiers |= INTERACT_MOUSE_LEFT;
+	if (event->buttons().testFlag(Qt::MiddleButton))
+		modifiers |= INTERACT_MOUSE_MIDDLE;
+	if (event->buttons().testFlag(Qt::RightButton))
+		modifiers |= INTERACT_MOUSE_RIGHT;
+
+	return modifiers;
+}
+
+bool ScopeWidget::HandleMouseClickEvent(QMouseEvent *event)
+{
+	bool mouseUp = event->type() == QEvent::MouseButtonRelease;
+	int clickCount = 1;
+	if (event->type() == QEvent::MouseButtonDblClick)
+		clickCount = 2;
 
 	if (event->button() == Qt::RightButton) {
-		QMenu popup(this);
-		QAction *act;
-
-		const char *menu_text[] = {
-			"Show &ROI",
-			"Show &Vectorscope",
-			"Show &Waveform",
-			"Show &Histogram",
-		};
-
-		for (int i=0; i<N_SRC; i++) {
-			uint32_t mask = 1<<i;
-			QAction *act = new QAction(obs_module_text(menu_text[i]), this);
-			act->setCheckable(true);
-			act->setChecked(!!(data->src_shown & mask));
-			auto toggleCB = [=](bool checked) {
-				if (checked)
-					data->src_shown |= mask;
-				else
-					data->src_shown &= ~mask;
-			};
-			connect(act, &QAction::toggled, toggleCB);
-			popup.addAction(act);
-		}
-
-		act = new QAction(obs_module_text("Properties..."), this);
-		connect(act, &QAction::triggered, this, &ScopeWidget::createProperties);
-		popup.addAction(act);
-
-		popup.exec(QCursor::pos());
-		return;
+		return openMenu(event);
 	}
 
-	QWidget::mousePressEvent(event);
+	struct obs_mouse_event mouseEvent = {};
+
+	mouseEvent.modifiers = TranslateQtMouseEventModifiers(event);
+
+	int32_t button = 0;
+
+	switch (event->button()) {
+	case Qt::LeftButton:
+		button = MOUSE_LEFT;
+		break;
+	case Qt::MiddleButton:
+		button = MOUSE_MIDDLE;
+		break;
+	case Qt::RightButton:
+		button = MOUSE_RIGHT;
+		break;
+	default:
+		blog(LOG_WARNING, "unknown button type %d", event->button());
+		return false;
+	}
+
+	obs_source_t *src = get_source_from_mouse(data, event->x(), event->y(), &mouseEvent);
+	// TODO: if (mouseUp && !src)
+	if (src)
+		obs_source_send_mouse_click(src, &mouseEvent, button, mouseUp, clickCount);
+
+	return true;
 }
 
-void ScopeWidget::mouseReleaseEvent(QMouseEvent *event)
+bool ScopeWidget::HandleMouseMoveEvent(QMouseEvent *event)
 {
-	if (event->button() == Qt::LeftButton) {
-		send_mouse_event(data, event, MOUSE_LEFT, true, true);
+	struct obs_mouse_event mouseEvent = {};
+
+	bool mouseLeave = event->type() == QEvent::Leave;
+	obs_source_t *src = get_source_from_mouse(data, event->x(), event->y(), &mouseEvent);
+
+	if (!mouseLeave) {
+		mouseEvent.modifiers = TranslateQtMouseEventModifiers(event);
+		//  TODO: set mouseLeave if src is different from the last src
 	}
 
-	QWidget::mouseReleaseEvent(event);
+	if (src)
+		obs_source_send_mouse_move(src, &mouseEvent, mouseLeave);
+
+	return true;
+}
+
+bool ScopeWidget::HandleMouseWheelEvent(QWheelEvent *event)
+{
+	struct obs_mouse_event mouseEvent = {};
+
+	mouseEvent.modifiers = TranslateQtKeyboardEventModifiers(event, true);
+
+	int xDelta = 0;
+	int yDelta = 0;
+
+	const QPoint angleDelta = event->angleDelta();
+	if (!event->pixelDelta().isNull()) {
+		if (angleDelta.x())
+			xDelta = event->pixelDelta().x();
+		else
+			yDelta = event->pixelDelta().y();
+	} else {
+		if (angleDelta.x())
+			xDelta = angleDelta.x();
+		else
+			yDelta = angleDelta.y();
+	}
+
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+	const QPointF position = event->position();
+	const int x = position.x();
+	const int y = position.y();
+#else
+	const int x = event->x();
+	const int y = event->y();
+#endif
+
+	obs_source_t *src = get_source_from_mouse(data, x, y, &mouseEvent);
+	if (src)
+		obs_source_send_mouse_wheel(src, &mouseEvent, xDelta, yDelta);
+
+	return true;
+}
+
+bool ScopeWidget::HandleKeyEvent(QKeyEvent *event)
+{
+	struct obs_key_event keyEvent;
+
+	QByteArray text = event->text().toUtf8();
+	keyEvent.modifiers = TranslateQtKeyboardEventModifiers(event, false);
+	keyEvent.text = text.data();
+	keyEvent.native_modifiers = event->nativeModifiers();
+	keyEvent.native_scancode = event->nativeScanCode();
+	keyEvent.native_vkey = event->nativeVirtualKey();
+
+	bool keyUp = event->type() == QEvent::KeyRelease;
+
+	// TODO: implement me obs_source_send_key_click(source, &keyEvent, keyUp);
+
+	return true;
+}
+
+bool ScopeWidget::openMenu(QMouseEvent *event)
+{
+	QMenu popup(this);
+	QAction *act;
+
+	const char *menu_text[] = {
+		"Show &ROI",
+		"Show &Vectorscope",
+		"Show &Waveform",
+		"Show &Histogram",
+	};
+
+	for (int i=0; i<N_SRC; i++) {
+		uint32_t mask = 1<<i;
+		QAction *act = new QAction(obs_module_text(menu_text[i]), this);
+		act->setCheckable(true);
+		act->setChecked(!!(data->src_shown & mask));
+		auto toggleCB = [=](bool checked) {
+			if (checked)
+				data->src_shown |= mask;
+			else
+				data->src_shown &= ~mask;
+		};
+		connect(act, &QAction::toggled, toggleCB);
+		popup.addAction(act);
+	}
+
+	act = new QAction(obs_module_text("Properties..."), this);
+	connect(act, &QAction::triggered, this, &ScopeWidget::createProperties);
+	popup.addAction(act);
+
+	popup.exec(QCursor::pos());
+	return true;
 }
 
 void ScopeWidget::createProperties()
