@@ -8,6 +8,9 @@ This plugin provides three sources to monitor color balances.
 - [Waveform](doc/waveform.md)
 - [Histogram](doc/histogram.md)
 
+In addition, a dock widget is available.
+- [Dock](doc/dock.md)
+
 ## Quick Usage
 
 ### Dock
