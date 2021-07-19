@@ -13,7 +13,7 @@ public:
 public:
 	ScopeDock(QWidget *parent = nullptr);
 	~ScopeDock();
-	virtual void closeEvent(QCloseEvent *event);
+	void closeEvent(QCloseEvent *event) override;
 
 	void SetWidget(class ScopeWidget *w) { widget = w; setWidget((QWidget*)w); }
 
