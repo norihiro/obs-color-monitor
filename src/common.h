@@ -30,6 +30,8 @@ struct cm_source
 	pthread_mutex_t target_update_mutex;
 	uint64_t target_check_time;
 	obs_weak_source_t *weak_target;
+	obs_source_t *target;
+	struct roi_source *roi;
 	char *target_name;
 
 	// properties
@@ -41,7 +43,7 @@ struct cm_source
 
 #define CM_FLAG_CONVERT_RGB 1
 #define CM_FLAG_CONVERT_UV  2
-// #define CM_FLAG_CONVERT_Y   4
+#define CM_FLAG_CONVERT_Y   4
 #define CM_FLAG_ROI         8
 
 void cm_create(struct cm_source *src, obs_data_t *settings, obs_source_t *source);
@@ -50,6 +52,8 @@ void cm_update(struct cm_source *src, obs_data_t *settings);
 void cm_enum_sources(void *data, obs_source_enum_proc_t enum_callback, void *param);
 void cm_get_properties(struct cm_source *src, obs_properties_t *props);
 bool cm_render_target(struct cm_source *src);
+bool cm_stagesurface_map(struct cm_source *src, uint8_t **video_data, uint32_t *video_linesize);
+void cm_stagesurface_unmap(struct cm_source *src);
 void cm_render_bypass(struct cm_source *src);
 void cm_tick(void *data, float unused);
 

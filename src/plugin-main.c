@@ -32,9 +32,12 @@ extern gs_effect_t *wvs_effect;
 extern gs_effect_t *his_effect;
 void scope_docks_init();
 void scope_docks_release();
+void roi_init();
+void roi_free();
 
 bool obs_module_load(void)
 {
+	roi_init();
 	obs_register_source(&colormonitor_vectorscope);
 	obs_register_source(&colormonitor_waveform);
 	obs_register_source(&colormonitor_histogram);
@@ -59,5 +62,6 @@ void obs_module_unload()
 		his_effect = NULL;
 	}
 	scope_docks_release();
+	roi_free();
 	blog(LOG_INFO, "plugin unloaded");
 }

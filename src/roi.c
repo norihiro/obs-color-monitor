@@ -1,6 +1,7 @@
 #include <obs-module.h>
 #include <graphics/image-file.h>
 #include <util/platform.h>
+#include <util/darray.h>
 #include <limits.h>
 #include "plugin-macros.generated.h"
 #include "obs-convenience.h"
@@ -22,6 +23,8 @@ static const char *prof_stage_surface_name = "stage_surface";
 // #define ENABLE_ROI_USER // uncomment if you want to use or debug
 
 extern gs_effect_t *cm_rgb2yuv_effect;
+static DARRAY(struct roi_source*) da_roi;
+static pthread_mutex_t da_roi_mutex;
 
 static const char *roi_get_name(void *unused)
 {
@@ -42,14 +45,26 @@ static void *roi_create(obs_data_t *settings, obs_source_t *source)
 	src->x1 = -1;
 	src->y0 = -1;
 	src->y1 = -1;
+	src->x0in = -1;
+	src->x1in = -1;
+	src->y0in = -1;
+	src->y1in = -1;
 
 	roi_update(src, settings);
+
+	pthread_mutex_lock(&da_roi_mutex);
+	da_push_back(da_roi, &src);
+	pthread_mutex_unlock(&da_roi_mutex);
 	return src;
 }
 
 static void roi_destroy(void *data)
 {
 	struct roi_source *src = data;
+
+	pthread_mutex_lock(&da_roi_mutex);
+	da_erase_item(da_roi, &src);
+	pthread_mutex_unlock(&da_roi_mutex);
 
 	cm_destroy(&src->cm);
 	bfree(src);
@@ -123,8 +138,8 @@ static inline gs_stagesurf_t *resize_stagesurface(gs_stagesurf_t *stagesurface, 
 
 static void roi_stage_texture(struct roi_source *src)
 {
-	const bool b_rgb = src->n_rgb > 0;
-	const bool b_yuv = (src->n_uv > 0 || src->n_y > 0);
+	const bool b_rgb = src->b_rgb;
+	const bool b_yuv = src->b_yuv;
 
 	if (!b_rgb && !b_yuv)
 		return;
@@ -185,13 +200,8 @@ static void roi_stage_texture(struct roi_source *src)
 	PROFILE_END(prof_stage_surface_name);
 }
 
-static void roi_render(void *data, gs_effect_t *effect)
+void roi_target_render(struct roi_source *src)
 {
-	UNUSED_PARAMETER(effect);
-	struct roi_source *src = data;
-
-	PROFILE_START(prof_render_name);
-
 	bool updated = cm_render_target(&src->cm);
 	if (updated) {
 		if (src->x0<0) src->x0 = 0;
@@ -203,6 +213,16 @@ static void roi_render(void *data, gs_effect_t *effect)
 
 		roi_stage_texture(src);
 	}
+}
+
+static void roi_render(void *data, gs_effect_t *effect)
+{
+	UNUSED_PARAMETER(effect);
+	struct roi_source *src = data;
+
+	PROFILE_START(prof_render_name);
+
+	roi_target_render(src);
 
 	gs_blend_state_push();
 	gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
@@ -223,6 +243,31 @@ static void roi_render(void *data, gs_effect_t *effect)
 	PROFILE_END(prof_render_name);
 }
 
+bool roi_stagesurfae_map(struct roi_source *src, uint8_t **video_data, uint32_t *video_linesize, int ix)
+{
+	if (ix && !src->b_yuv) {
+		blog(LOG_INFO, "roi_stagesurfae_map: YUV frame is not staged");
+		return false;
+	}
+	if (!ix && !src->b_rgb) {
+		blog(LOG_INFO, "roi_stagesurfae_map: RGB frame is not staged");
+		return false;
+	}
+	bool ret = gs_stagesurface_map(src->cm.stagesurface, video_data, video_linesize);
+	if (src->x0 > 0)
+		*video_data += 4 * src->x0;
+	if (src->y0 > 0)
+		*video_data += *video_linesize * src->y0;
+	if (ix && src->b_rgb && src->b_yuv)
+		*video_data += *video_linesize * src->cm.known_height;
+	return ret;
+}
+
+void roi_stagesurfae_unmap(struct roi_source *src)
+{
+	gs_stagesurface_unmap(src->cm.stagesurface);
+}
+
 static inline int min_int(int a, int b) { return a<b ? a : b; }
 static inline int max_int(int a, int b) { return a>b ? a : b; }
 
@@ -232,11 +277,10 @@ static void roi_mouse_click(void *data, const struct obs_mouse_event *event, int
 	// TODO: implement me
 
 	if (mouse_up) {
-		src->x0 = min_int(src->x_start, event->x);
-		src->y0 = min_int(src->y_start, event->y);
-		src->x1 = max_int(src->x_start, event->x);
-		src->y1 = max_int(src->y_start, event->y);
-		blog(LOG_INFO, "roi_mouse_click: %d %d %d %d", src->x0, src->y0, src->x1, src->y1);
+		src->x0in = min_int(src->x_start, event->x);
+		src->y0in = min_int(src->y_start, event->y);
+		src->x1in = max_int(src->x_start, event->x);
+		src->y1in = max_int(src->y_start, event->y);
 		src->x_start = INT_MIN;
 		src->y_start = INT_MIN;
 	}
@@ -244,6 +288,41 @@ static void roi_mouse_click(void *data, const struct obs_mouse_event *event, int
 		src->x_start = event->x;
 		src->y_start = event->y;
 	}
+}
+
+static void roi_tick(void *data, float unused)
+{
+	cm_tick(data, unused);
+	struct roi_source *src = data;
+
+	src->b_rgb = src->n_rgb > 0;
+	src->b_yuv = (src->n_uv > 0 || src->n_y > 0);
+
+	if (src->n_rgb > 0)
+		src->n_rgb --;
+	if (src->n_uv > 0)
+		src->n_uv --;
+	if (src->n_y > 0)
+		src->n_y --;
+
+	src->x0 = src->x0in;
+	src->y0 = src->y0in;
+	src->x1 = src->x1in;
+	src->y1 = src->y1in;
+}
+
+struct roi_source *roi_from_source(obs_source_t *s)
+{
+	struct roi_source *ret = NULL;
+	pthread_mutex_lock(&da_roi_mutex);
+	for (size_t i=0; i<da_roi.num; i++) {
+		if (da_roi.array[i]->cm.self == s) {
+			ret = da_roi.array[i];
+			break;
+		}
+	}
+	pthread_mutex_unlock(&da_roi_mutex);
+	return ret;
 }
 
 struct obs_source_info colormonitor_roi = {
@@ -264,6 +343,22 @@ struct obs_source_info colormonitor_roi = {
 	.get_height = roi_get_height,
 	.enum_active_sources = cm_enum_sources,
 	.video_render = roi_render,
-	.video_tick = cm_tick,
+	.video_tick = roi_tick,
 	.mouse_click = roi_mouse_click,
 };
+
+void roi_init()
+{
+	pthread_mutex_init(&da_roi_mutex, NULL);
+	da_init(da_roi);
+}
+
+void roi_free()
+{
+	pthread_mutex_lock(&da_roi_mutex);
+	if (da_roi.num>0)
+		blog(LOG_ERROR, "da_roi has %d element(s)", (int)da_roi.num);
+	da_free(da_roi);
+	pthread_mutex_unlock(&da_roi_mutex);
+	pthread_mutex_destroy(&da_roi_mutex);
+}

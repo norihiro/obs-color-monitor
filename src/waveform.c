@@ -243,9 +243,9 @@ static void wvs_render(void *data, gs_effect_t *effect)
 		uint8_t *video_data = NULL;
 		uint32_t video_linesize;
 		PROFILE_START(prof_draw_waveform_name);
-		if (gs_stagesurface_map(src->cm.stagesurface, &video_data, &video_linesize)) {
+		if (cm_stagesurface_map(&src->cm, &video_data, &video_linesize)) {
 			wvs_draw_waveform(src, video_data, video_linesize);
-			gs_stagesurface_unmap(src->cm.stagesurface);
+			cm_stagesurface_unmap(&src->cm);
 		}
 		PROFILE_END(prof_draw_waveform_name);
 	}

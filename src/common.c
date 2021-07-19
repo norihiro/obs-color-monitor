@@ -4,6 +4,7 @@
 #include "plugin-macros.generated.h"
 #include "obs-convenience.h"
 #include "common.h"
+#include "roi.h"
 
 #ifdef ENABLE_PROFILE
 #define PROFILE_START(x) profile_start(x)
@@ -12,6 +13,7 @@ static const char *prof_render_name_b = "cm_render_bypass";
 static const char *prof_render_target_name = "render_target";
 static const char *prof_convert_yuv_name = "convert_yuv";
 static const char *prof_stage_surface_name = "stage_surface";
+static const char *prof_stagesurface_map_name = "stage_surface_map";
 #else // ENABLE_PROFILE
 #define PROFILE_START(x)
 #define PROFILE_END(x)
@@ -44,6 +46,12 @@ void cm_create(struct cm_source *src, obs_data_t *settings, obs_source_t *source
 
 void cm_destroy(struct cm_source *src)
 {
+	if (src->target) {
+		obs_source_release(src->target);
+		src->roi = NULL;
+		src->target = NULL;
+	}
+
 	obs_enter_graphics();
 	gs_stagesurface_destroy(src->stagesurface);
 	gs_texrender_destroy(src->texrender_yuv);
@@ -118,6 +126,24 @@ bool cm_render_target(struct cm_source *src)
 	obs_source_t *target = src->weak_target ? obs_weak_source_get_source(src->weak_target) : NULL;
 	if (!target && *src->target_name)
 		return false;
+
+	if (target && !src->bypass) {
+		struct roi_source *roi = roi_from_source(target);
+		if (roi) {
+			if (src->flags & CM_FLAG_CONVERT_UV)
+				roi_request_uv(roi);
+			if (src->flags & CM_FLAG_CONVERT_Y)
+				roi_request_y(roi);
+			if (!(src->flags & (CM_FLAG_CONVERT_UV | CM_FLAG_CONVERT_Y)))
+				roi_request_rgb(roi);
+			roi_target_render(roi);
+			src->known_width = roi_width(roi);
+			src->known_height = roi_height(roi);
+			src->target = target;
+			src->roi = roi;
+			return true;
+		}
+	}
 
 	int target_width, target_height;
 	if (target) {
@@ -209,6 +235,29 @@ bool cm_render_target(struct cm_source *src)
 	return true;
 }
 
+bool cm_stagesurface_map(struct cm_source *src, uint8_t **video_data, uint32_t *video_linesize)
+{
+	if (src->roi) {
+		int ix = (src->flags & (CM_FLAG_CONVERT_UV | CM_FLAG_CONVERT_Y)) ? 1 : 0;
+		return roi_stagesurfae_map(src->roi, video_data, video_linesize, ix);
+	}
+
+	PROFILE_START(prof_stagesurface_map_name);
+	bool ret = gs_stagesurface_map(src->stagesurface, video_data, video_linesize);
+	PROFILE_END(prof_stagesurface_map_name);
+	return ret;
+}
+
+void cm_stagesurface_unmap(struct cm_source *src)
+{
+	if (src->roi) {
+		roi_stagesurfae_unmap(src->roi);
+		return;
+	}
+
+	gs_stagesurface_unmap(src->stagesurface);
+}
+
 void cm_render_bypass(struct cm_source *src)
 {
 	PROFILE_START(prof_render_name_b);
@@ -232,6 +281,12 @@ void cm_tick(void *data, float unused)
 {
 	UNUSED_PARAMETER(unused);
 	struct cm_source *src = data;
+
+	if (src->target) {
+		obs_source_release(src->target);
+		src->roi = NULL;
+		src->target = NULL;
+	}
 
 	pthread_mutex_lock(&src->target_update_mutex);
 	if (src->target_name && !*src->target_name) {
