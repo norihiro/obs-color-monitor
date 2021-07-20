@@ -14,9 +14,8 @@ static obs_properties_t *scopewidget_properties(const obs_source_t *source)
 {
 	obs_properties_t *props = obs_source_properties(source);
 	obs_property_set_visible(obs_properties_get(props, "target_name"), false);
-	obs_property_set_visible(obs_properties_get(props, "bypass_vectorscope"), false);
-	obs_property_set_visible(obs_properties_get(props, "bypass_waveform"), false);
-	obs_property_set_visible(obs_properties_get(props, "bypass_histogram"), false);
+	obs_property_set_visible(obs_properties_get(props, "target_scale"), false);
+	obs_property_set_visible(obs_properties_get(props, "bypass"), false);
 	return props;
 }
 
@@ -44,16 +43,17 @@ ScopeWidgetProperties::ScopeWidgetProperties(QWidget *parent, obs_source_t *sour
 		OBSData settings = obs_source_get_settings(source[i]);
 		obs_data_release(settings);
 
-		auto handle_memory = [](void *vp, obs_data_t *new_settings) {
+		PropertiesReloadCallback prop_cb = (PropertiesReloadCallback)scopewidget_properties;
+		if (i==0)
+			prop_cb = (PropertiesReloadCallback)obs_source_properties;
+
+		PropertiesUpdateCallback handle_memory = [](void *vp, obs_data_t *new_settings) {
 			obs_source_t *source = reinterpret_cast<obs_source_t *>(vp);
 
 			obs_source_update(source, new_settings);
 		};
 
-		view[i] = new OBSPropertiesView(
-			settings, source[i],
-			(PropertiesReloadCallback)scopewidget_properties,
-			(PropertiesUpdateCallback)handle_memory );
+		view[i] = new OBSPropertiesView(settings, source[i], prop_cb, handle_memory);
 		const char *name = obs_source_get_display_name(obs_source_get_id(source[i]));
 		tabWidget->addTab(view[i], name);
 	}

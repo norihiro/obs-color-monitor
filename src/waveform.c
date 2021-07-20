@@ -1,7 +1,5 @@
 #include <obs-module.h>
 #include <util/platform.h>
-#include <util/threading.h>
-#include <obs-frontend-api.h>
 #include "plugin-macros.generated.h"
 #include <graphics/matrix4.h>
 #include "common.h"
@@ -12,8 +10,6 @@
 #define PROFILE_START(x) profile_start(x)
 #define PROFILE_END(x) profile_end(x)
 static const char *prof_render_name = "wvs_render";
-static const char *prof_render_name_b = "wvs_render_bypass";
-static const char *prof_render_target_name = "render_target";
 static const char *prof_draw_waveform_name = "draw_waveform";
 static const char *prof_draw_name = "draw";
 static const char *prof_draw_graticule_name = "graticule";
@@ -23,7 +19,6 @@ static const char *prof_draw_graticule_name = "graticule";
 #endif // ! ENABLE_PROFILE
 
 #define WV_SIZE 256
-#define SOURCE_CHECK_NS 3000000000
 
 #define DISP_OVERLAY 0
 #define DISP_STACK   1
@@ -33,31 +28,17 @@ gs_effect_t *wvs_effect;
 
 struct wvs_source
 {
-	obs_source_t *self;
-	gs_texrender_t *texrender;
-	gs_stagesurf_t* stagesurface;
-	uint32_t known_width;
-	uint32_t known_height;
+	struct cm_source cm;
 
 	gs_texture_t *tex_wv;
 	uint8_t *tex_buf;
 	uint32_t tex_width;
 
-	pthread_mutex_t target_update_mutex;
-	uint64_t target_check_time;
-	obs_weak_source_t *weak_target;
-	char *target_name;
-
 	gs_vertbuffer_t *graticule_line_vbuf;
 
-	int target_scale;
 	int display;
 	int intensity;
 	int graticule_lines, graticule_lines_prev;
-	bool bypass_waveform;
-
-	bool rendered;
-	bool enumerating; // not thread safe but I have no other idea.
 };
 
 static const char *wvs_get_name(void *unused)
@@ -72,9 +53,9 @@ static void *wvs_create(obs_data_t *settings, obs_source_t *source)
 {
 	struct wvs_source *src = bzalloc(sizeof(struct wvs_source));
 
-	src->self = source;
+	cm_create(&src->cm, settings, source);
+
 	obs_enter_graphics();
-	src->texrender = gs_texrender_create(GS_BGRA, GS_ZS_NONE);
 	if (!wvs_effect) {
 		char *f = obs_module_file("waveform.effect");
 		wvs_effect = gs_effect_create_from_file(f, NULL);
@@ -83,7 +64,6 @@ static void *wvs_create(obs_data_t *settings, obs_source_t *source)
 		bfree(f);
 	}
 	obs_leave_graphics();
-	pthread_mutex_init(&src->target_update_mutex, NULL);
 
 	wvs_update(src, settings);
 
@@ -95,45 +75,19 @@ static void wvs_destroy(void *data)
 	struct wvs_source *src = data;
 
 	obs_enter_graphics();
-	gs_stagesurface_destroy(src->stagesurface);
-	gs_texrender_destroy(src->texrender);
-
 	gs_texture_destroy(src->tex_wv);
 	bfree(src->tex_buf);
 	gs_vertexbuffer_destroy(src->graticule_line_vbuf);
 	obs_leave_graphics();
 
-	bfree(src->target_name);
-	pthread_mutex_destroy(&src->target_update_mutex);
-	obs_weak_source_release(src->weak_target);
-
+	cm_destroy(&src->cm);
 	bfree(src);
 }
 
 static void wvs_update(void *data, obs_data_t *settings)
 {
 	struct wvs_source *src = data;
-	obs_weak_source_t *weak_source_old = NULL;
-
-	const char *target_name = obs_data_get_string(settings, "target_name");
-	if (!src->target_name || strcmp(target_name, src->target_name)) {
-		pthread_mutex_lock(&src->target_update_mutex);
-		bfree(src->target_name);
-		src->target_name = bstrdup(target_name);
-		weak_source_old = src->weak_target;
-		src->weak_target = NULL;
-		src->target_check_time = os_gettime_ns() - SOURCE_CHECK_NS;
-		pthread_mutex_unlock(&src->target_update_mutex);
-	}
-
-	if (weak_source_old) {
-		obs_weak_source_release(weak_source_old);
-		weak_source_old = NULL;
-	}
-
-	src->target_scale = (int)obs_data_get_int(settings, "target_scale");
-	if (src->target_scale<1)
-		src->target_scale = 1;
+	cm_update(&src->cm, settings);
 
 	src->display = (int)obs_data_get_int(settings, "display");
 
@@ -142,8 +96,6 @@ static void wvs_update(void *data, obs_data_t *settings)
 		src->intensity = 1;
 
 	src->graticule_lines = (int)obs_data_get_int(settings, "graticule_lines");
-
-	src->bypass_waveform = obs_data_get_bool(settings, "bypass_waveform");
 }
 
 static void wvs_get_defaults(obs_data_t *settings)
@@ -160,10 +112,8 @@ static obs_properties_t *wvs_get_properties(void *data)
 	obs_property_t *prop;
 	props = obs_properties_create();
 
-	prop = obs_properties_add_list(props, "target_name", obs_module_text("Source"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
-	property_list_add_sources(prop, src ? src->self : NULL);
+	cm_get_properties(&src->cm, props);
 
-	obs_properties_add_int(props, "target_scale", obs_module_text("Scale"), 1, 128, 1);
 	prop = obs_properties_add_list(props, "display", obs_module_text("Display"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, "Overlay", DISP_OVERLAY);
 	obs_property_list_add_int(prop, "Stack",   DISP_STACK);
@@ -177,51 +127,35 @@ static obs_properties_t *wvs_get_properties(void *data)
 	obs_property_list_add_int(prop, "each 20%", 5);
 	obs_property_list_add_int(prop, "each 10%", 10);
 
-	obs_properties_add_bool(props, "bypass_waveform", obs_module_text("Bypass"));
-
 	return props;
 }
 
 static uint32_t wvs_get_width(void *data)
 {
 	struct wvs_source *src = data;
-	if (src->bypass_waveform)
-		return src->known_width;
+	if (src->cm.bypass)
+		return src->cm.known_width;
 	if (src->display==DISP_PARADE)
-		return src->known_width*3;
-	return src->known_width;
+		return src->cm.known_width*3;
+	return src->cm.known_width;
 }
 
 static uint32_t wvs_get_height(void *data)
 {
 	struct wvs_source *src = data;
-	if (src->bypass_waveform)
-		return src->known_height;
+	if (src->cm.bypass)
+		return src->cm.known_height;
 	if (src->display==DISP_STACK)
 		return WV_SIZE*3;
 	return WV_SIZE;
-}
-
-static void wvs_enum_sources(void *data, obs_source_enum_proc_t enum_callback, void *param)
-{
-	struct wvs_source *src = data;
-	if (src->enumerating)
-		return;
-	src->enumerating = 1;
-	obs_source_t *target = obs_weak_source_get_source(src->weak_target);
-	if (target) {
-		enum_callback(src->self, target, param);
-		obs_source_release(target);
-	}
-	src->enumerating = 0;
 }
 
 static inline void inc_uint8(uint8_t *c) { if (*c<255) ++*c; }
 
 static inline void wvs_draw_waveform(struct wvs_source *src, uint8_t *video_data, uint32_t video_line)
 {
-	const uint32_t height = src->known_height;
-	const uint32_t width = src->known_width;
+	const uint32_t height = src->cm.known_height;
+	const uint32_t width = src->cm.known_width;
 	if (width<=0) return;
 	if (!src->tex_buf || src->tex_width!=width) {
 		bfree(src->tex_buf);
@@ -270,81 +204,6 @@ static void create_graticule_vbuf(struct wvs_source *src)
 	obs_leave_graphics();
 }
 
-static void wvs_render_target(struct wvs_source *src)
-{
-	if (src->rendered)
-		return;
-	src->rendered = 1;
-
-	obs_source_t *target = src->weak_target ? obs_weak_source_get_source(src->weak_target) : NULL;
-	if (!target && *src->target_name)
-		return;
-
-	int target_width, target_height;
-	if (target) {
-		target_width = obs_source_get_width(target);
-		target_height = obs_source_get_height(target);
-	}
-	else {
-		struct obs_video_info ovi;
-		obs_get_video_info(&ovi);
-		target_width = ovi.base_width;
-		target_height = ovi.base_height;
-	}
-	int width = target_width / src->target_scale;
-	int height = target_height / src->target_scale;
-	if (width<=0 || height<=0)
-		goto end;
-
-	PROFILE_START(prof_render_target_name);
-
-	gs_texrender_reset(src->texrender);
-	if (gs_texrender_begin(src->texrender, width, height)) {
-		struct vec4 background;
-		vec4_zero(&background);
-
-		gs_clear(GS_CLEAR_COLOR, &background, 0.0f, 0);
-		gs_ortho(0.0f, (float)target_width, 0.0f, (float)target_height, -100.0f, 100.0f);
-
-		if (target) {
-			gs_blend_state_push();
-			gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
-			obs_source_video_render(target);
-			gs_blend_state_pop();
-		}
-		else
-			obs_render_main_texture();
-
-		gs_texrender_end(src->texrender);
-		PROFILE_END(prof_render_target_name);
-
-		if (width != src->known_width || height != src->known_height) {
-			gs_stagesurface_destroy(src->stagesurface);
-			src->stagesurface = gs_stagesurface_create(width, height, GS_BGRA);
-			src->known_width = width;
-			src->known_height = height;
-		}
-
-		if (!src->bypass_waveform) {
-			PROFILE_START(prof_draw_waveform_name);
-			gs_stage_texture(src->stagesurface, gs_texrender_get_texture(src->texrender));
-			uint8_t *video_data = NULL;
-			uint32_t video_linesize;
-			if (gs_stagesurface_map(src->stagesurface, &video_data, &video_linesize)) {
-				wvs_draw_waveform(src, video_data, video_linesize);
-				gs_stagesurface_unmap(src->stagesurface);
-			}
-			PROFILE_END(prof_draw_waveform_name);
-		}
-	}
-	else
-		PROFILE_END(prof_render_target_name);
-
-end:
-	if (target)
-		obs_source_release(target);
-}
-
 static void wvs_render_graticule(struct wvs_source *src)
 {
 	gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_SOLID);
@@ -354,7 +213,7 @@ static void wvs_render_graticule(struct wvs_source *src)
 		bool parade = src->display==DISP_PARADE;
 		for (int i=0; i<(stack?3:1); i++) {
 			struct matrix4 tr = {
-				{ parade ? src->known_width*3.0f : src->known_width, 0.0f, 0.0f, 0.0f },
+				{ parade ? src->cm.known_width*3.0f : src->cm.known_width, 0.0f, 0.0f, 0.0f },
 				{ 0.0f, 1.0f, 0.0f, 0.0f },
 				{ 0.0f, 0.0f, 1.0f, 0.0f },
 				{ 0.0f, stack ? WV_SIZE * i : 0.0f, 0.0f, 1.0f, }
@@ -372,20 +231,23 @@ static void wvs_render(void *data, gs_effect_t *effect)
 {
 	UNUSED_PARAMETER(effect);
 	struct wvs_source *src = data;
-	PROFILE_START(src->bypass_waveform ? prof_render_name_b : prof_render_name);
+	if (src->cm.bypass) {
+		cm_render_bypass(&src->cm);
+		return;
+	}
+	PROFILE_START(prof_render_name);
 
-	wvs_render_target(src);
+	bool updated = cm_render_target(&src->cm);
 
-	if (src->bypass_waveform) {
-		gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
-		gs_texture_t *tex = gs_texrender_get_texture(src->texrender);
-		if (!tex)
-			goto end;
-		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), tex);
-		while (gs_effect_loop(effect, "Draw")) {
-			gs_draw_sprite(tex, 0, src->known_width, src->known_height);
+	if (updated) {
+		uint8_t *video_data = NULL;
+		uint32_t video_linesize;
+		PROFILE_START(prof_draw_waveform_name);
+		if (cm_stagesurface_map(&src->cm, &video_data, &video_linesize)) {
+			wvs_draw_waveform(src, video_data, video_linesize);
+			cm_stagesurface_unmap(&src->cm);
 		}
-		goto end;
+		PROFILE_END(prof_draw_waveform_name);
 	}
 
 	PROFILE_START(prof_draw_name);
@@ -425,40 +287,7 @@ static void wvs_render(void *data, gs_effect_t *effect)
 	}
 	PROFILE_END(prof_draw_graticule_name);
 
-end:;
-	PROFILE_END(src->bypass_waveform ? prof_render_name_b : prof_render_name);
-}
-
-static void wvs_tick(void *data, float unused)
-{
-	UNUSED_PARAMETER(unused);
-	struct wvs_source *src = data;
-
-	pthread_mutex_lock(&src->target_update_mutex);
-	if (src->target_name && !*src->target_name) {
-		if (src->weak_target)
-			obs_weak_source_release(src->weak_target);
-		src->weak_target = NULL;
-	}
-	if (is_preview_name(src->target_name)) {
-		obs_source_t *target = obs_frontend_get_current_preview_scene();
-		if (src->weak_target)
-			obs_weak_source_release(src->weak_target);
-		src->weak_target = target ? obs_source_get_weak_source(target) : NULL;
-		obs_source_release(target);
-	}
-	else if (src->target_name && *src->target_name && !src->weak_target && src->target_check_time) {
-		uint64_t t = os_gettime_ns();
-		if (t - src->target_check_time > SOURCE_CHECK_NS) {
-			src->target_check_time = t;
-			obs_source_t *target = obs_get_source_by_name(src->target_name);
-			src->weak_target = target ? obs_source_get_weak_source(target) : NULL;
-			obs_source_release(target);
-		}
-	}
-	pthread_mutex_unlock(&src->target_update_mutex);
-
-	src->rendered = 0;
+	PROFILE_END(prof_render_name);
 }
 
 struct obs_source_info colormonitor_waveform = {
@@ -473,7 +302,7 @@ struct obs_source_info colormonitor_waveform = {
 	.get_properties = wvs_get_properties,
 	.get_width = wvs_get_width,
 	.get_height = wvs_get_height,
-	.enum_active_sources = wvs_enum_sources,
+	.enum_active_sources = cm_enum_sources,
 	.video_render = wvs_render,
-	.video_tick = wvs_tick,
+	.video_tick = cm_tick,
 };

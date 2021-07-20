@@ -58,6 +58,8 @@ set(PLUGIN_SOURCES
 	src/vectorscope.c
 	src/waveform.c
 	src/histogram.c
+	src/roi.c
+	src/common.c
 	src/common-cpp.cc
 	src/obs-convenience.c
 	src/scope-dock.cpp
@@ -74,6 +76,7 @@ set(PLUGIN_SOURCES
 
 set(PLUGIN_HEADERS
 	src/plugin-macros.generated.h
+	src/roi.h
 	src/common.h
 	src/obs-convenience.h
 	src/scope-dock.hpp

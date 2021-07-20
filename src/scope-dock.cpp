@@ -18,7 +18,8 @@ static std::vector<ScopeDock*> *docks;
 
 static void scope_dock_add(const char *name, obs_data_t *props)
 {
-	auto *dock = new ScopeDock();
+	auto *main_window = static_cast<QMainWindow *>(obs_frontend_get_main_window());
+	auto *dock = new ScopeDock(main_window);
 	dock->name = name;
 	dock->setObjectName(QString(name) + OBJ_NAME_SUFFIX);
 	dock->setWindowTitle(QString("Scope: ") + name);
@@ -30,8 +31,7 @@ static void scope_dock_add(const char *name, obs_data_t *props)
 	dock->SetWidget(w);
 	w->load_properties(props);
 
-	auto *main = (QMainWindow*)obs_frontend_get_main_window();
-	main->addDockWidget(Qt::RightDockWidgetArea, dock);
+	main_window->addDockWidget(Qt::RightDockWidgetArea, dock);
 	QAction *action = (QAction*)obs_frontend_add_dock(dock);
 
 	if (docks)
