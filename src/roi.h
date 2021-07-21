@@ -9,6 +9,7 @@ extern "C" {
 struct roi_source
 {
 	struct cm_source cm;
+	int n_interleave, i_interleave;
 
 	int x0, x1, y0, y1;
 	int x0sizing, x1sizing, y0sizing, y1sizing;
@@ -22,12 +23,12 @@ struct roi_source
 	bool b_rgb, b_yuv;
 };
 
-static inline void roi_request_rgb(struct roi_source *src) { src->n_rgb = 2; }
-static inline void roi_request_uv(struct roi_source *src) { src->n_uv = 2; }
-static inline void roi_request_y(struct roi_source *src) { src->n_y = 2; }
+static inline void roi_request_rgb(struct roi_source *src) { src->n_rgb = 4; }
+static inline void roi_request_uv(struct roi_source *src) { src->n_uv = 4; }
+static inline void roi_request_y(struct roi_source *src) { src->n_y = 4; }
 
 struct roi_source *roi_from_source(obs_source_t *);
-void roi_target_render(struct roi_source *src);
+bool roi_target_render(struct roi_source *src);
 bool roi_stagesurfae_map(struct roi_source *, uint8_t **, uint32_t *, int ix);
 void roi_stagesurfae_unmap(struct roi_source *);
 

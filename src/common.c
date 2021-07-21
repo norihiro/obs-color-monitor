@@ -136,12 +136,15 @@ bool cm_render_target(struct cm_source *src)
 				roi_request_y(roi);
 			if (!(src->flags & (CM_FLAG_CONVERT_UV | CM_FLAG_CONVERT_Y)))
 				roi_request_rgb(roi);
-			roi_target_render(roi);
-			src->known_width = roi_width(roi);
-			src->known_height = roi_height(roi);
 			src->target = target;
 			src->roi = roi;
-			return true;
+			bool ret = roi_target_render(roi);
+			if (ret) {
+				src->known_width = roi_width(roi);
+				src->known_height = roi_height(roi);
+				return true;
+			}
+			return false;
 		}
 	}
 

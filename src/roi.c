@@ -87,11 +87,14 @@ static void roi_update(void *data, obs_data_t *settings)
 {
 	struct roi_source *src = data;
 	cm_update(&src->cm, settings);
+
+	src->n_interleave = (int)obs_data_get_int(settings, "interleave");
 }
 
 static void roi_get_defaults(obs_data_t *settings)
 {
 	obs_data_set_default_int(settings, "target_scale", 2);
+	obs_data_set_default_int(settings, "interleave", 1);
 }
 
 static obs_properties_t *roi_get_properties(void *data)
@@ -99,6 +102,8 @@ static obs_properties_t *roi_get_properties(void *data)
 	struct roi_source *src = data;
 	obs_properties_t *props = obs_properties_create();
 	cm_get_properties(&src->cm, props);
+
+	obs_properties_add_int(props, "interleave", obs_module_text("Interleave"), 0, 1, 1);
 
 	return props;
 }
@@ -302,19 +307,18 @@ static void roi_stage_texture(struct roi_source *src)
 	PROFILE_END(prof_stage_surface_name);
 }
 
-void roi_target_render(struct roi_source *src)
+bool roi_target_render(struct roi_source *src)
 {
-	bool updated = cm_render_target(&src->cm);
-	if (updated) {
-		if (src->x0<0) src->x0 = 0;
-		if (src->x1<0 || src->x1>src->cm.known_width)
-			src->x1 = src->cm.known_width;
-		if (src->y0<0) src->y0 = 0;
-		if (src->y1<0 || src->y1>src->cm.known_height)
-			src->y1 = src->cm.known_height;
+	if (src->i_interleave!=0 && src->n_interleave>0)
+		return true;
 
+	bool updated = cm_render_target(&src->cm);
+	if (updated)
 		roi_stage_texture(src);
-	}
+
+	if (src->n_interleave<=0)
+		return true;
+	return false;
 }
 
 static void roi_render(void *data, gs_effect_t *effect)
@@ -530,27 +534,20 @@ static void roi_mouse_click(void *data, const struct obs_mouse_event *event, int
 	}
 }
 
-static void roi_tick(void *data, float unused)
+static void roi_send_range(struct roi_source *src)
 {
-	cm_tick(data, unused);
-	struct roi_source *src = data;
-
-	src->b_rgb = src->n_rgb > 0;
-	src->b_yuv = (src->n_uv > 0 || src->n_y > 0);
-
-	if (src->n_rgb > 0)
-		src->n_rgb --;
-	if (src->n_uv > 0)
-		src->n_uv --;
-	if (src->n_y > 0)
-		src->n_y --;
-
 	uint32_t flags_interact = src->flags_interact;
 	src->flags_interact_gs = flags_interact;
 	src->x0 = src->x0in;
 	src->y0 = src->y0in;
 	src->x1 = src->x1in;
 	src->y1 = src->y1in;
+	if (src->x0<0) src->x0 = 0;
+	if (src->x1<0 || src->x1>src->cm.known_width)
+		src->x1 = src->cm.known_width;
+	if (src->y0<0) src->y0 = 0;
+	if (src->y1<0 || src->y1>src->cm.known_height)
+		src->y1 = src->cm.known_height;
 
 	if (flags_interact & INTERACT_DRAG_FIRST) {
 		src->x0sizing = min_int(src->x_start, src->x_mouse);
@@ -572,6 +569,29 @@ static void roi_tick(void *data, float unused)
 		if (flags_interact & (INTERACT_HANDLE_BO | INTERACT_HANDLE_BI))
 			src->y1sizing += src->y_mouse - src->y_start;
 	}
+}
+
+static void roi_tick(void *data, float unused)
+{
+	struct roi_source *src = data;
+
+	if (src->i_interleave++ >= src->n_interleave)
+		src->i_interleave = 0;
+
+	if (src->i_interleave==0 || src->n_interleave<=0)
+		cm_tick(data, unused);
+
+	src->b_rgb = src->n_rgb > 0;
+	src->b_yuv = (src->n_uv > 0 || src->n_y > 0);
+
+	if (src->n_rgb > 0)
+		src->n_rgb --;
+	if (src->n_uv > 0)
+		src->n_uv --;
+	if (src->n_y > 0)
+		src->n_y --;
+
+	roi_send_range(src);
 }
 
 struct roi_source *roi_from_source(obs_source_t *s)

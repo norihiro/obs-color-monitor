@@ -44,3 +44,12 @@ Main purpose is to shorten the rendering time.
 Larger value will degrade the accuracy and intensity.
 For example, if you change scale from `1` to `2`, you need to increase intensity of Vectorscope from `1` to `4`, intensity of Waveform from `1` to `2` to get the same intensity. The intensity of Histogram won't be affected.
 Default is `2`, which means width and height are both scaled by half. Available range is an integer number beween `1` - `128`.
+
+### Interleave
+
+This property controls whether the calculation will be interleaved or not.
+Main purpose is to hide the rendering time.
+If set to `0`, interleave won't happen. Every frame will be processed.
+If set to `1`, a frame for each 2 frames will be processed.
+In this setting, UV channel calculation and staging (sending data from GPU to CPU) will happen at odd frames, counting each color for each scope will happen at even frames.
+Default is `1`.
