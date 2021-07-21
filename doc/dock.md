@@ -29,6 +29,11 @@ After setting the region first,
 drag the edge of the region to resize the edge of the region.
 When you move your mouse close to the edge, a square will appear in addition to the region outline. The square indicates you can resize the edge.
 
+## Selecting Scopes
+The dock provides ROI and 3 types of scopes.
+All scopes are on by default.
+Each scope can be turned off from a right-click menu.
+
 ## ROI Properties
 
 ### Source
