@@ -24,6 +24,11 @@ static const char *prof_draw_graticule_name = "graticule";
 #define DISP_STACK   1
 #define DISP_PARADE  2
 
+#define COMP_RGB 0x07
+#define COMP_Y   0x20
+#define COMP_UV  0x50
+#define COMP_YUV (COMP_Y | COMP_UV)
+
 gs_effect_t *wvs_effect;
 
 struct wvs_source
@@ -37,6 +42,7 @@ struct wvs_source
 	gs_vertbuffer_t *graticule_line_vbuf;
 
 	int display;
+	uint32_t components;
 	int intensity;
 	int graticule_lines, graticule_lines_prev;
 };
@@ -91,6 +97,15 @@ static void wvs_update(void *data, obs_data_t *settings)
 
 	src->display = (int)obs_data_get_int(settings, "display");
 
+	src->components = (uint32_t)obs_data_get_int(settings, "components");
+	src->cm.flags =
+		(src->components & COMP_RGB ? CM_FLAG_CONVERT_RGB : 0) |
+		(src->components & COMP_Y   ? CM_FLAG_CONVERT_Y   : 0) |
+		(src->components & COMP_UV  ? CM_FLAG_CONVERT_UV  : 0) ;
+
+	int colorspace = (int)obs_data_get_int(settings, "colorspace");
+	src->cm.colorspace = calc_colorspace(colorspace);
+
 	src->intensity = (int)obs_data_get_int(settings, "intensity");
 	if (src->intensity<1)
 		src->intensity = 1;
@@ -102,7 +117,17 @@ static void wvs_get_defaults(obs_data_t *settings)
 {
 	obs_data_set_default_int(settings, "target_scale", 2);
 	obs_data_set_default_int(settings, "intensity", 51);
+	obs_data_set_default_int(settings, "components", COMP_RGB);
 	obs_data_set_default_int(settings, "graticule_lines", 5);
+}
+
+static bool components_changed(obs_properties_t *props, obs_property_t *property, obs_data_t *settings)
+{
+	uint32_t components = settings ? obs_data_get_int(settings, "components") : 0;
+	obs_property_t *prop = obs_properties_get(props, "colorspace");
+	if (prop)
+		obs_property_set_visible(prop, !!(components & COMP_YUV));
+	return true;
 }
 
 static obs_properties_t *wvs_get_properties(void *data)
@@ -118,6 +143,20 @@ static obs_properties_t *wvs_get_properties(void *data)
 	obs_property_list_add_int(prop, "Overlay", DISP_OVERLAY);
 	obs_property_list_add_int(prop, "Stack",   DISP_STACK);
 	obs_property_list_add_int(prop, "Parade",  DISP_PARADE);
+
+	prop = obs_properties_add_list(props, "components", obs_module_text("Components"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	obs_property_set_modified_callback(prop, components_changed);
+	obs_property_list_add_int(prop, "RGB"   , COMP_RGB);
+	obs_property_list_add_int(prop, "Luma"  , COMP_Y);
+	obs_property_list_add_int(prop, "Chroma", COMP_UV);
+	obs_property_list_add_int(prop, "YUV"   , COMP_YUV);
+
+	// TODO: Disable this property if ROI target is selected.
+	prop = obs_properties_add_list(props, "colorspace", obs_module_text("Color space"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	obs_property_list_add_int(prop, "Auto", 0);
+	obs_property_list_add_int(prop, "601", 1);
+	obs_property_list_add_int(prop, "709", 2);
+
 	obs_properties_add_int(props, "intensity", obs_module_text("Intensity"), 1, 255, 1);
 	prop = obs_properties_add_list(props, "graticule_lines", obs_module_text("Graticule"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, "None", 0);
@@ -130,13 +169,22 @@ static obs_properties_t *wvs_get_properties(void *data)
 	return props;
 }
 
+static inline uint32_t n_components(const struct wvs_source *src)
+{
+	uint32_t c = src->components & (COMP_RGB | COMP_YUV);
+	c = c - ((c >> 1) & 0x55);
+	c = (c & 0x33) + ((c >> 2) & 0x33);
+	c = (c & 0x0F) + ((c >> 4) & 0x0F);
+	return c;
+}
+
 static uint32_t wvs_get_width(void *data)
 {
 	struct wvs_source *src = data;
 	if (src->cm.bypass)
 		return src->cm.known_width;
 	if (src->display==DISP_PARADE)
-		return src->cm.known_width*3;
+		return src->cm.known_width*n_components(src);
 	return src->cm.known_width;
 }
 
@@ -146,7 +194,7 @@ static uint32_t wvs_get_height(void *data)
 	if (src->cm.bypass)
 		return src->cm.known_height;
 	if (src->display==DISP_STACK)
-		return WV_SIZE*3;
+		return WV_SIZE*n_components(src);
 	return WV_SIZE;
 }
 
@@ -168,6 +216,10 @@ static inline void wvs_draw_waveform(struct wvs_source *src, uint8_t *video_data
 	for (uint32_t i=0; i<width*WV_SIZE*4; i++)
 		dbuf[i] = 0;
 
+	const bool calc_b = (src->components & 0x11) ? true : false;
+	const bool calc_g = (src->components & 0x22) ? true : false;
+	const bool calc_r = (src->components & 0x44) ? true : false;
+
 	for (uint32_t y=0; y<height; y++) {
 		uint8_t *v = video_data + video_line * y;
 		for (uint32_t x=0; x<width; x++) {
@@ -176,9 +228,9 @@ static inline void wvs_draw_waveform(struct wvs_source *src, uint8_t *video_data
 			const uint8_t r = *v++;
 			const uint8_t a = *v++;
 			if (!a) continue;
-			inc_uint8(dbuf + x*4 + (WV_SIZE-1 - b) * width*4 + 0);
-			inc_uint8(dbuf + x*4 + (WV_SIZE-1 - g) * width*4 + 1);
-			inc_uint8(dbuf + x*4 + (WV_SIZE-1 - r) * width*4 + 2);
+			if (calc_b) inc_uint8(dbuf + x*4 + (WV_SIZE-1 - b) * width*4 + 0);
+			if (calc_g) inc_uint8(dbuf + x*4 + (WV_SIZE-1 - g) * width*4 + 1);
+			if (calc_r) inc_uint8(dbuf + x*4 + (WV_SIZE-1 - r) * width*4 + 2);
 		}
 	}
 
@@ -211,9 +263,11 @@ static void wvs_render_graticule(struct wvs_source *src)
 	while (gs_effect_loop(effect, "Solid")) {
 		bool stack = src->display==DISP_STACK;
 		bool parade = src->display==DISP_PARADE;
-		for (int i=0; i<(stack?3:1); i++) {
+		int n_stack = stack ? n_components(src) : 1;
+		for (int i=0; i<n_stack; i++) {
 			struct matrix4 tr = {
-				{ parade ? src->cm.known_width*3.0f : src->cm.known_width, 0.0f, 0.0f, 0.0f },
+				{ (float)(parade ? src->cm.known_width*n_components(src) : src->cm.known_width),
+					0.0f, 0.0f, 0.0f },
 				{ 0.0f, 1.0f, 0.0f, 0.0f },
 				{ 0.0f, 0.0f, 1.0f, 0.0f },
 				{ 0.0f, stack ? WV_SIZE * i : 0.0f, 0.0f, 1.0f, }
@@ -258,14 +312,15 @@ static void wvs_render(void *data, gs_effect_t *effect)
 		const char *name = "Draw";
 		int w = src->tex_width;
 		int h = WV_SIZE;
+		int n = n_components(src);
 		if (wvs_effect) switch(src->display) {
 			case DISP_STACK:
-				name = "DrawStack";
-				h *= 3;
+				name = n==3 ? "DrawStack" : n==2 ? "DrawStackUV" : "DrawOverlay";
+				h *= n;
 				break;
 			case DISP_PARADE:
-				name = "DrawParade";
-				w *= 3;
+				name = n==3 ? "DrawParade" : n==2 ? "DrawParadeUV" : "DrawOverlay";
+				w *= n;
 				break;
 			default:
 				name = "DrawOverlay";

@@ -201,7 +201,7 @@ bool cm_render_target(struct cm_source *src)
 		if (src->bypass || (src->flags & CM_FLAG_ROI)) {
 			// do nothing
 		}
-		else if (src->flags & CM_FLAG_CONVERT_UV) {
+		else if (src->flags & (CM_FLAG_CONVERT_UV | CM_FLAG_CONVERT_Y)) {
 			gs_texrender_reset(src->texrender_yuv);
 			if (cm_rgb2yuv_effect && gs_texrender_begin(src->texrender_yuv, width, height)) {
 				PROFILE_START(prof_convert_yuv_name);
@@ -316,4 +316,20 @@ void cm_tick(void *data, float unused)
 	pthread_mutex_unlock(&src->target_update_mutex);
 
 	src->rendered = 0;
+}
+
+int calc_colorspace(int colorspace)
+{
+	if (1<=colorspace && colorspace<=2)
+		return colorspace;
+	struct obs_video_info ovi;
+	if (obs_get_video_info(&ovi)) {
+		switch (ovi.colorspace) {
+			case VIDEO_CS_601:
+				return 1;
+			case VIDEO_CS_709:
+				return 2;
+		}
+	}
+	return 2; // default
 }
