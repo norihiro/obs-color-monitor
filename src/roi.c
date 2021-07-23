@@ -156,7 +156,25 @@ static inline bool handle_is_outside_y(const struct roi_source *src, int x0, int
 	return false;
 }
 
-static inline void draw_roi_rect(const struct roi_source *src, float x0, float y0, float x1, float y1, uint32_t flags)
+static inline void draw_add_handle_x(int xh, int x, int y0, int y1, bool outside)
+{
+	gs_vertex2f((float)xh, (float)y0); gs_vertex2f((float)xh, (float)y1);
+	if (outside) {
+		gs_vertex2f((float)xh, (float)y0); gs_vertex2f((float)x, (float)y0);
+		gs_vertex2f((float)xh, (float)y1); gs_vertex2f((float)x, (float)y1);
+	}
+}
+
+static inline void draw_add_handle_y(int x0, int x1, int yh, int y, bool outside)
+{
+	gs_vertex2f((float)x0, (float)yh); gs_vertex2f((float)x1, (float)yh);
+	if (outside) {
+		gs_vertex2f((float)x0, (float)yh); gs_vertex2f((float)x0, (float)y);
+		gs_vertex2f((float)x1, (float)yh); gs_vertex2f((float)x1, (float)y);
+	}
+}
+
+static inline void draw_roi_rect(const struct roi_source *src, int x0, int y0, int x1, int y1, uint32_t flags)
 {
 	gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_SOLID);
 	gs_effect_set_color(gs_effect_get_param_by_name(effect, "color"), 0xFF00FF00);
@@ -177,34 +195,14 @@ static inline void draw_roi_rect(const struct roi_source *src, float x0, float y
 		gs_vertex2f(x0, y0); gs_vertex2f(x1, y0);
 		gs_vertex2f(x1, y0); gs_vertex2f(x1, y1);
 		gs_vertex2f(x1, y1); gs_vertex2f(x0, y1);
-		if (flags & (INTERACT_HANDLE_LI | INTERACT_HANDLE_LO)) {
-			gs_vertex2f(x0h, y1e); gs_vertex2f(x0h, y0e);
-			if (!y_outside || x_outside) {
-				gs_vertex2f(x0, y1e); gs_vertex2f(x0h, y1e);
-				gs_vertex2f(x0, y0e); gs_vertex2f(x0h, y0e);
-			}
-		}
-		if (flags & (INTERACT_HANDLE_RI | INTERACT_HANDLE_RO)) {
-			gs_vertex2f(x1h, y1e); gs_vertex2f(x1h, y0e);
-			if (!y_outside || x_outside) {
-				gs_vertex2f(x1, y1e); gs_vertex2f(x1h, y1e);
-				gs_vertex2f(x1, y0e); gs_vertex2f(x1h, y0e);
-			}
-		}
-		if (flags & (INTERACT_HANDLE_TI | INTERACT_HANDLE_TO)) {
-			gs_vertex2f(x1e, y0h); gs_vertex2f(x0e, y0h);
-			if (!x_outside || y_outside) {
-				gs_vertex2f(x1e, y0h); gs_vertex2f(x1e, y0);
-				gs_vertex2f(x0e, y0); gs_vertex2f(x0e, y0h);
-			}
-		}
-		if (flags & (INTERACT_HANDLE_BI | INTERACT_HANDLE_BO)) {
-			gs_vertex2f(x1e, y1h); gs_vertex2f(x0e, y1h);
-			if (!x_outside || y_outside) {
-				gs_vertex2f(x1e, y1h); gs_vertex2f(x1e, y1);
-				gs_vertex2f(x0e, y1); gs_vertex2f(x0e, y1h);
-			}
-		}
+		if (flags & (INTERACT_HANDLE_LI | INTERACT_HANDLE_LO))
+			draw_add_handle_x(x0h, x0, y0e, y1e, !y_outside || x_outside);
+		if (flags & (INTERACT_HANDLE_RI | INTERACT_HANDLE_RO))
+			draw_add_handle_x(x1h, x1, y0e, y1e, !y_outside || x_outside);
+		if (flags & (INTERACT_HANDLE_TI | INTERACT_HANDLE_TO))
+			draw_add_handle_y(x0e, x1e, y0h, y0, !x_outside || y_outside);
+		if (flags & (INTERACT_HANDLE_BI | INTERACT_HANDLE_BO))
+			draw_add_handle_y(x0e, x1e, y1h, y1, !x_outside || y_outside);
 		gs_render_stop(GS_LINES);
 	}
 }
@@ -382,7 +380,6 @@ void roi_stagesurfae_unmap(struct roi_source *src)
 
 static uint32_t handle_from_pos(struct roi_source *src, int x, int y)
 {
-	const int wh_min = min_int(src->cm.known_width, src->cm.known_height);
 	const int hh = handle_size(src);
 	bool x_inside = false, y_inside = false;
 
@@ -543,10 +540,10 @@ static void roi_send_range(struct roi_source *src)
 	src->x1 = src->x1in;
 	src->y1 = src->y1in;
 	if (src->x0<0) src->x0 = 0;
-	if (src->x1<0 || src->x1>src->cm.known_width)
+	if (src->x1<0 || (int)src->cm.known_width < src->x1)
 		src->x1 = src->cm.known_width;
 	if (src->y0<0) src->y0 = 0;
-	if (src->y1<0 || src->y1>src->cm.known_height)
+	if (src->y1<0 || (int)src->cm.known_height < src->y1)
 		src->y1 = src->cm.known_height;
 
 	if (flags_interact & INTERACT_DRAG_FIRST) {

@@ -176,9 +176,9 @@ static inline void his_draw_histogram(struct his_source *src, uint8_t *video_dat
 
 	if (src->logscale) {
 		for (int j=0; j<3; j++) {
-			const float s = 65535.0f / logf(src->hi_max[j] + 1);
+			const float s = 65535.0f / logf((float)(src->hi_max[j] + 1));
 			for (int i=0; i<HI_SIZE; i++)
-				dbuf[i*4+j] = dbuf[i*4+j] ? logf(dbuf[i*4+j] + 1) * s : 0;
+				dbuf[i*4+j] = dbuf[i*4+j] ? (uint16_t)(logf((float)(dbuf[i*4+j] + 1)) * s) : 0;
 			src->hi_max[j] = 65535;
 		}
 	}

@@ -34,14 +34,14 @@ void roi_stagesurfae_unmap(struct roi_source *);
 
 static inline uint32_t roi_width(struct roi_source *src)
 {
-	if (0 <= src->x0 && src->x0 <= src->x1 && src->x1 <= src->cm.known_width)
+	if (0 <= src->x0 && src->x0 <= src->x1 && src->x1 <= (int)src->cm.known_width)
 		return src->x1 - src->x0;
 	return src->cm.known_width;
 }
 
 static inline uint32_t roi_height(struct roi_source *src)
 {
-	if (0 <= src->y0 && src->y0 <= src->y1 && src->y1 <= src->cm.known_height)
+	if (0 <= src->y0 && src->y0 <= src->y1 && src->y1 <= (int)src->cm.known_height)
 		return src->y1 - src->y0;
 	return src->cm.known_height;
 }

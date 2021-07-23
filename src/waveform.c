@@ -200,17 +200,21 @@ static uint32_t wvs_get_height(void *data)
 
 static inline void inc_uint8(uint8_t *c) { if (*c<255) ++*c; }
 
+static inline void reallocate_tex_buf(struct wvs_source *src, const uint32_t width)
+{
+	bfree(src->tex_buf);
+	src->tex_buf = bzalloc(width*WV_SIZE*4);
+	src->tex_width = width;
+	gs_texture_destroy(src->tex_wv); src->tex_wv = NULL;
+}
+
 static inline void wvs_draw_waveform(struct wvs_source *src, uint8_t *video_data, uint32_t video_line)
 {
 	const uint32_t height = src->cm.known_height;
 	const uint32_t width = src->cm.known_width;
 	if (width<=0) return;
-	if (!src->tex_buf || src->tex_width!=width) {
-		bfree(src->tex_buf);
-		src->tex_buf = bzalloc(width*WV_SIZE*4);
-		src->tex_width = width;
-		gs_texture_destroy(src->tex_wv); src->tex_wv = NULL;
-	}
+	if (!src->tex_buf || src->tex_width!=width)
+		reallocate_tex_buf(src, width);
 	uint8_t *dbuf = src->tex_buf;
 
 	for (uint32_t i=0; i<width*WV_SIZE*4; i++)
@@ -281,6 +285,33 @@ static void wvs_render_graticule(struct wvs_source *src)
 	}
 }
 
+static void render_waveform(struct wvs_source *src)
+{
+	gs_effect_t *effect = wvs_effect ? wvs_effect : obs_get_base_effect(OBS_EFFECT_DEFAULT);
+	gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), src->tex_wv);
+	gs_effect_set_float(gs_effect_get_param_by_name(effect, "intensity"), (float)src->intensity);
+	const char *name = "Draw";
+	int w = src->tex_width;
+	int h = WV_SIZE;
+	int n = n_components(src);
+	if (wvs_effect) switch(src->display) {
+		case DISP_STACK:
+			name = n==3 ? "DrawStack" : n==2 ? "DrawStackUV" : "DrawOverlay";
+			h *= n;
+			break;
+		case DISP_PARADE:
+			name = n==3 ? "DrawParade" : n==2 ? "DrawParadeUV" : "DrawOverlay";
+			w *= n;
+			break;
+		default:
+			name = "DrawOverlay";
+			break;
+	}
+
+	while (gs_effect_loop(effect, name))
+		gs_draw_sprite(src->tex_wv, 0, w, h);
+}
+
 static void wvs_render(void *data, gs_effect_t *effect)
 {
 	UNUSED_PARAMETER(effect);
@@ -305,31 +336,8 @@ static void wvs_render(void *data, gs_effect_t *effect)
 	}
 
 	PROFILE_START(prof_draw_name);
-	if (src->tex_wv) {
-		gs_effect_t *effect = wvs_effect ? wvs_effect : obs_get_base_effect(OBS_EFFECT_DEFAULT);
-		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), src->tex_wv);
-		gs_effect_set_float(gs_effect_get_param_by_name(effect, "intensity"), (float)src->intensity);
-		const char *name = "Draw";
-		int w = src->tex_width;
-		int h = WV_SIZE;
-		int n = n_components(src);
-		if (wvs_effect) switch(src->display) {
-			case DISP_STACK:
-				name = n==3 ? "DrawStack" : n==2 ? "DrawStackUV" : "DrawOverlay";
-				h *= n;
-				break;
-			case DISP_PARADE:
-				name = n==3 ? "DrawParade" : n==2 ? "DrawParadeUV" : "DrawOverlay";
-				w *= n;
-				break;
-			default:
-				name = "DrawOverlay";
-				break;
-		}
-		while (gs_effect_loop(effect, name)) {
-			gs_draw_sprite(src->tex_wv, 0, w, h);
-		}
-	}
+	if (src->tex_wv)
+		render_waveform(src);
 	PROFILE_END(prof_draw_name);
 
 	PROFILE_START(prof_draw_graticule_name);
