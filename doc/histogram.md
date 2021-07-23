@@ -31,6 +31,25 @@ Choice of displaying mode; Overlay, Stack, or Parade.
 | Stack | R, G, B histograms are displayed from the top to the bottom. |
 | Parade | R, G, B histograms are displayed from the left to the right. |
 
+If setting components to YUV, CrYCb are displayed instead of RGB, respectively.
+If setting components to Luma only, this property is not effective.
+
+### Components
+Choice of components to be displayed.
+| Components | Description |
+|------------|-------------|
+| RGB | R, G, B components are displayed. |
+| Luma | Luminance component (*Y*) is displayed. |
+| Chroma | Chrominance components (*Cr* and *Cb*) are displayed. |
+| YUV | Both luminance an chrominance components are displayed. |
+
+### Color space
+
+Choice of color space; Auto, BT.601, or BT.709.
+If Auto, the color space is retreived from the settings of OBS Studio.
+Coefficients for Luminance, Cr and Cb components will be changed.
+Default is Auto. This property is only available if the component property is Luma, Chroma, or YUV.
+
 ### Height
 
 Height of the output.
