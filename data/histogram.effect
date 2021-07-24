@@ -10,7 +10,7 @@ uniform float4x4 color = {
 
 sampler_state def_sampler {
 	Filter   = Linear;
-	AddressU = Clamp;
+	AddressU = Repeat;
 	AddressV = Clamp;
 };
 
@@ -51,8 +51,38 @@ float4 PSDrawStack(VertInOut vert_in) : TARGET
 float4 PSDrawParade(VertInOut vert_in) : TARGET
 {
 	int i = int(vert_in.uv.x * 3);
-	float u = vert_in.uv.x * 3 - i;
-	float r = image.Sample(def_sampler, float2(u, 0.5))[i];
+	float r = image.Sample(def_sampler, float2(vert_in.uv.x*3, 0.5))[i];
+	if (r >= (1-vert_in.uv.y) * hi_max[i]) r=1.0; else r=0.0;
+	float4 c = color[i];
+	return float4(c.x*r, c.y*r, c.z*r, 1.0);
+}
+
+float4 PSDrawStackUV(VertInOut vert_in) : TARGET
+{
+	int i;
+	float v;
+	if (vert_in.uv.y < 0.5) {
+		i = 0;
+		v = vert_in.uv.y * 2;
+	}
+	else {
+		i = 2;
+		v = vert_in.uv.y * 2 - 1;
+	}
+	float r = image.Sample(def_sampler, float2(vert_in.uv.x, 0.5))[i];
+	if (r >= (1-v) * hi_max[i]) r=1.0; else r=0.0;
+	float4 c = color[i];
+	return float4(c.x*r, c.y*r, c.z*r, 1.0);
+}
+
+float4 PSDrawParadeUV(VertInOut vert_in) : TARGET
+{
+	int i;
+	if (vert_in.uv.x < 0.5)
+		i = 0;
+	else
+		i = 2;
+	float r = image.Sample(def_sampler, float2(vert_in.uv.x*2, 0.5))[i];
 	if (r >= (1-vert_in.uv.y) * hi_max[i]) r=1.0; else r=0.0;
 	float4 c = color[i];
 	return float4(c.x*r, c.y*r, c.z*r, 1.0);
@@ -82,5 +112,23 @@ technique DrawParade
 	{
 		vertex_shader = VSDefault(vert_in);
 		pixel_shader  = PSDrawParade(vert_in);
+	}
+}
+
+technique DrawStackUV
+{
+	pass
+	{
+		vertex_shader = VSDefault(vert_in);
+		pixel_shader  = PSDrawStackUV(vert_in);
+	}
+}
+
+technique DrawParadeUV
+{
+	pass
+	{
+		vertex_shader = VSDefault(vert_in);
+		pixel_shader  = PSDrawParadeUV(vert_in);
 	}
 }

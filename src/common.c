@@ -117,6 +117,25 @@ void cm_get_properties(struct cm_source *src, obs_properties_t *props)
 		obs_properties_add_bool(props, "bypass", obs_module_text("Bypass"));
 }
 
+static bool cm_render_roi(struct cm_source *src, obs_source_t *target, struct roi_source *roi)
+{
+	if (src->flags & CM_FLAG_CONVERT_UV)
+		roi_request_uv(roi);
+	if (src->flags & CM_FLAG_CONVERT_Y)
+		roi_request_y(roi);
+	if (!(src->flags & (CM_FLAG_CONVERT_UV | CM_FLAG_CONVERT_Y)))
+		roi_request_rgb(roi);
+	src->target = target;
+	src->roi = roi;
+	bool ret = roi_target_render(roi);
+	if (ret) {
+		src->known_width = roi_width(roi);
+		src->known_height = roi_height(roi);
+		return true;
+	}
+	return false;
+}
+
 bool cm_render_target(struct cm_source *src)
 {
 	if (src->rendered)
@@ -129,23 +148,8 @@ bool cm_render_target(struct cm_source *src)
 
 	if (target && !src->bypass) {
 		struct roi_source *roi = roi_from_source(target);
-		if (roi) {
-			if (src->flags & CM_FLAG_CONVERT_UV)
-				roi_request_uv(roi);
-			if (src->flags & CM_FLAG_CONVERT_Y)
-				roi_request_y(roi);
-			if (!(src->flags & (CM_FLAG_CONVERT_UV | CM_FLAG_CONVERT_Y)))
-				roi_request_rgb(roi);
-			src->target = target;
-			src->roi = roi;
-			bool ret = roi_target_render(roi);
-			if (ret) {
-				src->known_width = roi_width(roi);
-				src->known_height = roi_height(roi);
-				return true;
-			}
-			return false;
-		}
+		if (roi)
+			return cm_render_roi(src, target, roi);
 	}
 
 	int target_width, target_height;
@@ -201,7 +205,7 @@ bool cm_render_target(struct cm_source *src)
 		if (src->bypass || (src->flags & CM_FLAG_ROI)) {
 			// do nothing
 		}
-		else if (src->flags & CM_FLAG_CONVERT_UV) {
+		else if (src->flags & (CM_FLAG_CONVERT_UV | CM_FLAG_CONVERT_Y)) {
 			gs_texrender_reset(src->texrender_yuv);
 			if (cm_rgb2yuv_effect && gs_texrender_begin(src->texrender_yuv, width, height)) {
 				PROFILE_START(prof_convert_yuv_name);
@@ -316,4 +320,20 @@ void cm_tick(void *data, float unused)
 	pthread_mutex_unlock(&src->target_update_mutex);
 
 	src->rendered = 0;
+}
+
+int calc_colorspace(int colorspace)
+{
+	if (1<=colorspace && colorspace<=2)
+		return colorspace;
+	struct obs_video_info ovi;
+	if (obs_get_video_info(&ovi)) {
+		switch (ovi.colorspace) {
+			case VIDEO_CS_601:
+				return 1;
+			case VIDEO_CS_709:
+				return 2;
+		}
+	}
+	return 2; // default
 }

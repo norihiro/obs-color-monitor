@@ -195,11 +195,10 @@ static inline void vss_draw_vectorscope(struct vss_source *src, uint8_t *video_d
 	uint8_t *vd = video_data;
 	uint32_t vd_add = video_line - width*4;
 	for (uint32_t y=0; y<height; y++) {
-		// uint8_t *vd = video_data + video_line * y;
 		for (uint32_t x=0; x<width; x++) {
 			const uint8_t u = *vd++;
-			const uint8_t v = *vd++;
 			const uint8_t b = *vd++;
+			const uint8_t v = *vd++;
 			const uint8_t a = *vd++;
 			uint8_t *c = dbuf + (u + VS_SIZE*(255-v));
 			if (*c<255) ++*c;
@@ -279,12 +278,12 @@ static void create_graticule_vbuf(struct vss_source *src)
 	int stl_r = src->graticule_skintone_color & 0xFF;
 	switch(src->cm.colorspace) {
 		case 1: // BT.601
-			stl_u = RGB2U_601(stl_r, stl_g, stl_b);
-			stl_v = RGB2V_601(stl_r, stl_g, stl_b);
+			stl_u = (float)RGB2U_601(stl_r, stl_g, stl_b);
+			stl_v = (float)RGB2V_601(stl_r, stl_g, stl_b);
 			break;
 		default: // BT.709
-			stl_u = RGB2U_709(stl_r, stl_g, stl_b);
-			stl_v = RGB2V_709(stl_r, stl_g, stl_b);
+			stl_u = (float)RGB2U_709(stl_r, stl_g, stl_b);
+			stl_v = (float)RGB2V_709(stl_r, stl_g, stl_b);
 			break;
 	}
 	stl_norm = hypotf(stl_u-128.0f, stl_v-128.0f);
@@ -321,22 +320,8 @@ static void vss_render(void *data, gs_effect_t *effect)
 	PROFILE_START(prof_render_name);
 
 	if (src->update_graticule || src->cm.colorspace<1) {
-		src->cm.colorspace = src->colorspace;
+		src->cm.colorspace = calc_colorspace(src->colorspace);
 		src->update_graticule = 0;
-		if (src->cm.colorspace<1 || 2<src->cm.colorspace) {
-			struct obs_video_info ovi;
-			if (obs_get_video_info(&ovi)) {
-				switch (ovi.colorspace) {
-					case VIDEO_CS_601:
-						src->cm.colorspace = 1;
-						break;
-					case VIDEO_CS_709:
-					default:
-						src->cm.colorspace = 2;
-						break;
-				}
-			}
-		}
 		gs_vertexbuffer_destroy(src->graticule_vbuf);
 		src->graticule_vbuf = NULL;
 		gs_vertexbuffer_destroy(src->graticule_line_vbuf);

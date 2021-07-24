@@ -57,6 +57,8 @@ void cm_stagesurface_unmap(struct cm_source *src);
 void cm_render_bypass(struct cm_source *src);
 void cm_tick(void *data, float unused);
 
+int calc_colorspace(int);
+
 #ifdef __cplusplus
 }
 #endif
