@@ -46,7 +46,7 @@ struct scope_widget_s
 
 	// last drawn coordinates for each rect
 	src_rect_s src_rect[N_SRC];
-	int i_mouse_last;
+	int i_mouse_last, i_src_menu;
 };
 
 static obs_source_t *create_scope_source_roi(const char *id, obs_data_t *settings, const char *name)
@@ -145,6 +145,7 @@ ScopeWidget::ScopeWidget(QWidget *parent)
 	pthread_mutex_init(&data->mutex, NULL);
 	data->src_shown = (1<<N_SRC)-1;
 	data->i_mouse_last = -1;
+	data->i_src_menu = -1;
 }
 
 ScopeWidget::~ScopeWidget()
@@ -328,6 +329,7 @@ bool ScopeWidget::HandleMouseClickEvent(QMouseEvent *event)
 		clickCount = 2;
 
 	if (event->button() == Qt::RightButton) {
+		data->i_src_menu = data->i_mouse_last;
 		return openMenu(event);
 	}
 
@@ -487,6 +489,7 @@ void ScopeWidget::createProperties()
 			return;
 	}
 	properties = new ScopeWidgetProperties(this, data->src);
+	properties->setTabIndex(data->i_src_menu);
 	properties->Init();
 	properties->setAttribute(Qt::WA_DeleteOnClose, true);
 }

@@ -69,6 +69,13 @@ ScopeWidgetProperties::~ScopeWidgetProperties()
 	// TODO: main->SaveProject();
 }
 
+void ScopeWidgetProperties::setTabIndex(int ix)
+{
+	blog(LOG_INFO, "ScopeWidgetProperties::setTabIndex(%d)", ix);
+	if (tabWidget && 0<=ix && ix<tabWidget->count())
+		tabWidget->setCurrentIndex(ix);
+}
+
 void ScopeWidgetProperties::Init()
 {
 	show();

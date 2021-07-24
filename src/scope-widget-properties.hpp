@@ -32,6 +32,7 @@ public:
 	ScopeWidgetProperties(QWidget *parent, obs_source_t *source_[]);
 	~ScopeWidgetProperties();
 
+	void setTabIndex(int);
 	void Init();
 	void Cleanup();
 
