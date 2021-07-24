@@ -46,6 +46,7 @@ struct scope_widget_s
 
 	// last drawn coordinates for each rect
 	src_rect_s src_rect[N_SRC];
+	int i_mouse_last;
 };
 
 static obs_source_t *create_scope_source_roi(const char *id, obs_data_t *settings, const char *name)
@@ -143,6 +144,7 @@ ScopeWidget::ScopeWidget(QWidget *parent)
 	data = (struct scope_widget_s*)bzalloc(sizeof(struct scope_widget_s));
 	pthread_mutex_init(&data->mutex, NULL);
 	data->src_shown = (1<<N_SRC)-1;
+	data->i_mouse_last = -1;
 }
 
 ScopeWidget::~ScopeWidget()
@@ -251,17 +253,28 @@ void ScopeWidget::setShown(bool shown)
 	}
 }
 
+#define INTERACT_KEEP_SOURCE (1<<30)
+
 static obs_source_t *get_source_from_mouse(struct scope_widget_s *data, int x, int y, struct obs_mouse_event *event)
 {
-	for (int i=0; i<N_SRC; i++) {
-		auto &r = data->src_rect[i];
-		event->x = r.x_from_widget(x);
-		event->y = r.y_from_widget(y);
+	int i_mouse;
+	if (event->modifiers & (INTERACT_MOUSE_LEFT | INTERACT_MOUSE_MIDDLE | INTERACT_MOUSE_RIGHT | INTERACT_KEEP_SOURCE))
+		i_mouse = data->i_mouse_last;
+	else for (i_mouse=0; i_mouse<N_SRC; i_mouse++) {
+		auto &r = data->src_rect[i_mouse];
 		if (r.is_inside(x, y))
-			return data->src[i];
+			break;
 	}
 
-	return NULL;
+	if (i_mouse<0 || N_SRC<=i_mouse) {
+		data->i_mouse_last = -1;
+		return NULL;
+	}
+	auto &r = data->src_rect[i_mouse];
+	event->x = r.x_from_widget(x);
+	event->y = r.y_from_widget(y);
+	data->i_mouse_last = i_mouse;
+	return data->src[i_mouse];
 }
 
 static int TranslateQtKeyboardEventModifiers(QInputEvent *event,
@@ -327,6 +340,7 @@ bool ScopeWidget::HandleMouseClickEvent(QMouseEvent *event)
 	switch (event->button()) {
 	case Qt::LeftButton:
 		button = MOUSE_LEFT;
+		if (mouseUp) mouseEvent.modifiers |= INTERACT_KEEP_SOURCE; // Not to change i_mouse if released outside
 		break;
 	case Qt::MiddleButton:
 		button = MOUSE_MIDDLE;
@@ -340,7 +354,8 @@ bool ScopeWidget::HandleMouseClickEvent(QMouseEvent *event)
 	}
 
 	obs_source_t *src = get_source_from_mouse(data, event->x(), event->y(), &mouseEvent);
-	// TODO: if (mouseUp && !src)
+	mouseEvent.modifiers &= ~INTERACT_KEEP_SOURCE;
+
 	if (src)
 		obs_source_send_mouse_click(src, &mouseEvent, button, mouseUp, clickCount);
 
@@ -352,15 +367,24 @@ bool ScopeWidget::HandleMouseMoveEvent(QMouseEvent *event)
 	struct obs_mouse_event mouseEvent = {};
 
 	bool mouseLeave = event->type() == QEvent::Leave;
-	obs_source_t *src = get_source_from_mouse(data, event->x(), event->y(), &mouseEvent);
 
-	if (!mouseLeave) {
+	if (!mouseLeave)
 		mouseEvent.modifiers = TranslateQtMouseEventModifiers(event);
-		//  TODO: set mouseLeave if src is different from the last src
-	}
 
-	if (src)
-		obs_source_send_mouse_move(src, &mouseEvent, mouseLeave);
+	int x = event->x();
+	int y = event->y();
+	mouseEvent.modifiers |= INTERACT_KEEP_SOURCE;
+	obs_source_t *src0 = get_source_from_mouse(data, x, y, &mouseEvent);
+	mouseEvent.modifiers &= ~INTERACT_KEEP_SOURCE;
+
+	struct obs_mouse_event mouseEvent1 = mouseEvent;
+	obs_source_t *src1 = get_source_from_mouse(data, x, y, &mouseEvent1);
+
+	if (src0 && src0!=src1)
+		obs_source_send_mouse_move(src0, &mouseEvent, true);
+
+	if (src1)
+		obs_source_send_mouse_move(src1, &mouseEvent1, mouseLeave);
 
 	return true;
 }
