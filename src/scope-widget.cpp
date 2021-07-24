@@ -238,6 +238,11 @@ void ScopeWidget::paintEvent(QPaintEvent *event)
 	CreateDisplay();
 }
 
+class QPaintEngine *ScopeWidget::paintEngine() const
+{
+	return NULL;
+}
+
 void ScopeWidget::closeEvent(QCloseEvent *event)
 {
 	setShown(false);

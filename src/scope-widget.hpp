@@ -18,6 +18,7 @@ class ScopeWidget : public QWidget {
 	void CreateDisplay();
 	void resizeEvent(QResizeEvent *event) override;
 	void paintEvent(QPaintEvent *event) override;
+	class QPaintEngine *paintEngine() const override;
 	void closeEvent(QCloseEvent *event) override;
 
 	// for interactions
