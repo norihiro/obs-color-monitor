@@ -59,7 +59,7 @@ void property_list_add_sources(obs_property_t *prop, obs_source_t *self)
 
 	std::sort(ctx.source_names.begin(), ctx.source_names.end());
 
-	for (int i=0; i<ctx.source_names.size(); i++) {
+	for (size_t i=0; i<ctx.source_names.size(); i++) {
 		const std::string name = obs_module_text("Source: ") + ctx.source_names[i];
 		obs_property_list_add_string(prop, name.c_str(), ctx.source_names[i].c_str());
 	}

@@ -535,7 +535,7 @@ void ScopeWidget::save_properties(obs_data_t *props)
 
 void ScopeWidget::load_properties(obs_data_t *props)
 {
-	char roi_name[64]; sprintf(roi_name, "dock-roi-%p", this);
+	char roi_name[64]; snprintf(roi_name, sizeof(roi_name), "dock-roi-%p", this);
 
 	pthread_mutex_lock(&data->mutex);
 	data->src_shown = 0;

@@ -123,7 +123,7 @@ static void wvs_get_defaults(obs_data_t *settings)
 
 static bool components_changed(obs_properties_t *props, obs_property_t *property, obs_data_t *settings)
 {
-	uint32_t components = settings ? obs_data_get_int(settings, "components") : 0;
+	uint32_t components = settings ? (uint32_t)obs_data_get_int(settings, "components") : 0;
 	obs_property_t *prop = obs_properties_get(props, "colorspace");
 	if (prop)
 		obs_property_set_visible(prop, !!(components & COMP_YUV));

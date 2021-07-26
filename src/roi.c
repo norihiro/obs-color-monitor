@@ -191,10 +191,10 @@ static inline void draw_roi_rect(const struct roi_source *src, int x0, int y0, i
 	const int y1e = y_outside ? y1 : y1h;
 	while (gs_effect_loop(effect, "Solid")) {
 		gs_render_start(false);
-		gs_vertex2f(x0, y1); gs_vertex2f(x0, y0);
-		gs_vertex2f(x0, y0); gs_vertex2f(x1, y0);
-		gs_vertex2f(x1, y0); gs_vertex2f(x1, y1);
-		gs_vertex2f(x1, y1); gs_vertex2f(x0, y1);
+		gs_vertex2f((float)x0, (float)y1); gs_vertex2f((float)x0, (float)y0);
+		gs_vertex2f((float)x0, (float)y0); gs_vertex2f((float)x1, (float)y0);
+		gs_vertex2f((float)x1, (float)y0); gs_vertex2f((float)x1, (float)y1);
+		gs_vertex2f((float)x1, (float)y1); gs_vertex2f((float)x0, (float)y1);
 		if (flags & (INTERACT_HANDLE_LI | INTERACT_HANDLE_LO))
 			draw_add_handle_x(x0h, x0, y0e, y1e, !y_outside || x_outside);
 		if (flags & (INTERACT_HANDLE_RI | INTERACT_HANDLE_RO))
@@ -212,8 +212,8 @@ static inline void draw_roi_range(const struct roi_source *src, float x0, float 
 	gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_SOLID);
 	gs_effect_set_color(gs_effect_get_param_by_name(effect, "color"), 0x80000000);
 	while (gs_effect_loop(effect, "Solid")) {
-		float w = src->cm.known_width;
-		float h = src->cm.known_height;
+		float w = (float)src->cm.known_width;
+		float h = (float)src->cm.known_height;
 		gs_render_start(false);
 		gs_vertex2f(x0, y1);
 		gs_vertex2f(0.0f, h);
@@ -340,7 +340,7 @@ static void roi_render(void *data, gs_effect_t *effect)
 		}
 	}
 
-	draw_roi_range(src, src->x0, src->y0, src->x1, src->y1);
+	draw_roi_range(src, (float)src->x0, (float)src->y0, (float)src->x1, (float)src->y1);
 
 	uint32_t flags_interact = src->flags_interact_gs;
 	if (flags_interact & (INTERACT_DRAG_RESIZE | INTERACT_DRAG_FIRST))

@@ -45,7 +45,7 @@ ScopeDock::ScopeDock(QWidget *parent)
 
 ScopeDock::~ScopeDock()
 {
-	if (docks) for (int i=0; i<docks->size(); i++) {
+	if (docks) for (size_t i=0; i<docks->size(); i++) {
 		if ((*docks)[i] == this) {
 			docks->erase(docks->begin()+i);
 			break;
