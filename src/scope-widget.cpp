@@ -82,6 +82,9 @@ static void draw(void *param, uint32_t cx, uint32_t cy)
 		n_src += 1;
 	}
 
+	gs_blend_state_push();
+	gs_reset_blend_state();
+
 	int y0 = 0;
 	for (int i=0, k=0; i<N_SRC; i++) if (data->src[i] && (src_shown & (1<<i))) {
 		obs_source_t *s = data->src[i];
@@ -122,6 +125,8 @@ static void draw(void *param, uint32_t cx, uint32_t cy)
 		y0 += h;
 		k ++;
 	}
+
+	gs_blend_state_pop();
 
 	pthread_mutex_unlock(&data->mutex);
 }
