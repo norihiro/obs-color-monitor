@@ -15,16 +15,16 @@ In addition, a dock widget is available.
 
 ### Dock
 1. Install the plugin and boot OBS Studio.
-1. Click *View*, *Dock*, and *Scope: program* in menu. you will see a new dock containing vectorscope, waveform, and histogram for the program.
+1. Click `View`, `Dock`, and `Scope: program` in menu. you will see a new dock containing vectorscope, waveform, and histogram for the program.
 
 ### Projector View
 1. Install the plugin and boot OBS Studio.
 1. Have your source to see vectorscope, waveform, or histogram, eg. a camera.
 1. Create a new scene.
-1. Create vectorscope, waveform, or histogram on the scene by clicking *+* button at the bottom of *Source* list.
-1. At *Source* combo box, select your source. You can select both scene and source.
-   1. If the plugin increases rendering time too much, increase *scale* to scale down the image before processing.
-   1. *Bypass* checkbox will show the scaled image to ensure you've select the right source.
+1. Create vectorscope, waveform, or histogram on the scene by clicking `+` button at the bottom of `Source` list.
+1. At `Source` combo box, select your source. You can select both scene and source.
+   1. If the plugin increases rendering time too much, increase `scale` to scale down the image before processing.
+   1. `Bypass` checkbox will show the scaled image to ensure you've select the right source.
 1. You may open a windowed projector of the scene so that you can switch preview and program scene while monitoring color.
 
 ## Known Issue
