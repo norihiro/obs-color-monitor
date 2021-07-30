@@ -58,6 +58,7 @@ set(PLUGIN_SOURCES
 	src/vectorscope.c
 	src/waveform.c
 	src/histogram.c
+	src/zebra.c
 	src/roi.c
 	src/common.c
 	src/common-cpp.cc

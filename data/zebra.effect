@@ -1,0 +1,45 @@
+uniform float4x4 ViewProj;
+uniform texture2d image;
+uniform float zebra_th_low;
+uniform float zebra_th_high;
+uniform float zebra_tm;
+
+sampler_state def_sampler {
+	Filter   = Linear;
+	AddressU = Clamp;
+	AddressV = Clamp;
+};
+
+struct VertInOut {
+	float4 pos : POSITION;
+	float2 uv  : TEXCOORD0;
+};
+
+VertInOut VSDefault(VertInOut vert_in)
+{
+	VertInOut vert_out;
+	vert_out.pos = mul(float4(vert_in.pos.xyz, 1.0), ViewProj);
+	vert_out.uv  = vert_in.uv;
+	return vert_out;
+}
+
+float4 PSDrawZebra709(VertInOut vert_in) : TARGET
+{
+	float4 rgba = image.Sample(def_sampler, vert_in.uv);
+	float y = dot(rgba.xyz, float3(0.212600, 0.715200, 0.072200));
+	int xy = int(vert_in.pos.x + vert_in.pos.y + zebra_tm);
+	xy = xy - (xy / 6) * 6;
+	if (zebra_th_low<=y && y<=zebra_th_high && xy<3)
+		return float4(0.0, 0.0, 0.0, 1.0);
+	else
+		return rgba;
+}
+
+technique DrawZebra709
+{
+	pass
+	{
+		vertex_shader = VSDefault(vert_in);
+		pixel_shader  = PSDrawZebra709(vert_in);
+	}
+}
