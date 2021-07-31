@@ -4,6 +4,7 @@
 #include "plugin-macros.generated.h"
 #include "obs-convenience.h"
 #include "common.h"
+#include "roi.h"
 
 #define debug(format, ...)
 
@@ -321,6 +322,9 @@ static void vss_render(void *data, gs_effect_t *effect)
 
 	if (src->update_graticule || src->cm.colorspace<1) {
 		src->cm.colorspace = calc_colorspace(src->colorspace);
+		// TODO: how to set the same colorspace for ROI and all referred sources?
+		if (src->cm.target && src->cm.roi)
+			src->cm.roi->cm.colorspace = src->cm.colorspace;
 		src->update_graticule = 0;
 		gs_vertexbuffer_destroy(src->graticule_vbuf);
 		src->graticule_vbuf = NULL;

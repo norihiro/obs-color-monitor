@@ -125,8 +125,12 @@ static bool components_changed(obs_properties_t *props, obs_property_t *property
 {
 	uint32_t components = settings ? (uint32_t)obs_data_get_int(settings, "components") : 0;
 	obs_property_t *prop = obs_properties_get(props, "colorspace");
+	// TODO: temporarily disable colorspace setting if the target is ROI
+	bool vis = !!(components & COMP_YUV);
+	if (vis && is_roi_source_name(obs_data_get_string(settings, "target_name")))
+		vis = false;
 	if (prop)
-		obs_property_set_visible(prop, !!(components & COMP_YUV));
+		obs_property_set_visible(prop, vis);
 	return true;
 }
 

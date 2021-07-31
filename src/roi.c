@@ -634,6 +634,16 @@ struct roi_source *roi_from_source(obs_source_t *s)
 	return ret;
 }
 
+bool is_roi_source_name(const char *name)
+{
+	obs_source_t *src = obs_get_source_by_name(name);
+	if (!src)
+		return false;
+	struct roi_source *roi = roi_from_source(src);
+	obs_source_release(src);
+	return !!roi;
+}
+
 struct obs_source_info colormonitor_roi = {
 	.id = "colormonitor_roi",
 	.type = OBS_SOURCE_TYPE_INPUT,

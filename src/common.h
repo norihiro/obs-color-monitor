@@ -60,6 +60,7 @@ uint32_t cm_get_width(struct cm_source *src);
 uint32_t cm_get_height(struct cm_source *src);
 
 int calc_colorspace(int);
+bool is_roi_source_name(const char *name);
 
 #ifdef __cplusplus
 }
