@@ -3,6 +3,7 @@ variables:
   buildWin32: true
   buildWin64: true
   OBSLatestTag: 26.1.2
+  MIN_MACOS_VERSION: 10.13
 
 trigger:
   branches:
@@ -135,9 +136,12 @@ jobs:
       displayName: 'Build OBS'
       env:
         OBSLatestTag: $(OBSLatestTag)
+        MIN_MACOS_VERSION: $(MIN_MACOS_VERSION)
 
     - script: ./ci/macos/build-macos.sh
       displayName: 'Build Plugin'
+      env:
+        MIN_MACOS_VERSION: $(MIN_MACOS_VERSION)
 
     - task: InstallAppleCertificate@2
       displayName: 'Install release signing certificates'

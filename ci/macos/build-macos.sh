@@ -26,4 +26,5 @@ cmake .. \
 	-DOBS_FRONTEND_LIB="$(pwd)/../../obs-studio/build/UI/obs-frontend-api/libobs-frontend-api.dylib" \
 	-DCMAKE_BUILD_TYPE=RelWithDebInfo \
 	-DCMAKE_INSTALL_PREFIX=/usr \
+	-DCMAKE_OSX_DEPLOYMENT_TARGET=${MIN_MACOS_VERSION} \
 && make -j4
