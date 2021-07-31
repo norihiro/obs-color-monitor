@@ -92,7 +92,7 @@ static void draw(void *param, uint32_t cx, uint32_t cy)
 		int h_src = obs_source_get_height(s);
 		int w = cx;
 		int h = (cy-y0) / (n_src-k);
-		switch (k) {
+		switch (i) {
 			case 0: // ROI
 				if (w * h_src > h * w_src)
 					w = h * w_src / h_src;
