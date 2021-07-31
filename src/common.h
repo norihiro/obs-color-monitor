@@ -56,6 +56,8 @@ bool cm_stagesurface_map(struct cm_source *src, uint8_t **video_data, uint32_t *
 void cm_stagesurface_unmap(struct cm_source *src);
 void cm_render_bypass(struct cm_source *src);
 void cm_tick(void *data, float unused);
+uint32_t cm_get_width(struct cm_source *src);
+uint32_t cm_get_height(struct cm_source *src);
 
 int calc_colorspace(int);
 

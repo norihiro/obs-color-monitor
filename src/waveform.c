@@ -182,17 +182,17 @@ static uint32_t wvs_get_width(void *data)
 {
 	struct wvs_source *src = data;
 	if (src->cm.bypass)
-		return src->cm.known_width;
+		return cm_get_width(&src->cm);
 	if (src->display==DISP_PARADE)
-		return src->cm.known_width*n_components(src);
-	return src->cm.known_width;
+		return cm_get_width(&src->cm)*n_components(src);
+	return cm_get_width(&src->cm);
 }
 
 static uint32_t wvs_get_height(void *data)
 {
 	struct wvs_source *src = data;
 	if (src->cm.bypass)
-		return src->cm.known_height;
+		return cm_get_height(&src->cm);
 	if (src->display==DISP_STACK)
 		return WV_SIZE*n_components(src);
 	return WV_SIZE;

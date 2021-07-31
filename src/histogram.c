@@ -168,7 +168,7 @@ static uint32_t his_get_width(void *data)
 {
 	struct his_source *src = data;
 	if (src->cm.bypass)
-		return src->cm.known_width;
+		return cm_get_width(&src->cm);
 	if (src->display==DISP_PARADE)
 		return HI_SIZE*n_components(src);
 	return HI_SIZE;
@@ -178,7 +178,7 @@ static uint32_t his_get_height(void *data)
 {
 	struct his_source *src = data;
 	if (src->cm.bypass)
-		return src->cm.known_height;
+		return cm_get_height(&src->cm);
 	if (src->display==DISP_STACK)
 		return src->level_height*n_components(src);
 	return src->level_height;

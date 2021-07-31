@@ -241,6 +241,26 @@ static inline gs_stagesurf_t *resize_stagesurface(gs_stagesurf_t *stagesurface, 
 	return stagesurface;
 }
 
+static inline void set_roi_info(struct roi_surface_info_s *pos, struct roi_source *src)
+{
+	if (0 <= src->x0 && src->x0 <= src->x1 && src->x1 <= src->cm.known_width) {
+		pos->x0 = src->x0;
+		pos->w = src->x1 - src->x0;
+	}
+	else {
+		pos->x0 = 0;
+		pos->w = src->cm.known_width;
+	}
+	if (0 <= src->y0 && src->y0 <= src->y1 && src->y1 <= src->cm.known_height) {
+		pos->y0 = src->y0;
+		pos->h = src->y1 - src->y0;
+	}
+	else {
+		pos->y0 = 0;
+		pos->h = src->cm.known_height;
+	}
+}
+
 static void roi_stage_texture(struct roi_source *src)
 {
 	const bool b_rgb = src->b_rgb;
@@ -303,6 +323,10 @@ static void roi_stage_texture(struct roi_source *src)
 	PROFILE_START(prof_stage_surface_name);
 	gs_stage_texture(src->cm.stagesurface, gs_texrender_get_texture(src->cm.texrender_yuv));
 	PROFILE_END(prof_stage_surface_name);
+	set_roi_info(&src->roi_surface_pos_next, src);
+	src->roi_surface_pos_next.surface_height = height;
+	src->roi_surface_pos_next.b_rgb = src->b_rgb;
+	src->roi_surface_pos_next.b_yuv = src->b_yuv;
 }
 
 bool roi_target_render(struct roi_source *src)
@@ -355,20 +379,22 @@ static void roi_render(void *data, gs_effect_t *effect)
 
 bool roi_stagesurfae_map(struct roi_source *src, uint8_t **video_data, uint32_t *video_linesize, int ix)
 {
-	if (ix && !src->b_yuv) {
+	if (ix && !src->roi_surface_pos.b_yuv) {
 		blog(LOG_INFO, "roi_stagesurfae_map: YUV frame is not staged");
 		return false;
 	}
-	if (!ix && !src->b_rgb) {
+	if (!ix && !src->roi_surface_pos.b_rgb) {
 		blog(LOG_INFO, "roi_stagesurfae_map: RGB frame is not staged");
 		return false;
 	}
 	bool ret = gs_stagesurface_map(src->cm.stagesurface, video_data, video_linesize);
-	if (src->x0 > 0)
-		*video_data += 4 * src->x0;
-	if (src->y0 > 0)
-		*video_data += *video_linesize * src->y0;
-	if (ix && src->b_rgb && src->b_yuv)
+	int x0 = src->roi_surface_pos.x0;
+	int y0 = src->roi_surface_pos.y0;
+	if (x0 > 0)
+		*video_data += 4 * x0;
+	if (y0 > 0)
+		*video_data += *video_linesize * y0;
+	if (ix && src->roi_surface_pos.b_rgb && src->roi_surface_pos.b_yuv)
 		*video_data += *video_linesize * src->cm.known_height;
 	return ret;
 }
@@ -589,6 +615,9 @@ static void roi_tick(void *data, float unused)
 		src->n_y --;
 
 	roi_send_range(src);
+
+	if (src->i_interleave!=0 && src->n_interleave>0)
+		src->roi_surface_pos = src->roi_surface_pos_next;
 }
 
 struct roi_source *roi_from_source(obs_source_t *s)

@@ -6,12 +6,22 @@
 extern "C" {
 #endif
 
+struct roi_surface_info_s
+{
+	int x0, y0;
+	int w, h;
+	int surface_height;
+	bool b_rgb, b_yuv;
+};
+
 struct roi_source
 {
 	struct cm_source cm;
 	int n_interleave, i_interleave;
 
 	int x0, x1, y0, y1;
+	struct roi_surface_info_s roi_surface_pos_next;
+	struct roi_surface_info_s roi_surface_pos;
 	int x0sizing, x1sizing, y0sizing, y1sizing;
 	int x0in, x1in, y0in, y1in;
 	uint32_t flags_interact;
@@ -34,16 +44,12 @@ void roi_stagesurfae_unmap(struct roi_source *);
 
 static inline uint32_t roi_width(struct roi_source *src)
 {
-	if (0 <= src->x0 && src->x0 <= src->x1 && src->x1 <= (int)src->cm.known_width)
-		return src->x1 - src->x0;
-	return src->cm.known_width;
+	return src->roi_surface_pos.w;
 }
 
 static inline uint32_t roi_height(struct roi_source *src)
 {
-	if (0 <= src->y0 && src->y0 <= src->y1 && src->y1 <= (int)src->cm.known_height)
-		return src->y1 - src->y0;
-	return src->cm.known_height;
+	return src->roi_surface_pos.h;
 }
 
 #ifdef __cplusplus

@@ -125,6 +125,8 @@ static bool cm_render_roi(struct cm_source *src, obs_source_t *target, struct ro
 		roi_request_y(roi);
 	if (!(src->flags & (CM_FLAG_CONVERT_UV | CM_FLAG_CONVERT_Y)))
 		roi_request_rgb(roi);
+	if (src->target)
+		obs_source_release(src->target);
 	src->target = target;
 	src->roi = roi;
 	bool ret = roi_target_render(roi);
@@ -289,20 +291,16 @@ void cm_tick(void *data, float unused)
 	UNUSED_PARAMETER(unused);
 	struct cm_source *src = data;
 
-	if (src->target) {
-		obs_source_release(src->target);
-		src->roi = NULL;
-		src->target = NULL;
-	}
-
 	pthread_mutex_lock(&src->target_update_mutex);
 	if (src->target_name && !*src->target_name) {
 		if (src->weak_target)
 			obs_weak_source_release(src->weak_target);
 		src->weak_target = NULL;
 	}
+
+	obs_source_t *target = NULL;
 	if (is_preview_name(src->target_name)) {
-		obs_source_t *target = obs_frontend_get_current_preview_scene();
+		target = obs_frontend_get_current_preview_scene();
 		if (src->weak_target)
 			obs_weak_source_release(src->weak_target);
 		src->weak_target = target ? obs_source_get_weak_source(target) : NULL;
@@ -312,12 +310,18 @@ void cm_tick(void *data, float unused)
 		uint64_t t = os_gettime_ns();
 		if (t - src->target_check_time > SOURCE_CHECK_NS) {
 			src->target_check_time = t;
-			obs_source_t *target = obs_get_source_by_name(src->target_name);
+			target = obs_get_source_by_name(src->target_name);
 			src->weak_target = target ? obs_source_get_weak_source(target) : NULL;
 			obs_source_release(target);
 		}
 	}
 	pthread_mutex_unlock(&src->target_update_mutex);
+
+	if (src->target && (obs_source_removed(src->target) || (target && target!=src->target))) {
+		obs_source_release(src->target);
+		src->roi = NULL;
+		src->target = NULL;
+	}
 
 	src->rendered = 0;
 }
@@ -336,4 +340,18 @@ int calc_colorspace(int colorspace)
 		}
 	}
 	return 2; // default
+}
+
+uint32_t cm_get_width(struct cm_source *src)
+{
+	if (src->target && src->roi)
+		src->known_width = roi_width(src->roi);
+	return src->known_width;
+}
+
+uint32_t cm_get_height(struct cm_source *src)
+{
+	if (src->target && src->roi)
+		src->known_height = roi_height(src->roi);
+	return src->known_height;
 }

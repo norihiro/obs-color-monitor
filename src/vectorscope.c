@@ -172,13 +172,13 @@ static obs_properties_t *vss_get_properties(void *data)
 static uint32_t vss_get_width(void *data)
 {
 	struct vss_source *src = data;
-	return src->cm.bypass ? src->cm.known_width : VS_SIZE;
+	return src->cm.bypass ? cm_get_width(&src->cm) : VS_SIZE;
 }
 
 static uint32_t vss_get_height(void *data)
 {
 	struct vss_source *src = data;
-	return src->cm.bypass ? src->cm.known_height : VS_SIZE;
+	return src->cm.bypass ? cm_get_height(&src->cm) : VS_SIZE;
 }
 
 static inline void vss_draw_vectorscope(struct vss_source *src, uint8_t *video_data, uint32_t video_line)
