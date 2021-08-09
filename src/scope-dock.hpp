@@ -1,6 +1,8 @@
 #pragma once
 
 #include <QDockWidget>
+#include <QPointer>
+#include <QAction>
 #include <string>
 
 class ScopeDock : public QDockWidget {
@@ -9,6 +11,7 @@ class ScopeDock : public QDockWidget {
 public:
 	class ScopeWidget *widget;
 	std::string name;
+	QPointer<QAction> action = 0;
 
 public:
 	ScopeDock(QWidget *parent = nullptr);

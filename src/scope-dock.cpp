@@ -33,6 +33,7 @@ static void scope_dock_add(const char *name, obs_data_t *props)
 
 	main_window->addDockWidget(Qt::RightDockWidgetArea, dock);
 	QAction *action = (QAction*)obs_frontend_add_dock(dock);
+	dock->action = action;
 
 	if (docks)
 		docks->push_back(dock);
@@ -45,6 +46,8 @@ ScopeDock::ScopeDock(QWidget *parent)
 
 ScopeDock::~ScopeDock()
 {
+	if (action)
+		delete action;
 	if (docks) for (size_t i=0; i<docks->size(); i++) {
 		if ((*docks)[i] == this) {
 			docks->erase(docks->begin()+i);
@@ -67,7 +70,7 @@ void ScopeDock::hideEvent(QHideEvent *event)
 
 static void save_load_scope_docks(obs_data_t *save_data, bool saving, void *)
 {
-	blog(LOG_INFO, "save_load_scope_docks");
+	blog(LOG_INFO, "save_load_scope_docks saving=%d", (int)saving);
 	if (!docks)
 		return;
 	if (saving) {
@@ -88,6 +91,11 @@ static void save_load_scope_docks(obs_data_t *save_data, bool saving, void *)
 	}
 
 	else /* loading */ {
+		if (docks) while (docks->size()) {
+			(*docks)[docks->size()-1]->close();
+			delete (*docks)[docks->size()-1];
+		}
+
 		obs_data_t *props = obs_data_get_obj(save_data, SAVE_DATA_NAME);
 		if (!props) {
 			blog(LOG_INFO, "save_load_scope_docks: creating default properties");
