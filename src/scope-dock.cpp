@@ -42,6 +42,7 @@ static void scope_dock_add(const char *name, obs_data_t *props)
 ScopeDock::ScopeDock(QWidget *parent)
 	: QDockWidget(parent)
 {
+	setAttribute(Qt::WA_DeleteOnClose);
 }
 
 ScopeDock::~ScopeDock()
