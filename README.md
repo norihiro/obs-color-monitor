@@ -15,7 +15,8 @@ In addition, a dock widget is available.
 
 ### Dock
 1. Install the plugin and boot OBS Studio.
-1. Click `View`, `Dock`, and `Scope: program` in menu. you will see a new dock containing vectorscope, waveform, and histogram for the program.
+1. Click `Tools` and `New Scope Dock...` in the menu of OBS Studio.
+1. Input the name, optionally set the source to monitor, and clock OK. You will see a new dock containing vectorscope, waveform, and histogram for the program.
 
 ### Projector View
 1. Install the plugin and boot OBS Studio.

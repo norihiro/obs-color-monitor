@@ -63,6 +63,7 @@ set(PLUGIN_SOURCES
 	src/common-cpp.cc
 	src/obs-convenience.c
 	src/scope-dock.cpp
+	src/scope-dock-new-dialog.cpp
 	src/scope-widget.cpp
 	src/scope-widget-properties.cpp
 	src-obsstudio/properties-view.cpp
@@ -80,6 +81,7 @@ set(PLUGIN_HEADERS
 	src/common.h
 	src/obs-convenience.h
 	src/scope-dock.hpp
+	src/scope-dock-new-dialog.hpp
 	src/scope-widget.hpp
 	src/obsgui-helper.hpp
 	src/scope-widget-properties.hpp

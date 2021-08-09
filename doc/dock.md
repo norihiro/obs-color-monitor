@@ -7,7 +7,8 @@ Color Scope Dock shows vectorscope, waveform, histogram and ROI (region of inter
 ## Opening the Color Scope Dock
 
 To open the dock,
-Click `View`, `Docks`, and `Scope: program` in the menu of OBS Studio.
+Click `Tools` and `New Scope Dock...` in the menu of OBS Studio.
+Input the name and clock OK.
 
 ## ROI Mouse Interaction
 

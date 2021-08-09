@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include "plugin-macros.generated.h"
 #include "scope-dock.hpp"
+#include "scope-dock-new-dialog.hpp"
 #include "scope-widget.hpp"
 
 #define SAVE_DATA_NAME PLUGIN_NAME"-dock"
@@ -16,13 +17,13 @@ void ScopeDock::closeEvent(QCloseEvent *event)
 
 static std::vector<ScopeDock*> *docks;
 
-static void scope_dock_add(const char *name, obs_data_t *props)
+void scope_dock_add(const char *name, obs_data_t *props)
 {
 	auto *main_window = static_cast<QMainWindow *>(obs_frontend_get_main_window());
 	auto *dock = new ScopeDock(main_window);
 	dock->name = name;
 	dock->setObjectName(QString(name) + OBJ_NAME_SUFFIX);
-	dock->setWindowTitle(QString("Scope: ") + name);
+	dock->setWindowTitle(name);
 	dock->resize(256, 256);
 	dock->setMinimumSize(128, 128);
 	dock->setAllowedAreas(Qt::AllDockWidgetAreas);
@@ -32,8 +33,7 @@ static void scope_dock_add(const char *name, obs_data_t *props)
 	w->load_properties(props);
 
 	main_window->addDockWidget(Qt::RightDockWidgetArea, dock);
-	QAction *action = (QAction*)obs_frontend_add_dock(dock);
-	dock->action = action;
+	dock->action = (QAction*)obs_frontend_add_dock(dock);
 
 	if (docks)
 		docks->push_back(dock);
@@ -104,21 +104,12 @@ static void save_load_scope_docks(obs_data_t *save_data, bool saving, void *)
 		}
 
 		obs_data_array_t *array = obs_data_get_array(props, "docks");
-		if (!array || obs_data_array_count(array)==0) {
-			blog(LOG_INFO, "save_load_scope_docks: creating default docks");
-			array = obs_data_array_create();
-			obs_data_t *obj = obs_data_create();
-			obs_data_set_default_string(obj, "name", "program");
-			obs_data_array_push_back(array, obj);
-			obs_data_set_array(props, "docks", array);
-		}
-
 		size_t count = obs_data_array_count(array);
 		for (size_t i=0; i<count; i++) {
 			obs_data_t *obj = obs_data_array_item(array, i);
 			ScopeWidget::default_properties(obj);
 			const char *name = obs_data_get_string(obj, "name");
-			if (!name) name = "program";
+			if (!name) name = "Scope: program";
 			scope_dock_add(name, obj);
 			obs_data_release(obj);
 		}
@@ -131,6 +122,18 @@ void scope_docks_init()
 {
 	docks = new std::vector<ScopeDock*>;
 	obs_frontend_add_save_callback(save_load_scope_docks, NULL);
+
+	QAction *action = static_cast<QAction *>(obs_frontend_add_tools_menu_qaction(
+				obs_module_text("New Scope Dock...") ));
+	auto cb = [] {
+		obs_frontend_push_ui_translation(obs_module_get_string);
+		auto *dialog = new ScopeDockNewDialog(static_cast<QMainWindow *>(
+					obs_frontend_get_main_window() ));
+		dialog->show();
+		dialog->setAttribute(Qt::WA_DeleteOnClose, true);
+		obs_frontend_pop_ui_translation();
+	};
+	QAction::connect(action, &QAction::triggered, cb);
 }
 
 void scope_docks_release()
