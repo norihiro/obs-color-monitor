@@ -243,7 +243,7 @@ static inline gs_stagesurf_t *resize_stagesurface(gs_stagesurf_t *stagesurface, 
 
 static inline void set_roi_info(struct roi_surface_info_s *pos, struct roi_source *src)
 {
-	if (0 <= src->x0 && src->x0 <= src->x1 && src->x1 <= src->cm.known_width) {
+	if (0 <= src->x0 && src->x0 <= src->x1 && src->x1 <= (int)src->cm.known_width) {
 		pos->x0 = src->x0;
 		pos->w = src->x1 - src->x0;
 	}
@@ -251,7 +251,7 @@ static inline void set_roi_info(struct roi_surface_info_s *pos, struct roi_sourc
 		pos->x0 = 0;
 		pos->w = src->cm.known_width;
 	}
-	if (0 <= src->y0 && src->y0 <= src->y1 && src->y1 <= src->cm.known_height) {
+	if (0 <= src->y0 && src->y0 <= src->y1 && src->y1 <= (int)src->cm.known_height) {
 		pos->y0 = src->y0;
 		pos->h = src->y1 - src->y0;
 	}
