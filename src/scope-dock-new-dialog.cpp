@@ -20,6 +20,7 @@ ScopeDockNewDialog::ScopeDockNewDialog(QMainWindow *parent)
 
 	label = new QLabel(obs_module_text("Dock Title"));
 	editTitle = new QLineEdit();
+	editTitle->setText("Scope Dock");
 	mainLayout->addWidget(label, ix, 0, Qt::AlignRight);
 	mainLayout->addWidget(editTitle, ix++, 1, Qt::AlignCenter);
 
