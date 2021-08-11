@@ -68,7 +68,8 @@ done
 
 echo "=> ZIP package build"
 ziproot=package-zip/$PLUGIN_NAME
-zipfile=${PLUGIN_NAME}-${GIT_TAG}-macos.zip
+zipfile=${PLUGIN_NAME}-${GIT_TAG_ONLY}-macos.zip
+dmgfile=${PLUGIN_NAME}-${GIT_TAG_ONLY}-macos.dmg
 rm -rf ${ziproot:?}/
 mkdir -p $ziproot/bin
 cp ./build/$PLUGIN_NAME.so $ziproot/bin/
@@ -85,7 +86,7 @@ if pip3 install dmgbuild || pip install dmgbuild; then
 		-e "s;%VERSION%;${GIT_TAG_ONLY};g" \
 		-e "s;%PLUGIN_ROOT%;$ziproot;g" \
 		< ci/macos/package-dmg.json.template > package-dmg.json
-	dmgbuild "$PLUGIN_NAME ${GIT_TAG}" "release/${PLUGIN_NAME}-${GIT_TAG}-macos.dmg" -s ./package-dmg.json
+	dmgbuild "$PLUGIN_NAME ${GIT_TAG}" "release/${dmgfile}" -s ./package-dmg.json
 fi
 
 # echo "=> Actual package build"
@@ -94,7 +95,7 @@ fi
 if [[ "$RELEASE_MODE" == "True" ]]; then
 	:> requests
 
-	for FILENAME in $zipfile ${PLUGIN_NAME}-${GIT_TAG}-macos.dmg; do
+	for FILENAME in $zipfile $dmgfile; do
 		echo "=> Submitting package $FILENAME for notarization"
 		UPLOAD_RESULT=$(xcrun altool \
 			--notarize-app \

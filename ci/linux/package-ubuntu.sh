@@ -5,7 +5,7 @@ set -e
 script_dir=$(dirname "$0")
 source "$script_dir/../ci_includes.generated.sh"
 
-export PKG_VERSION="1-$(git describe --tags --long --always)"
+export PKG_VERSION="1-$(git describe --tags --always)"
 
 cd ./build
 
