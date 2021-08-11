@@ -22,7 +22,7 @@ void scope_dock_add(const char *name, obs_data_t *props)
 	auto *main_window = static_cast<QMainWindow *>(obs_frontend_get_main_window());
 	auto *dock = new ScopeDock(main_window);
 	dock->name = name;
-	dock->setObjectName(QString(name) + OBJ_NAME_SUFFIX);
+	dock->setObjectName(QString::fromUtf8(name) + OBJ_NAME_SUFFIX);
 	dock->setWindowTitle(name);
 	dock->resize(256, 256);
 	dock->setMinimumSize(128, 128);
