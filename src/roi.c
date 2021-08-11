@@ -279,6 +279,10 @@ static void roi_stage_texture(struct roi_source *src)
 		PROFILE_START(prof_stage_surface_name);
 		gs_stage_texture(src->cm.stagesurface, gs_texrender_get_texture(src->cm.texrender));
 		PROFILE_END(prof_stage_surface_name);
+		set_roi_info(&src->roi_surface_pos_next, src);
+		src->roi_surface_pos_next.surface_height = height;
+		src->roi_surface_pos_next.b_rgb = src->b_rgb;
+		src->roi_surface_pos_next.b_yuv = src->b_yuv;
 		return;
 	}
 
