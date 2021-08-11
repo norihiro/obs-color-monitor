@@ -26,13 +26,13 @@ struct src_rect_s
 	int x0, y0, x1, y1;
 	int w, h;
 
-	inline bool is_inside(int x, int y) {
+	inline bool is_inside(int x, int y) const {
 		return x0<=x && x<=x1 && x0<x1 && y0<=y && y<=y1 && y0<y1;
 	}
-	inline int x_from_widget(int x) {
+	inline int x_from_widget(int x) const {
 		return x1>x0 ? (x-x0) * w / (x1-x0) : 0;
 	}
-	inline int y_from_widget(int y) {
+	inline int y_from_widget(int y) const {
 		return y1>y0 ? (y-y0) * h / (y1-y0) : 0;
 	}
 };
@@ -109,7 +109,7 @@ static void draw(void *param, uint32_t cx, uint32_t cy)
 		gs_set_viewport((cx-w)/2, y0, w, h);
 		gs_ortho(0.0f, w_src, 0.0f, h_src, -100.0f, 100.0f);
 
-		auto &r = data->src_rect[k];
+		auto &r = data->src_rect[i];
 		r.x0 = (cx-w)/2;
 		r.y0 = y0;
 		r.x1 = r.x0 + w;
@@ -124,6 +124,15 @@ static void draw(void *param, uint32_t cx, uint32_t cy)
 
 		y0 += h;
 		k ++;
+	}
+	else {
+		auto &r = data->src_rect[i];
+		r.x0 = INT_MIN;
+		r.y0 = INT_MIN;
+		r.x1 = INT_MIN;
+		r.y1 = INT_MIN;
+		r.w = 0;
+		r.h = 0;
 	}
 
 	gs_blend_state_pop();
@@ -272,7 +281,7 @@ static obs_source_t *get_source_from_mouse(struct scope_widget_s *data, int x, i
 	if (event->modifiers & (INTERACT_MOUSE_LEFT | INTERACT_MOUSE_MIDDLE | INTERACT_MOUSE_RIGHT | INTERACT_KEEP_SOURCE))
 		i_mouse = data->i_mouse_last;
 	else for (i_mouse=0; i_mouse<N_SRC; i_mouse++) {
-		auto &r = data->src_rect[i_mouse];
+		const auto &r = data->src_rect[i_mouse];
 		if (r.is_inside(x, y))
 			break;
 	}
@@ -281,7 +290,7 @@ static obs_source_t *get_source_from_mouse(struct scope_widget_s *data, int x, i
 		data->i_mouse_last = -1;
 		return NULL;
 	}
-	auto &r = data->src_rect[i_mouse];
+	const auto &r = data->src_rect[i_mouse];
 	event->x = r.x_from_widget(x);
 	event->y = r.y_from_widget(y);
 	data->i_mouse_last = i_mouse;
