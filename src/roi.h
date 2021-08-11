@@ -18,6 +18,7 @@ struct roi_source
 {
 	struct cm_source cm;
 	int n_interleave, i_interleave;
+	bool interleave_rendered;
 
 	int x0, x1, y0, y1;
 	struct roi_surface_info_s roi_surface_pos_next;

@@ -335,6 +335,7 @@ static void roi_stage_texture(struct roi_source *src)
 
 bool roi_target_render(struct roi_source *src)
 {
+	src->interleave_rendered = true;
 	if (src->i_interleave!=0 && src->n_interleave>0)
 		return true;
 
@@ -602,8 +603,9 @@ static void roi_tick(void *data, float unused)
 {
 	struct roi_source *src = data;
 
-	if (src->i_interleave++ >= src->n_interleave)
+	if (src->interleave_rendered && src->i_interleave++ >= src->n_interleave)
 		src->i_interleave = 0;
+	src->interleave_rendered = false;
 
 	if (src->i_interleave==0 || src->n_interleave<=0)
 		cm_tick(data, unused);
@@ -620,7 +622,7 @@ static void roi_tick(void *data, float unused)
 
 	roi_send_range(src);
 
-	if (src->i_interleave!=0 && src->n_interleave>0)
+	if (src->n_interleave<=0 || src->i_interleave!=0)
 		src->roi_surface_pos = src->roi_surface_pos_next;
 }
 
