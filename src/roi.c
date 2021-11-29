@@ -1,5 +1,4 @@
 #include <obs-module.h>
-#include <graphics/image-file.h>
 #include <util/platform.h>
 #include <util/darray.h>
 #include <limits.h>

@@ -1,7 +1,4 @@
 #include <obs-module.h>
-#include <graphics/image-file.h>
-#include <util/platform.h>
-#include <util/threading.h>
 #include <obs-frontend-api.h>
 #include "plugin-macros.generated.h"
 #include "common.h"
