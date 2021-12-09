@@ -107,7 +107,7 @@ static void draw(void *param, uint32_t cx, uint32_t cy)
 		gs_projection_push();
 		gs_viewport_push();
 		gs_set_viewport((cx-w)/2, y0, w, h);
-		gs_ortho(0.0f, w_src, 0.0f, h_src, -100.0f, 100.0f);
+		gs_ortho(0.0f, w_src, -1.0f, h_src, -100.0f, 100.0f);
 
 		auto &r = data->src_rect[i];
 		r.x0 = (cx-w)/2;
