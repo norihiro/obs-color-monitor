@@ -35,8 +35,6 @@ static const char *prof_stage_surface_name = "stage_surface";
 #define INTERACT_HANDLE_BI 0x800
 
 extern gs_effect_t *cm_rgb2yuv_effect;
-static DARRAY(struct roi_source*) da_roi;
-static pthread_mutex_t da_roi_mutex;
 
 static const char *roi_get_name(void *unused)
 {
@@ -45,6 +43,11 @@ static const char *roi_get_name(void *unused)
 }
 
 static void roi_update(void *, obs_data_t *);
+
+static void cb_get_roi(void *data, calldata_t *cd)
+{
+	calldata_set_ptr(cd, "roi", data);
+}
 
 static void *roi_create(obs_data_t *settings, obs_source_t *source)
 {
@@ -64,19 +67,14 @@ static void *roi_create(obs_data_t *settings, obs_source_t *source)
 
 	roi_update(src, settings);
 
-	pthread_mutex_lock(&da_roi_mutex);
-	da_push_back(da_roi, &src);
-	pthread_mutex_unlock(&da_roi_mutex);
+	proc_handler_t *ph = obs_source_get_proc_handler(source);
+	proc_handler_add(ph, "void get_roi(out ptr roi)", cb_get_roi, src);
 	return src;
 }
 
 static void roi_destroy(void *data)
 {
 	struct roi_source *src = data;
-
-	pthread_mutex_lock(&da_roi_mutex);
-	da_erase_item(da_roi, &src);
-	pthread_mutex_unlock(&da_roi_mutex);
 
 	cm_destroy(&src->cm);
 	bfree(src);
@@ -627,15 +625,17 @@ static void roi_tick(void *data, float unused)
 
 struct roi_source *roi_from_source(obs_source_t *s)
 {
+	proc_handler_t *ph = obs_source_get_proc_handler(s);
+	if (!ph)
+		return NULL;
+
 	struct roi_source *ret = NULL;
-	pthread_mutex_lock(&da_roi_mutex);
-	for (size_t i=0; i<da_roi.num; i++) {
-		if (da_roi.array[i]->cm.self == s) {
-			ret = da_roi.array[i];
-			break;
-		}
-	}
-	pthread_mutex_unlock(&da_roi_mutex);
+
+	calldata_t cd = {0};
+	proc_handler_call(ph, "get_roi", &cd);
+	calldata_get_ptr(&cd, "roi", &ret);
+	calldata_free(&cd);
+
 	return ret;
 }
 
@@ -671,19 +671,3 @@ struct obs_source_info colormonitor_roi = {
 	.mouse_move = roi_mouse_move,
 	.mouse_click = roi_mouse_click,
 };
-
-void roi_init()
-{
-	pthread_mutex_init(&da_roi_mutex, NULL);
-	da_init(da_roi);
-}
-
-void roi_free()
-{
-	pthread_mutex_lock(&da_roi_mutex);
-	if (da_roi.num>0)
-		blog(LOG_ERROR, "da_roi has %d element(s)", (int)da_roi.num);
-	da_free(da_roi);
-	pthread_mutex_unlock(&da_roi_mutex);
-	pthread_mutex_destroy(&da_roi_mutex);
-}
