@@ -17,6 +17,19 @@ void ScopeDock::closeEvent(QCloseEvent *event)
 
 static std::vector<ScopeDock*> *docks;
 
+static inline bool is_program_dock(obs_data_t *props)
+{
+	bool ret = true;
+
+	obs_data_t *roi_prop = obs_data_get_obj(props, "colormonitor_roi-prop");
+	const char *target_name = obs_data_get_string(roi_prop, "target_name");
+	if (target_name && *target_name)
+		ret = false; // not program
+	obs_data_release(roi_prop);
+
+	return ret;
+}
+
 void scope_dock_add(const char *name, obs_data_t *props)
 {
 	auto *main_window = static_cast<QMainWindow *>(obs_frontend_get_main_window());
@@ -32,7 +45,9 @@ void scope_dock_add(const char *name, obs_data_t *props)
 	dock->SetWidget(w);
 	w->load_properties(props);
 
-	main_window->addDockWidget(Qt::RightDockWidgetArea, dock);
+	auto flag = is_program_dock(props) ? Qt::RightDockWidgetArea : Qt::LeftDockWidgetArea;
+
+	main_window->addDockWidget(flag, dock);
 	dock->action = (QAction*)obs_frontend_add_dock(dock);
 
 	if (docks)
