@@ -1,6 +1,7 @@
 #include <obs-module.h>
 #include <graphics/image-file.h>
 #include <util/platform.h>
+#include <graphics/matrix4.h>
 #include "plugin-macros.generated.h"
 #include "obs-convenience.h"
 #include "common.h"
@@ -53,6 +54,8 @@ struct vss_source
 	int graticule_skintone_color;
 	int colorspace;
 	bool update_graticule;
+
+	float zoom;
 };
 
 static const char *vss_get_name(void *unused)
@@ -68,6 +71,7 @@ static void *vss_create(obs_data_t *settings, obs_source_t *source)
 	struct vss_source *src = bzalloc(sizeof(struct vss_source));
 
 	src->cm.flags = CM_FLAG_CONVERT_UV;
+	src->zoom = 1.0f;
 	cm_create(&src->cm, settings, source);
 
 	{
@@ -345,6 +349,19 @@ static void vss_render(void *data, gs_effect_t *effect)
 		PROFILE_END(prof_draw_vectorscope_name);
 	}
 
+	const bool b_zoom = src->zoom > 1.01f;
+	if (b_zoom) {
+		float offset = 127.5f * (1.0f - src->zoom);
+		struct matrix4 tr = {
+			{ src->zoom, 0.0f, 0.0f, 0.0f },
+			{ 0.0f, src->zoom, 0.0f, 0.0f },
+			{ 0.0f, 0.0f, 1.0f, 0.0f },
+			{ offset, offset, 0.0f, 1.0f, } // TODO: add offset here
+		};
+		gs_matrix_push();
+		gs_matrix_mul(&tr);
+	}
+
 	PROFILE_START(prof_draw_name);
 	if (src->tex_vs) {
 		gs_effect_t *effect = cm_rgb2yuv_effect ? cm_rgb2yuv_effect : obs_get_base_effect(OBS_EFFECT_DEFAULT);
@@ -375,13 +392,26 @@ static void vss_render(void *data, gs_effect_t *effect)
 	}
 	PROFILE_END(prof_draw_graticule_name);
 
+	if (b_zoom) {
+		gs_matrix_pop();
+	}
+
 	PROFILE_END(prof_render_name);
+}
+
+void vss_mouse_wheel(void *data, const struct obs_mouse_event *event, int x_delta, int y_delta)
+{
+	struct vss_source *src = data;
+
+	src->zoom *= expf(y_delta * 5e-4f);
+	if (src->zoom < 1.0f)
+		src->zoom = 1.0f;
 }
 
 struct obs_source_info colormonitor_vectorscope = {
 	.id = "vectorscope_source",
 	.type = OBS_SOURCE_TYPE_INPUT,
-	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW,
+	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW | OBS_SOURCE_INTERACTION,
 	.get_name = vss_get_name,
 	.create = vss_create,
 	.destroy = vss_destroy,
@@ -393,4 +423,5 @@ struct obs_source_info colormonitor_vectorscope = {
 	.enum_active_sources = cm_enum_sources,
 	.video_render = vss_render,
 	.video_tick = cm_tick,
+	.mouse_wheel = vss_mouse_wheel,
 };
