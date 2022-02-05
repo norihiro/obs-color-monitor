@@ -14,3 +14,6 @@ REM Package ZIP archive
 
 REM Build installer
 iscc ..\installer\installer-Windows.generated.iss /O. /F"%PluginName%-%PackageVersion%-Windows-Installer"
+
+certutil.exe -hashfile "%PluginName%-%PackageVersion%-Windows.zip" SHA1
+certutil.exe -hashfile "%PluginName%-%PackageVersion%-Windows-Installer.exe" SHA1
