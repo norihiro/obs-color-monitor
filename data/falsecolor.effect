@@ -1,0 +1,100 @@
+uniform float4x4 ViewProj;
+uniform texture2d image;
+
+sampler_state def_sampler {
+	Filter   = Linear;
+	AddressU = Clamp;
+	AddressV = Clamp;
+};
+
+struct VertInOut {
+	float4 pos : POSITION;
+	float2 uv  : TEXCOORD0;
+};
+
+VertInOut VSDefault(VertInOut vert_in)
+{
+	VertInOut vert_out;
+	vert_out.pos = mul(float4(vert_in.pos.xyz, 1.0), ViewProj);
+	vert_out.uv  = vert_in.uv;
+	return vert_out;
+}
+
+float4 PSDrawFalseColor601(VertInOut vert_in) : TARGET
+{
+	float4 rgba = image.Sample(def_sampler, vert_in.uv);
+	float y = dot(rgba.xyz, float3(0.299000, 0.587000, 0.114000));
+
+	if (y < 0.02)
+		return float4(0.85, 0.22, 1.0, 1.0); // bright purple
+	else if (y < 0.10)
+		return float4(0.0, 0.0, 1.0, 1.0); // blue
+	else if (y < 0.20)
+		return float4(0.33, 0.55, 1.0, 1.0); // light blue
+	else if (y < 0.42)
+		return float4(0.3, 0.3, 1.0, 1.0); // dark grey
+	else if (y < 0.48)
+		return float4(0.6, 1.0, 0.0, 1.0); // green
+	else if (y < 0.52)
+		return float4(0.5, 0.5, 0.5, 1.0); // medium grey
+	else if (y < 0.58)
+		return float4(0.95, 0.62, 0.62, 1.0); // pink
+	else if (y < 0.78)
+		return float4(0.7, 0.7, 0.7, 1.0); // light grey
+	else if (y < 0.84)
+		return float4(0.7, 0.7, 0.0, 1.0); // dark yellow
+	else if (y < 0.94)
+		return float4(1.0, 1.0, 0.0, 1.0); // yellow
+	else if (y < 1.00)
+		return float4(0.9, 0.5, 0.0, 1.0); // orange
+	else
+		return float4(0.9, 0.2, 0.0, 1.0); // red
+}
+
+float4 PSDrawFalseColor709(VertInOut vert_in) : TARGET
+{
+	float4 rgba = image.Sample(def_sampler, vert_in.uv);
+	float y = dot(rgba.xyz, float3(0.212600, 0.715200, 0.072200));
+
+	if (y < 0.02)
+		return float4(0.85, 0.22, 1.0, 1.0); // bright purple
+	else if (y < 0.10)
+		return float4(0.0, 0.0, 1.0, 1.0); // blue
+	else if (y < 0.20)
+		return float4(0.33, 0.55, 1.0, 1.0); // light blue
+	else if (y < 0.42)
+		return float4(0.3, 0.3, 1.0, 1.0); // dark grey
+	else if (y < 0.48)
+		return float4(0.6, 1.0, 0.0, 1.0); // green
+	else if (y < 0.52)
+		return float4(0.5, 0.5, 0.5, 1.0); // medium grey
+	else if (y < 0.58)
+		return float4(0.95, 0.62, 0.62, 1.0); // pink
+	else if (y < 0.78)
+		return float4(0.7, 0.7, 0.7, 1.0); // light grey
+	else if (y < 0.84)
+		return float4(0.7, 0.7, 0.0, 1.0); // dark yellow
+	else if (y < 0.94)
+		return float4(1.0, 1.0, 0.0, 1.0); // yellow
+	else if (y < 1.00)
+		return float4(0.9, 0.5, 0.0, 1.0); // orange
+	else
+		return float4(0.9, 0.2, 0.0, 1.0); // red
+}
+
+technique DrawFalseColor601
+{
+	pass
+	{
+		vertex_shader = VSDefault(vert_in);
+		pixel_shader  = PSDrawFalseColor601(vert_in);
+	}
+}
+technique DrawFalseColor709
+{
+	pass
+	{
+		vertex_shader = VSDefault(vert_in);
+		pixel_shader  = PSDrawFalseColor709(vert_in);
+	}
+}
