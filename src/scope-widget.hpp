@@ -40,6 +40,9 @@ public:
 	void load_properties(obs_data_t*);
 	void setShown(bool shown);
 
+	void propertiesClosed();
+	void propertiesUpdated();
+
 	friend class ScopeWidgetProperties;
 };
 

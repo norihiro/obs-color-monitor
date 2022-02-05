@@ -65,7 +65,7 @@ ScopeWidgetProperties::ScopeWidgetProperties(QWidget *parent, obs_source_t *sour
 
 ScopeWidgetProperties::~ScopeWidgetProperties()
 {
-	static_cast<ScopeWidget*>(parent())->properties = NULL;
+	static_cast<ScopeWidget*>(parent())->propertiesClosed();
 	// TODO: main->SaveProject();
 }
 

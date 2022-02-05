@@ -513,6 +513,25 @@ void ScopeWidget::createProperties()
 	properties->setAttribute(Qt::WA_DeleteOnClose, true);
 }
 
+void ScopeWidget::propertiesClosed()
+{
+	properties = NULL;
+
+	propertiesUpdated();
+}
+
+void ScopeWidget::propertiesUpdated()
+{
+#ifdef HAVE_DISPLAY_SET_INTERLEAVE
+	obs_data_t *settings = obs_source_get_settings(data->src[0]);
+	int interleave = (int)obs_data_get_int(settings, "interleave");
+	obs_data_release(settings);
+
+	blog(LOG_INFO, "calling obs_display_set_interleave interleave=%d", interleave);
+	obs_display_set_interleave(data->disp, interleave);
+#endif
+}
+
 void ScopeWidget::default_properties(obs_data_t *props)
 {
 	for (int i=0; i<N_SRC; i++) {
@@ -572,4 +591,6 @@ void ScopeWidget::load_properties(obs_data_t *props)
 		obs_data_release(prop);
 	}
 	pthread_mutex_unlock(&data->mutex);
+
+	propertiesUpdated();
 }
