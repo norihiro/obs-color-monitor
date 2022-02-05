@@ -2,6 +2,7 @@
 #include <util/platform.h>
 #include "plugin-macros.generated.h"
 #include "common.h"
+#include "roi.h"
 
 #define debug(format, ...)
 
@@ -174,15 +175,23 @@ static void zbs_render(void *data, gs_effect_t *effect)
 
 	PROFILE_START(prof_render_name);
 
-	gs_texture_t *tex = gs_texrender_get_texture(src->cm.texrender);
+	gs_texture_t *tex = cm_get_texture(&src->cm);
 	if (zebra_effect && tex) {
+		int sub_x = 0;
+		int sub_y = 0;
+		if (cm_is_roi(&src->cm)) {
+			struct roi_source *roi = src->cm.roi;
+			sub_x = roi->roi_surface_pos.x0;
+			sub_y = roi->roi_surface_pos.y0;
+		}
+
 		gs_effect_set_texture(gs_effect_get_param_by_name(zebra_effect, "image"), tex);
 		gs_effect_set_float(gs_effect_get_param_by_name(zebra_effect, "zebra_th_low"), src->zb.zebra_th_low);
 		gs_effect_set_float(gs_effect_get_param_by_name(zebra_effect, "zebra_th_high"), src->zb.zebra_th_high);
 		gs_effect_set_float(gs_effect_get_param_by_name(zebra_effect, "zebra_tm"), src->zb.zebra_tm);
 		// TODO: 601
 		while (gs_effect_loop(zebra_effect, "DrawZebra709"))
-			gs_draw_sprite(tex, 0, src->cm.known_width, src->cm.known_height);
+			gs_draw_sprite_subregion(tex, 0, sub_x, sub_y, src->cm.known_width, src->cm.known_height);
 	}
 
 	PROFILE_END(prof_render_name);

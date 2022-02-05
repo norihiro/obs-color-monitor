@@ -123,7 +123,7 @@ static bool cm_render_roi(struct cm_source *src, obs_source_t *target, struct ro
 		roi_request_uv(roi);
 	if (src->flags & CM_FLAG_CONVERT_Y)
 		roi_request_y(roi);
-	if (!(src->flags & (CM_FLAG_CONVERT_UV | CM_FLAG_CONVERT_Y)))
+	if (src->flags & CM_FLAG_CONVERT_RGB)
 		roi_request_rgb(roi);
 	if (src->target)
 		obs_source_release(src->target);
@@ -354,4 +354,15 @@ uint32_t cm_get_height(struct cm_source *src)
 	if (src->target && src->roi)
 		src->known_height = roi_height(src->roi);
 	return src->known_height;
+}
+
+gs_texture_t *cm_get_texture(struct cm_source *src)
+{
+	if (src->target && src->roi) {
+		if (src->flags & CM_FLAG_CONVERT_YUV)
+			return gs_texrender_get_texture(src->roi->cm.texrender_yuv);
+		else
+			return gs_texrender_get_texture(src->roi->cm.texrender);
+	}
+	return gs_texrender_get_texture(src->texrender);
 }
