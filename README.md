@@ -7,6 +7,7 @@ This plugin provides three sources to monitor color balances.
 - [Vectorscope](doc/vectorscope.md)
 - [Waveform](doc/waveform.md)
 - [Histogram](doc/histogram.md)
+- [Zebra](doc/zebra.md)
 
 In addition, a dock widget is available.
 - [Dock](doc/dock.md)
