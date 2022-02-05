@@ -44,6 +44,7 @@ struct cm_source
 #define CM_FLAG_CONVERT_RGB 1
 #define CM_FLAG_CONVERT_UV  2
 #define CM_FLAG_CONVERT_Y   4
+#define CM_FLAG_CONVERT_YUV (CM_FLAG_CONVERT_Y | CM_FLAG_CONVERT_UV)
 #define CM_FLAG_ROI         8
 
 void cm_create(struct cm_source *src, obs_data_t *settings, obs_source_t *source);
@@ -58,6 +59,11 @@ void cm_render_bypass(struct cm_source *src);
 void cm_tick(void *data, float unused);
 uint32_t cm_get_width(struct cm_source *src);
 uint32_t cm_get_height(struct cm_source *src);
+gs_texture_t *cm_get_texture(struct cm_source *src);
+static inline bool cm_is_roi(const struct cm_source *src)
+{
+	return src->target && src->roi;
+}
 
 int calc_colorspace(int);
 bool is_roi_source_name(const char *name);

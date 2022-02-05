@@ -4,7 +4,7 @@
 #include <QWidget>
 #include <memory>
 
-#define SCOPE_WIDGET_N_SRC 4
+#define SCOPE_WIDGET_N_SRC 5
 
 class OBSEventFilter;
 

@@ -19,6 +19,7 @@ static const char *id_list[N_SRC] = {
 	"vectorscope_source",
 	"waveform_source",
 	"histogram_source",
+	ID_PREFIX"zebra_source",
 };
 
 struct src_rect_s
@@ -64,6 +65,10 @@ static obs_source_t *create_scope_source(const char *id, obs_data_t *settings)
 	name += id;
 
 	const char *v_id = obs_get_latest_input_type_id(id);
+	if (!v_id) {
+		blog(LOG_ERROR, "create_scope_source(id=%s): obs_get_latest_input_type_id failed", id);
+		return NULL;
+	}
 	obs_source_t *src = obs_source_create_private(v_id, name.c_str(), settings);
 
 	return src;
@@ -94,6 +99,7 @@ static void draw(void *param, uint32_t cx, uint32_t cy)
 		int h = (cy-y0) / (n_src-k);
 		switch (i) {
 			case 0: // ROI
+			case 4: // Zebra
 				if (w * h_src > h * w_src)
 					w = h * w_src / h_src;
 				else if (h * w_src > w * h_src)
@@ -471,11 +477,12 @@ bool ScopeWidget::openMenu(QMouseEvent *event)
 	QMenu popup(this);
 	QAction *act;
 
-	const char *menu_text[] = {
+	const char *menu_text[N_SRC] = {
 		"Show &ROI",
 		"Show &Vectorscope",
 		"Show &Waveform",
 		"Show &Histogram",
+		"Show &Zebra",
 	};
 
 	for (int i=0; i<N_SRC; i++) {
@@ -516,7 +523,7 @@ void ScopeWidget::createProperties()
 void ScopeWidget::default_properties(obs_data_t *props)
 {
 	for (int i=0; i<N_SRC; i++) {
-		char s[32]; snprintf(s, sizeof(s), "%s-shown", id_list[i]); s[sizeof(s)-1]=0;
+		char s[64]; snprintf(s, sizeof(s), "%s-shown", id_list[i]); s[sizeof(s)-1]=0;
 		obs_data_set_default_bool(props, s, true);
 	}
 }
@@ -526,7 +533,7 @@ void ScopeWidget::save_properties(obs_data_t *props)
 	pthread_mutex_lock(&data->mutex);
 	const auto src_shown = data->src_shown;
 	for (int i=0; i<N_SRC; i++) {
-		char s[32];
+		char s[64];
 		snprintf(s, sizeof(s), "%s-shown", id_list[i]); s[sizeof(s)-1]=0;
 		obs_data_set_bool(props, s, !!(src_shown & (1<<i)));
 
@@ -549,7 +556,7 @@ void ScopeWidget::load_properties(obs_data_t *props)
 	pthread_mutex_lock(&data->mutex);
 	data->src_shown = 0;
 	for (int i=0; i<N_SRC; i++) {
-		char s[32];
+		char s[64];
 		snprintf(s, sizeof(s), "%s-shown", id_list[i]); s[sizeof(s)-1]=0;
 		if (obs_data_get_bool(props, s))
 			data->src_shown |= 1<<i;
