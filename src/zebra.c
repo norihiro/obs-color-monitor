@@ -16,12 +16,14 @@ static const char *prof_render_name = "zebra_render";
 #endif // ! ENABLE_PROFILE
 
 gs_effect_t *zebra_effect;
+gs_effect_t *falsecolor_effect;
 
 // common structure for source and filter
 struct zb_source
 {
 	float zebra_th_low, zebra_th_high;
 	float zebra_tm;
+	bool is_falsecolor;
 };
 
 struct zbs_source
@@ -43,16 +45,29 @@ static const char *zb_get_name(void *unused)
 	return obs_module_text("Zebra");
 }
 
+static const char *fc_get_name(void *unused)
+{
+	UNUSED_PARAMETER(unused);
+	return obs_module_text("False Color");
+}
+
 static void zbs_update(void *, obs_data_t *);
 static void zbf_update(void *, obs_data_t *);
 
 static void zb_init(struct zb_source *src, obs_data_t *settings)
 {
 	obs_enter_graphics();
-	if (!zebra_effect) {
+	if (!src->is_falsecolor && !zebra_effect) {
 		char *f = obs_module_file("zebra.effect");
 		zebra_effect = gs_effect_create_from_file(f, NULL);
 		if (!zebra_effect)
+			blog(LOG_ERROR, "Cannot load '%s'", f);
+		bfree(f);
+	}
+	else if (src->is_falsecolor && !falsecolor_effect) {
+		char *f = obs_module_file("falsecolor.effect");
+		falsecolor_effect = gs_effect_create_from_file(f, NULL);
+		if (!falsecolor_effect)
 			blog(LOG_ERROR, "Cannot load '%s'", f);
 		bfree(f);
 	}
@@ -74,6 +89,32 @@ static void *zbs_create(obs_data_t *settings, obs_source_t *source)
 static void *zbf_create(obs_data_t *settings, obs_source_t *source)
 {
 	struct zbf_source *src = bzalloc(sizeof(struct zbf_source));
+
+	zb_init(&src->zb, settings);
+	src->context = source;
+
+	zbf_update(src, settings);
+
+	return src;
+}
+
+static void *fcs_create(obs_data_t *settings, obs_source_t *source)
+{
+	struct zbs_source *src = bzalloc(sizeof(struct zbs_source));
+	src->zb.is_falsecolor = true;
+
+	cm_create(&src->cm, settings, source);
+	zb_init(&src->zb, settings);
+
+	zbs_update(src, settings);
+
+	return src;
+}
+
+static void *fcf_create(obs_data_t *settings, obs_source_t *source)
+{
+	struct zbf_source *src = bzalloc(sizeof(struct zbf_source));
+	src->zb.is_falsecolor = true;
 
 	zb_init(&src->zb, settings);
 	src->context = source;
@@ -128,13 +169,16 @@ static void zb_get_defaults(obs_data_t *settings)
 	obs_data_set_default_int(settings, "zebra_th_high", 100);
 }
 
-static void zb_get_properties(struct zb_source *src, obs_properties_t *props)
+static void zb_get_properties(struct zb_source *src, obs_properties_t *props, bool is_falsecolor)
 {
 	obs_property_t *prop;
-	prop = obs_properties_add_int(props, "zebra_th_low", obs_module_text("Threshold (lower)"), 50, 100, 1);
-	obs_property_int_set_suffix(prop, "%");
-	prop = obs_properties_add_int(props, "zebra_th_high", obs_module_text("Threshold (high)"), 50, 100, 1);
-	obs_property_int_set_suffix(prop, "%");
+
+	if (!is_falsecolor) {
+		prop = obs_properties_add_int(props, "zebra_th_low", obs_module_text("Threshold (lower)"), 50, 100, 1);
+		obs_property_int_set_suffix(prop, "%");
+		prop = obs_properties_add_int(props, "zebra_th_high", obs_module_text("Threshold (high)"), 50, 100, 1);
+		obs_property_int_set_suffix(prop, "%");
+	}
 
 	prop = obs_properties_add_list(props, "colorspace", obs_module_text("Color space"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, "Auto", 0);
@@ -149,7 +193,7 @@ static obs_properties_t *zbs_get_properties(void *data)
 	props = obs_properties_create();
 
 	cm_get_properties(&src->cm, props);
-	zb_get_properties(&src->zb, props);
+	zb_get_properties(&src->zb, props, false);
 
 	return props;
 }
@@ -160,7 +204,30 @@ static obs_properties_t *zbf_get_properties(void *data)
 	obs_properties_t *props;
 	props = obs_properties_create();
 
-	zb_get_properties(&src->zb, props);
+	zb_get_properties(&src->zb, props, false);
+
+	return props;
+}
+
+static obs_properties_t *fcs_get_properties(void *data)
+{
+	struct zbs_source *src = data;
+	obs_properties_t *props;
+	props = obs_properties_create();
+
+	cm_get_properties(&src->cm, props);
+	zb_get_properties(&src->zb, props, true);
+
+	return props;
+}
+
+static obs_properties_t *fcf_get_properties(void *data)
+{
+	struct zbf_source *src = data;
+	obs_properties_t *props;
+	props = obs_properties_create();
+
+	zb_get_properties(&src->zb, props, true);
 
 	return props;
 }
@@ -177,6 +244,18 @@ static uint32_t zbs_get_height(void *data)
 	return src->cm.known_height;
 }
 
+const char *draw_name(int colorspace, bool is_falsecolor)
+{
+	if (colorspace==1 && is_falsecolor)
+		return "DrawFalseColor601";
+	else if (colorspace==1)
+		return "DrawZebra601";
+	else if (is_falsecolor)
+		return "DrawFalseColor709";
+	else
+		return "DrawZebra709";
+}
+
 static void zbs_render(void *data, gs_effect_t *effect)
 {
 	UNUSED_PARAMETER(effect);
@@ -191,7 +270,8 @@ static void zbs_render(void *data, gs_effect_t *effect)
 	PROFILE_START(prof_render_name);
 
 	gs_texture_t *tex = cm_get_texture(&src->cm);
-	if (zebra_effect && tex) {
+	gs_effect_t *e = src->zb.is_falsecolor ? falsecolor_effect : zebra_effect;
+	if (e && tex) {
 		int sub_x = 0;
 		int sub_y = 0;
 		if (cm_is_roi(&src->cm)) {
@@ -200,16 +280,14 @@ static void zbs_render(void *data, gs_effect_t *effect)
 			sub_y = roi->roi_surface_pos.y0;
 		}
 
-		gs_effect_set_texture(gs_effect_get_param_by_name(zebra_effect, "image"), tex);
-		gs_effect_set_float(gs_effect_get_param_by_name(zebra_effect, "zebra_th_low"), src->zb.zebra_th_low);
-		gs_effect_set_float(gs_effect_get_param_by_name(zebra_effect, "zebra_th_high"), src->zb.zebra_th_high);
-		gs_effect_set_float(gs_effect_get_param_by_name(zebra_effect, "zebra_tm"), src->zb.zebra_tm);
-		const char *draw;
-		if (src->cm.colorspace==1)
-			draw = "DrawZebra601";
-		else
-			draw = "DrawZebra709";
-		while (gs_effect_loop(zebra_effect, draw))
+		gs_effect_set_texture(gs_effect_get_param_by_name(e, "image"), tex);
+		if (!src->zb.is_falsecolor) {
+			gs_effect_set_float(gs_effect_get_param_by_name(e, "zebra_th_low"), src->zb.zebra_th_low);
+			gs_effect_set_float(gs_effect_get_param_by_name(e, "zebra_th_high"), src->zb.zebra_th_high);
+			gs_effect_set_float(gs_effect_get_param_by_name(e, "zebra_tm"), src->zb.zebra_tm);
+		}
+		const char *draw = draw_name(src->cm.colorspace, src->zb.is_falsecolor);
+		while (gs_effect_loop(e, draw))
 			gs_draw_sprite_subregion(tex, 0, sub_x, sub_y, src->cm.known_width, src->cm.known_height);
 	}
 
@@ -219,26 +297,25 @@ static void zbs_render(void *data, gs_effect_t *effect)
 static void zbf_render(void *data, gs_effect_t *effect)
 {
 	struct zbf_source *src = data;
+	gs_effect_t *e = src->zb.is_falsecolor ? falsecolor_effect : zebra_effect;
 
-	if (!zebra_effect)
+	if (!e)
 		return;
 
 	if (!obs_source_process_filter_begin(src->context, GS_RGBA, OBS_ALLOW_DIRECT_RENDERING))
 		return;
 
-	gs_effect_set_float(gs_effect_get_param_by_name(zebra_effect, "zebra_th_low"), src->zb.zebra_th_low);
-	gs_effect_set_float(gs_effect_get_param_by_name(zebra_effect, "zebra_th_high"), src->zb.zebra_th_high);
-	gs_effect_set_float(gs_effect_get_param_by_name(zebra_effect, "zebra_tm"), src->zb.zebra_tm);
+	if (!src->zb.is_falsecolor) {
+		gs_effect_set_float(gs_effect_get_param_by_name(e, "zebra_th_low"), src->zb.zebra_th_low);
+		gs_effect_set_float(gs_effect_get_param_by_name(e, "zebra_th_high"), src->zb.zebra_th_high);
+		gs_effect_set_float(gs_effect_get_param_by_name(e, "zebra_tm"), src->zb.zebra_tm);
+	}
 
 	gs_blend_state_push();
 	gs_reset_blend_state();
 
-	const char *draw;
-	if (src->colorspace==1)
-		draw = "DrawZebra601";
-	else
-		draw = "DrawZebra709";
-	obs_source_process_filter_tech_end(src->context, zebra_effect, 0, 0, draw);
+	const char *draw = draw_name(src->colorspace, src->zb.is_falsecolor);
+	obs_source_process_filter_tech_end(src->context, e, 0, 0, draw);
 	gs_blend_state_pop();
 }
 
@@ -284,6 +361,37 @@ struct obs_source_info colormonitor_zebra_filter = {
 	.update = zbf_update,
 	.get_defaults = zb_get_defaults,
 	.get_properties = zbf_get_properties,
+	.video_render = zbf_render,
+	.video_tick = zb_tick,
+};
+
+struct obs_source_info colormonitor_falsecolor = {
+	.id = ID_PREFIX"falsecolor_source",
+	.type = OBS_SOURCE_TYPE_INPUT,
+	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW,
+	.get_name = fc_get_name,
+	.create = fcs_create,
+	.destroy = zbs_destroy,
+	.update = zbs_update,
+	.get_defaults = zb_get_defaults,
+	.get_properties = fcs_get_properties,
+	.get_width = zbs_get_width,
+	.get_height = zbs_get_height,
+	.enum_active_sources = cm_enum_sources,
+	.video_render = zbs_render,
+	.video_tick = zbs_tick,
+};
+
+struct obs_source_info colormonitor_falsecolor_filter = {
+	.id = ID_PREFIX"falsecolor_filter",
+	.type = OBS_SOURCE_TYPE_FILTER,
+	.output_flags = OBS_SOURCE_VIDEO,
+	.get_name = fc_get_name,
+	.create = fcf_create,
+	.destroy = zbf_destroy,
+	.update = zbf_update,
+	.get_defaults = zb_get_defaults,
+	.get_properties = fcf_get_properties,
 	.video_render = zbf_render,
 	.video_tick = zb_tick,
 };
