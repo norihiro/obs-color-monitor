@@ -44,8 +44,7 @@ float4 PSDrawStack(VertInOut vert_in) : TARGET
 	float v = vert_in.uv.y * 3 - i;
 	float r = image.Sample(def_sampler, float2(vert_in.uv.x, 0.5))[i];
 	if (r >= (1-v) * hi_max[i]) r=1.0; else r=0.0;
-	float4 c = color[i];
-	return float4(c.x*r, c.y*r, c.z*r, 1.0);
+	return float4(color[i].xyz*r, 1.0);
 }
 
 float4 PSDrawParade(VertInOut vert_in) : TARGET
@@ -53,8 +52,7 @@ float4 PSDrawParade(VertInOut vert_in) : TARGET
 	int i = int(vert_in.uv.x * 3);
 	float r = image.Sample(def_sampler, float2(vert_in.uv.x*3, 0.5))[i];
 	if (r >= (1-vert_in.uv.y) * hi_max[i]) r=1.0; else r=0.0;
-	float4 c = color[i];
-	return float4(c.x*r, c.y*r, c.z*r, 1.0);
+	return float4(color[i].xyz*r, 1.0);
 }
 
 float4 PSDrawStackUV(VertInOut vert_in) : TARGET
@@ -71,8 +69,7 @@ float4 PSDrawStackUV(VertInOut vert_in) : TARGET
 	}
 	float r = image.Sample(def_sampler, float2(vert_in.uv.x, 0.5))[i];
 	if (r >= (1-v) * hi_max[i]) r=1.0; else r=0.0;
-	float4 c = color[i];
-	return float4(c.x*r, c.y*r, c.z*r, 1.0);
+	return float4(color[i].xyz*r, 1.0);
 }
 
 float4 PSDrawParadeUV(VertInOut vert_in) : TARGET
@@ -84,8 +81,7 @@ float4 PSDrawParadeUV(VertInOut vert_in) : TARGET
 		i = 2;
 	float r = image.Sample(def_sampler, float2(vert_in.uv.x*2, 0.5))[i];
 	if (r >= (1-vert_in.uv.y) * hi_max[i]) r=1.0; else r=0.0;
-	float4 c = color[i];
-	return float4(c.x*r, c.y*r, c.z*r, 1.0);
+	return float4(color[i].xyz*r, 1.0);
 }
 
 technique DrawOverlay

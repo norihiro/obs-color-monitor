@@ -32,13 +32,13 @@ float4 PSDrawBare(VertInOut vert_in) : TARGET
 {
 	float r = image.Sample(def_sampler, vert_in.uv).x * intensity;
 	if (r>1.0) r = 1.0;
-	return float4(color.x*r, color.y*r, color.z*r, 1.0);
+	return float4(color.xyz*r, 1.0);
 }
 
 float4 PSDrawGraticule(VertInOut vert_in) : TARGET
 {
 	float a = image.Sample(def_sampler, vert_in.uv).a;
-	return float4(color.x, color.y, color.z, color.a*a);
+	return float4(color.xyz, color.a*a);
 }
 
 float4 PSConvertRGB_UV601(VertInOut vert_in) : TARGET
