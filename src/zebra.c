@@ -125,15 +125,15 @@ static void zbf_update(void *data, obs_data_t *settings)
 static void zb_get_defaults(obs_data_t *settings)
 {
 	obs_data_set_default_int(settings, "zebra_th_low", 75);
-	obs_data_set_default_int(settings, "zebra_th_high", 105);
+	obs_data_set_default_int(settings, "zebra_th_high", 100);
 }
 
 static void zb_get_properties(struct zb_source *src, obs_properties_t *props)
 {
 	obs_property_t *prop;
-	prop = obs_properties_add_int(props, "zebra_th_low", obs_module_text("Threshold (lower)"), 50, 105, 1);
+	prop = obs_properties_add_int(props, "zebra_th_low", obs_module_text("Threshold (lower)"), 50, 100, 1);
 	obs_property_int_set_suffix(prop, "%");
-	prop = obs_properties_add_int(props, "zebra_th_high", obs_module_text("Threshold (high)"), 50, 105, 1);
+	prop = obs_properties_add_int(props, "zebra_th_high", obs_module_text("Threshold (high)"), 50, 100, 1);
 	obs_property_int_set_suffix(prop, "%");
 
 	prop = obs_properties_add_list(props, "colorspace", obs_module_text("Color space"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
