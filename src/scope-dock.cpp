@@ -84,6 +84,14 @@ void ScopeDock::hideEvent(QHideEvent *event)
 	widget->setShown(false);
 }
 
+static void close_all_docks()
+{
+	if (docks) while (docks->size()) {
+		(*docks)[docks->size()-1]->close();
+		delete (*docks)[docks->size()-1];
+	}
+}
+
 static void save_load_scope_docks(obs_data_t *save_data, bool saving, void *)
 {
 	blog(LOG_INFO, "save_load_scope_docks saving=%d", (int)saving);
@@ -107,10 +115,7 @@ static void save_load_scope_docks(obs_data_t *save_data, bool saving, void *)
 	}
 
 	else /* loading */ {
-		if (docks) while (docks->size()) {
-			(*docks)[docks->size()-1]->close();
-			delete (*docks)[docks->size()-1];
-		}
+		close_all_docks();
 
 		obs_data_t *props = obs_data_get_obj(save_data, SAVE_DATA_NAME);
 		if (!props) {
@@ -133,10 +138,19 @@ static void save_load_scope_docks(obs_data_t *save_data, bool saving, void *)
 	}
 }
 
+static void frontend_event(enum obs_frontend_event event, void *)
+{
+	if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP ||
+			event == OBS_FRONTEND_EVENT_EXIT) {
+		close_all_docks();
+	}
+}
+
 void scope_docks_init()
 {
 	docks = new std::vector<ScopeDock*>;
 	obs_frontend_add_save_callback(save_load_scope_docks, NULL);
+	obs_frontend_add_event_callback(frontend_event, nullptr);
 
 	QAction *action = static_cast<QAction *>(obs_frontend_add_tools_menu_qaction(
 				obs_module_text("New Scope Dock...") ));
