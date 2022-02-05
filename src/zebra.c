@@ -158,7 +158,6 @@ static obs_properties_t *zbf_get_properties(void *data)
 {
 	struct zbf_source *src = data;
 	obs_properties_t *props;
-	obs_property_t *prop;
 	props = obs_properties_create();
 
 	zb_get_properties(&src->zb, props);
