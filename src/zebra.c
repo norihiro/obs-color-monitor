@@ -33,6 +33,7 @@ struct zbs_source
 struct zbf_source
 {
 	struct zb_source zb;
+	int colorspace;
 	obs_source_t *context;
 };
 
@@ -42,8 +43,8 @@ static const char *zb_get_name(void *unused)
 	return obs_module_text("Zebra");
 }
 
-static void zb_update(void *data, obs_data_t *settings);
 static void zbs_update(void *, obs_data_t *);
+static void zbf_update(void *, obs_data_t *);
 
 static void zb_init(struct zb_source *src, obs_data_t *settings)
 {
@@ -77,7 +78,7 @@ static void *zbf_create(obs_data_t *settings, obs_source_t *source)
 	zb_init(&src->zb, settings);
 	src->context = source;
 
-	zb_update(src, settings);
+	zbf_update(src, settings);
 
 	return src;
 }
@@ -96,10 +97,8 @@ static void zbf_destroy(void *data)
 	bfree(src);
 }
 
-static void zb_update(void *data, obs_data_t *settings)
+static void zb_update(struct zb_source *src, obs_data_t *settings)
 {
-	struct zb_source *src = data;
-
 	src->zebra_th_low = obs_data_get_int(settings, "zebra_th_low") * 1e-2f;
 	src->zebra_th_high = obs_data_get_int(settings, "zebra_th_high") * 1e-2f;
 }
@@ -109,6 +108,18 @@ static void zbs_update(void *data, obs_data_t *settings)
 	struct zbs_source *src = data;
 	cm_update(&src->cm, settings);
 	zb_update(&src->zb, settings);
+
+	int colorspace = (int)obs_data_get_int(settings, "colorspace");
+	src->cm.colorspace = calc_colorspace(colorspace);
+}
+
+static void zbf_update(void *data, obs_data_t *settings)
+{
+	struct zbf_source *src = data;
+	zb_update(&src->zb, settings);
+
+	int colorspace = (int)obs_data_get_int(settings, "colorspace");
+	src->colorspace = calc_colorspace(colorspace);
 }
 
 static void zb_get_defaults(obs_data_t *settings)
@@ -124,6 +135,11 @@ static void zb_get_properties(struct zb_source *src, obs_properties_t *props)
 	obs_property_int_set_suffix(prop, "%");
 	prop = obs_properties_add_int(props, "zebra_th_high", obs_module_text("Threshold (high)"), 50, 105, 1);
 	obs_property_int_set_suffix(prop, "%");
+
+	prop = obs_properties_add_list(props, "colorspace", obs_module_text("Color space"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	obs_property_list_add_int(prop, "Auto", 0);
+	obs_property_list_add_int(prop, "601", 1);
+	obs_property_list_add_int(prop, "709", 2);
 }
 
 static obs_properties_t *zbs_get_properties(void *data)
@@ -189,8 +205,12 @@ static void zbs_render(void *data, gs_effect_t *effect)
 		gs_effect_set_float(gs_effect_get_param_by_name(zebra_effect, "zebra_th_low"), src->zb.zebra_th_low);
 		gs_effect_set_float(gs_effect_get_param_by_name(zebra_effect, "zebra_th_high"), src->zb.zebra_th_high);
 		gs_effect_set_float(gs_effect_get_param_by_name(zebra_effect, "zebra_tm"), src->zb.zebra_tm);
-		// TODO: 601
-		while (gs_effect_loop(zebra_effect, "DrawZebra709"))
+		const char *draw;
+		if (src->cm.colorspace==1)
+			draw = "DrawZebra601";
+		else
+			draw = "DrawZebra709";
+		while (gs_effect_loop(zebra_effect, draw))
 			gs_draw_sprite_subregion(tex, 0, sub_x, sub_y, src->cm.known_width, src->cm.known_height);
 	}
 
@@ -213,8 +233,13 @@ static void zbf_render(void *data, gs_effect_t *effect)
 
 	gs_blend_state_push();
 	gs_reset_blend_state();
-	// obs_source_process_filter_end(src->context, zebra_effect, 0, 0);
-	obs_source_process_filter_tech_end(src->context, zebra_effect, 0, 0, "DrawZebra709");
+
+	const char *draw;
+	if (src->colorspace==1)
+		draw = "DrawZebra601";
+	else
+		draw = "DrawZebra709";
+	obs_source_process_filter_tech_end(src->context, zebra_effect, 0, 0, draw);
 	gs_blend_state_pop();
 }
 
@@ -257,7 +282,7 @@ struct obs_source_info colormonitor_zebra_filter = {
 	.get_name = zb_get_name,
 	.create = zbf_create,
 	.destroy = zbf_destroy,
-	.update = zb_update,
+	.update = zbf_update,
 	.get_defaults = zb_get_defaults,
 	.get_properties = zbf_get_properties,
 	.video_render = zbf_render,
