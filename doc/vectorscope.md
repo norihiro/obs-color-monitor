@@ -48,7 +48,7 @@ If you set black or white, skin tone line will be hidden.
 ### Color space
 
 Choice of color space; Auto, BT.601, or BT.709.
-If Auto, the color space is retreived from the settings of OBS Studio.
+If Auto, the color space is retrieved from the settings of OBS Studio.
 Coefficients for Cr and Cb, graticule, and skin tone line will be changed.
 Default is Auto.
 
