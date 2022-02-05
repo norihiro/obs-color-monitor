@@ -20,6 +20,7 @@ static const char *id_list[N_SRC] = {
 	"waveform_source",
 	"histogram_source",
 	ID_PREFIX"zebra_source",
+	ID_PREFIX"falsecolor_source",
 };
 
 struct src_rect_s
@@ -100,6 +101,7 @@ static void draw(void *param, uint32_t cx, uint32_t cy)
 		switch (i) {
 			case 0: // ROI
 			case 4: // Zebra
+			case 5: // False color
 				if (w * h_src > h * w_src)
 					w = h * w_src / h_src;
 				else if (h * w_src > w * h_src)
@@ -483,6 +485,7 @@ bool ScopeWidget::openMenu(QMouseEvent *event)
 		"Show &Waveform",
 		"Show &Histogram",
 		"Show &Zebra",
+		"Show &False Color",
 	};
 
 	for (int i=0; i<N_SRC; i++) {
