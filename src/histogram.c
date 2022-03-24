@@ -27,12 +27,11 @@ static const char *prof_draw_name = "draw";
 #define COMP_UV  0x50
 #define COMP_YUV (COMP_Y | COMP_UV)
 
-gs_effect_t *his_effect;
-
 struct his_source
 {
 	struct cm_source cm;
 
+	gs_effect_t *effect;
 	gs_texture_t *tex_hi;
 	uint8_t *tex_buf;
 	uint16_t hi_max[3];
@@ -57,13 +56,7 @@ static void *his_create(obs_data_t *settings, obs_source_t *source)
 
 	cm_create(&src->cm, settings, source);
 	obs_enter_graphics();
-	if (!his_effect) {
-		char *f = obs_module_file("histogram.effect");
-		his_effect = gs_effect_create_from_file(f, NULL);
-		if (!his_effect)
-			blog(LOG_ERROR, "Cannot load '%s'", f);
-		bfree(f);
-	}
+	src->effect = create_effect_from_module_file("histogram.effect");
 	obs_leave_graphics();
 
 	his_update(src, settings);
@@ -249,7 +242,7 @@ static inline void his_draw_histogram(struct his_source *src, uint8_t *video_dat
 
 static inline void render_histogram(struct his_source *src)
 {
-	gs_effect_t *effect = his_effect ? his_effect : obs_get_base_effect(OBS_EFFECT_DEFAULT);
+	gs_effect_t *effect = src->effect ? src->effect : obs_get_base_effect(OBS_EFFECT_DEFAULT);
 	gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), src->tex_hi);
 	struct vec3 hi_max; for (int i=0; i<3; i++) hi_max.ptr[i]=(float)src->hi_max[i] / 65535.f;
 	gs_effect_set_vec3(gs_effect_get_param_by_name(effect, "hi_max"), &hi_max);
@@ -257,7 +250,7 @@ static inline void render_histogram(struct his_source *src)
 	int w = HI_SIZE;
 	int h = src->level_height;
 	int n = n_components(src);
-	if (his_effect) switch(src->display) {
+	if (src->effect) switch(src->display) {
 		case DISP_STACK:
 			name = n==3 ? "DrawStack" : n==2 ? "DrawStackUV" : "DrawOverlay";
 			h *= n;

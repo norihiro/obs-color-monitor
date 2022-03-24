@@ -20,6 +20,7 @@ struct cm_source
 	gs_texrender_t *texrender;
 	gs_texrender_t *texrender_yuv;
 	gs_stagesurf_t* stagesurface;
+	gs_effect_t *effect;
 	uint32_t known_width;
 	uint32_t known_height;
 	bool rendered;
@@ -67,6 +68,8 @@ static inline bool cm_is_roi(const struct cm_source *src)
 
 int calc_colorspace(int);
 bool is_roi_source_name(const char *name);
+
+gs_effect_t *create_effect_from_module_file(const char *basename);
 
 #ifdef __cplusplus
 }

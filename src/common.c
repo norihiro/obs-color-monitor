@@ -21,7 +21,15 @@ static const char *prof_stagesurface_map_name = "stage_surface_map";
 
 #define SOURCE_CHECK_NS 3000000000
 
-gs_effect_t *cm_rgb2yuv_effect = NULL;
+gs_effect_t *create_effect_from_module_file(const char *basename)
+{
+	char *f = obs_module_file(basename);
+	gs_effect_t *effect = gs_effect_create_from_file(f, NULL);
+	if (!effect)
+		blog(LOG_ERROR, "Cannot load '%s'", f);
+	bfree(f);
+	return effect;
+}
 
 void cm_create(struct cm_source *src, obs_data_t *settings, obs_source_t *source)
 {
@@ -31,14 +39,7 @@ void cm_create(struct cm_source *src, obs_data_t *settings, obs_source_t *source
 	obs_enter_graphics();
 	src->texrender = gs_texrender_create(GS_BGRA, GS_ZS_NONE);
 	src->texrender_yuv = gs_texrender_create(GS_BGRA, GS_ZS_NONE);
-
-	if (!cm_rgb2yuv_effect) {
-		char *f = obs_module_file("vectorscope.effect");
-		cm_rgb2yuv_effect = gs_effect_create_from_file(f, NULL);
-		if (!cm_rgb2yuv_effect)
-			blog(LOG_ERROR, "Cannot load '%s'", f);
-		bfree(f);
-	}
+	src->effect = create_effect_from_module_file("common.effect");
 	obs_leave_graphics();
 
 	pthread_mutex_init(&src->target_update_mutex, NULL);
@@ -209,15 +210,14 @@ bool cm_render_target(struct cm_source *src)
 		}
 		else if (src->flags & (CM_FLAG_CONVERT_UV | CM_FLAG_CONVERT_Y)) {
 			gs_texrender_reset(src->texrender_yuv);
-			if (cm_rgb2yuv_effect && gs_texrender_begin(src->texrender_yuv, width, height)) {
+			if (src->effect && gs_texrender_begin(src->texrender_yuv, width, height)) {
 				PROFILE_START(prof_convert_yuv_name);
 				gs_ortho(0.0f, (float)width, 0.0f, (float)height, -100.0f, 100.0f);
 
-				gs_effect_t *effect = cm_rgb2yuv_effect;
 				gs_texture_t *tex = gs_texrender_get_texture(src->texrender);
 				if (tex) {
-					gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), tex);
-					while (gs_effect_loop(effect, src->colorspace==1 ? "ConvertRGB_UV601" : "ConvertRGB_UV709")) {
+					gs_effect_set_texture(gs_effect_get_param_by_name(src->effect, "image"), tex);
+					while (gs_effect_loop(src->effect, src->colorspace==1 ? "ConvertRGB_YUV601" : "ConvertRGB_YUV709")) {
 						gs_draw_sprite(tex, 0, width, height);
 					}
 				}

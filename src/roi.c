@@ -34,8 +34,6 @@ static const char *prof_stage_surface_name = "stage_surface";
 #define INTERACT_HANDLE_TI 0x200
 #define INTERACT_HANDLE_BI 0x800
 
-extern gs_effect_t *cm_rgb2yuv_effect;
-
 static const char *roi_get_name(void *unused)
 {
 	UNUSED_PARAMETER(unused);
@@ -310,10 +308,10 @@ static void roi_stage_texture(struct roi_source *src)
 	}
 
 	gs_texture_t *tex = gs_texrender_get_texture(src->cm.texrender);
-	if (cm_rgb2yuv_effect && tex) {
+	if (src->cm.effect && tex) {
 		PROFILE_START(prof_convert_yuv_name);
-		gs_effect_set_texture(gs_effect_get_param_by_name(cm_rgb2yuv_effect, "image"), tex);
-		while (gs_effect_loop(cm_rgb2yuv_effect, src->cm.colorspace==1 ? "ConvertRGB_UV601" : "ConvertRGB_UV709"))
+		gs_effect_set_texture(gs_effect_get_param_by_name(src->cm.effect, "image"), tex);
+		while (gs_effect_loop(src->cm.effect, src->cm.colorspace==1 ? "ConvertRGB_YUV601" : "ConvertRGB_YUV709"))
 			gs_draw_sprite(tex, 0, width, height0);
 		PROFILE_END(prof_convert_yuv_name);
 	}

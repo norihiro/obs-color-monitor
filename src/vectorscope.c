@@ -27,7 +27,6 @@ static const char *prof_draw_graticule_name = "graticule";
 #define GRATICULES_COLOR_MASK 3
 #define SKIN_TONE_LINE 0x0054FF // BGR
 
-extern gs_effect_t *cm_rgb2yuv_effect;
 
 #define RGB2Y_601(r, g, b) ((+306*(r) +601*(g) +117*(b))/1024 +  0)
 #define RGB2U_601(r, g, b) ((-150*(r) -296*(g) +448*(b))/1024 +128)
@@ -47,6 +46,7 @@ struct vss_source
 	gs_image_file_t graticule_img;
 	gs_vertbuffer_t *graticule_vbuf;
 	gs_vertbuffer_t *graticule_line_vbuf;
+	gs_effect_t *effect;
 
 	int intensity;
 	int graticule;
@@ -86,6 +86,10 @@ static void *vss_create(obs_data_t *settings, obs_source_t *source)
 		obs_leave_graphics();
 		bfree(f);
 	}
+
+	obs_enter_graphics();
+	src->effect = create_effect_from_module_file("vectorscope.effect");
+	obs_leave_graphics();
 
 	vss_update(src, settings);
 
@@ -363,8 +367,8 @@ static void vss_render(void *data, gs_effect_t *effect)
 	}
 
 	PROFILE_START(prof_draw_name);
-	if (src->tex_vs) {
-		gs_effect_t *effect = cm_rgb2yuv_effect ? cm_rgb2yuv_effect : obs_get_base_effect(OBS_EFFECT_DEFAULT);
+	if (src->tex_vs && src->effect) {
+		gs_effect_t *effect = src->effect;
 		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), src->tex_vs);
 		gs_effect_set_float(gs_effect_get_param_by_name(effect, "intensity"), (float)src->intensity);
 		gs_effect_set_default(gs_effect_get_param_by_name(effect, "color"));
@@ -375,9 +379,9 @@ static void vss_render(void *data, gs_effect_t *effect)
 	PROFILE_END(prof_draw_name);
 
 	PROFILE_START(prof_draw_graticule_name);
-	if (src->graticule_img.loaded && src->graticule) {
+	if (src->graticule_img.loaded && src->graticule && src->effect) {
 		create_graticule_vbuf(src);
-		gs_effect_t *effect = cm_rgb2yuv_effect ? cm_rgb2yuv_effect : obs_get_base_effect(OBS_EFFECT_DEFAULT);
+		gs_effect_t *effect = src->effect;
 		gs_effect_set_color(gs_effect_get_param_by_name(effect, "color"), src->graticule_color);
 		draw_uv_vbuffer(src->graticule_vbuf, src->graticule_img.texture, effect, "DrawGraticule", N_GRATICULES*2);
 	}

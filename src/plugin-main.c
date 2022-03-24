@@ -31,9 +31,6 @@ extern struct obs_source_info colormonitor_zebra_filter;
 extern struct obs_source_info colormonitor_falsecolor;
 extern struct obs_source_info colormonitor_falsecolor_filter;
 extern struct obs_source_info colormonitor_roi;
-extern gs_effect_t *cm_rgb2yuv_effect;
-extern gs_effect_t *wvs_effect;
-extern gs_effect_t *his_effect;
 void scope_docks_init();
 void scope_docks_release();
 
@@ -54,18 +51,6 @@ bool obs_module_load(void)
 
 void obs_module_unload()
 {
-	if (cm_rgb2yuv_effect) {
-		gs_effect_destroy(cm_rgb2yuv_effect);
-		cm_rgb2yuv_effect = NULL;
-	}
-	if (wvs_effect) {
-		gs_effect_destroy(wvs_effect);
-		wvs_effect = NULL;
-	}
-	if (his_effect) {
-		gs_effect_destroy(his_effect);
-		his_effect = NULL;
-	}
 	scope_docks_release();
 	blog(LOG_INFO, "plugin unloaded");
 }

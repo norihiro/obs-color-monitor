@@ -1,0 +1,61 @@
+uniform float4x4 ViewProj;
+uniform texture2d image;
+
+sampler_state cnv_sampler {
+	Filter   = Point;
+	AddressU = Clamp;
+	AddressV = Clamp;
+};
+
+struct VertInOut {
+	float4 pos : POSITION;
+	float2 uv  : TEXCOORD0;
+};
+
+VertInOut VSDefault(VertInOut vert_in)
+{
+	VertInOut vert_out;
+	vert_out.pos = mul(float4(vert_in.pos.xyz, 1.0), ViewProj);
+	vert_out.uv  = vert_in.uv;
+	return vert_out;
+}
+
+float4 PSConvertRGB_YUV601(VertInOut vert_in) : TARGET
+{
+	float4 rgb = image.Sample(cnv_sampler, vert_in.uv);
+	float4 uv00;
+	uv00.z = -0.147643 * rgb.x -0.289855 * rgb.y +0.437500 * rgb.z +0.5 - 1.0/256.0; // U
+	uv00.y = +0.299000 * rgb.x +0.587000 * rgb.y +0.114000 * rgb.z; // Y
+	uv00.x = +0.437500 * rgb.x -0.366351 * rgb.y -0.071147 * rgb.z +0.5; // V
+	uv00.a = 1;
+	return uv00;
+}
+
+float4 PSConvertRGB_YUV709(VertInOut vert_in) : TARGET
+{
+	float4 rgb = image.Sample(cnv_sampler, vert_in.uv);
+	float4 uv00;
+	uv00.z = -0.100643 * rgb.x -0.338571 * rgb.y +0.439216 * rgb.z +0.5 - 1.0/256.0; // U
+	uv00.y = +0.212600 * rgb.x +0.715200 * rgb.y +0.072200 * rgb.z; // Y
+	uv00.x = +0.439216 * rgb.x -0.398941 * rgb.y -0.040273 * rgb.z +0.5; // V
+	uv00.a = 1;
+	return uv00;
+}
+
+technique ConvertRGB_YUV601
+{
+	pass
+	{
+		vertex_shader = VSDefault(vert_in);
+		pixel_shader  = PSConvertRGB_YUV601(vert_in);
+	}
+}
+
+technique ConvertRGB_YUV709
+{
+	pass
+	{
+		vertex_shader = VSDefault(vert_in);
+		pixel_shader  = PSConvertRGB_YUV709(vert_in);
+	}
+}

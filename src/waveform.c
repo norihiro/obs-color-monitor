@@ -29,12 +29,11 @@ static const char *prof_draw_graticule_name = "graticule";
 #define COMP_UV  0x50
 #define COMP_YUV (COMP_Y | COMP_UV)
 
-gs_effect_t *wvs_effect;
-
 struct wvs_source
 {
 	struct cm_source cm;
 
+	gs_effect_t *effect;
 	gs_texture_t *tex_wv;
 	uint8_t *tex_buf;
 	uint32_t tex_width;
@@ -62,13 +61,7 @@ static void *wvs_create(obs_data_t *settings, obs_source_t *source)
 	cm_create(&src->cm, settings, source);
 
 	obs_enter_graphics();
-	if (!wvs_effect) {
-		char *f = obs_module_file("waveform.effect");
-		wvs_effect = gs_effect_create_from_file(f, NULL);
-		if (!wvs_effect)
-			blog(LOG_ERROR, "Cannot load '%s'", f);
-		bfree(f);
-	}
+	src->effect = create_effect_from_module_file("waveform.effect");
 	obs_leave_graphics();
 
 	wvs_update(src, settings);
@@ -291,14 +284,14 @@ static void wvs_render_graticule(struct wvs_source *src)
 
 static void render_waveform(struct wvs_source *src)
 {
-	gs_effect_t *effect = wvs_effect ? wvs_effect : obs_get_base_effect(OBS_EFFECT_DEFAULT);
+	gs_effect_t *effect = src->effect ? src->effect : obs_get_base_effect(OBS_EFFECT_DEFAULT);
 	gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), src->tex_wv);
 	gs_effect_set_float(gs_effect_get_param_by_name(effect, "intensity"), (float)src->intensity);
 	const char *name = "Draw";
 	int w = src->tex_width;
 	int h = WV_SIZE;
 	int n = n_components(src);
-	if (wvs_effect) switch(src->display) {
+	if (src->effect) switch(src->display) {
 		case DISP_STACK:
 			name = n==3 ? "DrawStack" : n==2 ? "DrawStackUV" : "DrawOverlay";
 			h *= n;

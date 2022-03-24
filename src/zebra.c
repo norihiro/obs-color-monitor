@@ -15,12 +15,10 @@ static const char *prof_render_name = "zebra_render";
 #define PROFILE_END(x)
 #endif // ! ENABLE_PROFILE
 
-gs_effect_t *zebra_effect;
-gs_effect_t *falsecolor_effect;
-
 // common structure for source and filter
 struct zb_source
 {
+	gs_effect_t *effect;
 	float zebra_th_low, zebra_th_high;
 	float zebra_tm;
 	bool is_falsecolor;
@@ -57,20 +55,7 @@ static void zbf_update(void *, obs_data_t *);
 static void zb_init(struct zb_source *src, obs_data_t *settings)
 {
 	obs_enter_graphics();
-	if (!src->is_falsecolor && !zebra_effect) {
-		char *f = obs_module_file("zebra.effect");
-		zebra_effect = gs_effect_create_from_file(f, NULL);
-		if (!zebra_effect)
-			blog(LOG_ERROR, "Cannot load '%s'", f);
-		bfree(f);
-	}
-	else if (src->is_falsecolor && !falsecolor_effect) {
-		char *f = obs_module_file("falsecolor.effect");
-		falsecolor_effect = gs_effect_create_from_file(f, NULL);
-		if (!falsecolor_effect)
-			blog(LOG_ERROR, "Cannot load '%s'", f);
-		bfree(f);
-	}
+	src->effect = create_effect_from_module_file(src->is_falsecolor ? "falsecolor.effect" : "zebra.effect");
 	obs_leave_graphics();
 }
 
@@ -270,7 +255,7 @@ static void zbs_render(void *data, gs_effect_t *effect)
 	PROFILE_START(prof_render_name);
 
 	gs_texture_t *tex = cm_get_texture(&src->cm);
-	gs_effect_t *e = src->zb.is_falsecolor ? falsecolor_effect : zebra_effect;
+	gs_effect_t *e = src->zb.effect;
 	if (e && tex) {
 		int sub_x = 0;
 		int sub_y = 0;
@@ -297,7 +282,7 @@ static void zbs_render(void *data, gs_effect_t *effect)
 static void zbf_render(void *data, gs_effect_t *effect)
 {
 	struct zbf_source *src = data;
-	gs_effect_t *e = src->zb.is_falsecolor ? falsecolor_effect : zebra_effect;
+	gs_effect_t *e = src->zb.effect;
 
 	if (!e)
 		return;
