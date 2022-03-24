@@ -24,5 +24,5 @@ RGB color `#000000` corresponds to 0% `#FFFFFF` corresponds to 100%.
 
 Choice of color space; Auto, BT.601, or BT.709.
 If Auto, the color space is retrieved from the settings of OBS Studio.
-Coefficients for Luminance, Cr and Cb components will be changed.
-Default is Auto. This property is only available if the component property is Luma, Chroma, or YUV.
+Coefficients to convert from RGB to Luminance will be changed.
+Default is Auto.
