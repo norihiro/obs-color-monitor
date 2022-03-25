@@ -8,20 +8,7 @@ The false color is hardcoded in an effect file `data/falsecolor.effect`.
 
 RGB color `#000000` corresponds to 0&nbsp;IRE `#FFFFFF` corresponds to 100&nbsp;IRE.
 
-| IRE level | Color |
-| --------- | ----- |
-| level < 2 | Bright purple |
-| 2 <= level < 10 | Blue |
-| 10 <= level < 20 | Light blue |
-| 20 <= level < 42 | Dark grey |
-| 42 <= level < 48 | Green |
-| 48 <= level < 52 | Medium grey |
-| 52 <= level < 58 | Pink |
-| 58 <= level < 78 | Light grey |
-| 78 <= level < 84 | Dark yellow |
-| 84 <= level < 94 | Yellow |
-| 94 <= level < 100 | Orange |
-| level = 100 | Red |
+<img src="falsecolor.svg" alt="color table"/>
 
 ## Properties
 
