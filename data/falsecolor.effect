@@ -32,7 +32,7 @@ float4 PSDrawFalseColor601(VertInOut vert_in) : TARGET
 	else if (y < 0.20)
 		return float4(0.33, 0.55, 1.0, 1.0); // light blue
 	else if (y < 0.42)
-		return float4(0.3, 0.3, 1.0, 1.0); // dark grey
+		return float4(0.3, 0.3, 0.3, 1.0); // dark grey
 	else if (y < 0.48)
 		return float4(0.6, 1.0, 0.0, 1.0); // green
 	else if (y < 0.52)
