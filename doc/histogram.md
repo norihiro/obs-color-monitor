@@ -1,4 +1,4 @@
-# Waveform
+# Histogram
 
 ## Introduction
 
