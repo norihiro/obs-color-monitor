@@ -40,7 +40,7 @@ static inline void roi_request_y(struct roi_source *src) { src->n_y = 4; }
 
 struct roi_source *roi_from_source(obs_source_t *);
 bool roi_target_render(struct roi_source *src);
-bool roi_stagesurfae_map(struct roi_source *, uint8_t **, uint32_t *, int ix);
+bool roi_stagesurface_map(struct roi_source *, uint8_t **, uint32_t *, int ix);
 void roi_stagesurfae_unmap(struct roi_source *);
 
 static inline uint32_t roi_width(struct roi_source *src)

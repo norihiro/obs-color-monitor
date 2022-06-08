@@ -248,7 +248,7 @@ bool cm_stagesurface_map(struct cm_source *src, uint8_t **video_data, uint32_t *
 {
 	if (src->roi) {
 		int ix = (src->flags & (CM_FLAG_CONVERT_UV | CM_FLAG_CONVERT_Y)) ? 1 : 0;
-		return roi_stagesurfae_map(src->roi, video_data, video_linesize, ix);
+		return roi_stagesurface_map(src->roi, video_data, video_linesize, ix);
 	}
 
 	PROFILE_START(prof_stagesurface_map_name);

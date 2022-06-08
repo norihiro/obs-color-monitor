@@ -377,14 +377,14 @@ static void roi_render(void *data, gs_effect_t *effect)
 	PROFILE_END(prof_render_name);
 }
 
-bool roi_stagesurfae_map(struct roi_source *src, uint8_t **video_data, uint32_t *video_linesize, int ix)
+bool roi_stagesurface_map(struct roi_source *src, uint8_t **video_data, uint32_t *video_linesize, int ix)
 {
 	if (ix && !src->roi_surface_pos.b_yuv) {
-		blog(LOG_INFO, "roi_stagesurfae_map: YUV frame is not staged");
+		blog(LOG_INFO, "roi_stagesurface_map: YUV frame is not staged");
 		return false;
 	}
 	if (!ix && !src->roi_surface_pos.b_rgb) {
-		blog(LOG_INFO, "roi_stagesurfae_map: RGB frame is not staged");
+		blog(LOG_INFO, "roi_stagesurface_map: RGB frame is not staged");
 		return false;
 	}
 	bool ret = gs_stagesurface_map(src->cm.stagesurface, video_data, video_linesize);
