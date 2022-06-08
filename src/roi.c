@@ -399,7 +399,7 @@ bool roi_stagesurface_map(struct roi_source *src, uint8_t **video_data, uint32_t
 	return ret;
 }
 
-void roi_stagesurfae_unmap(struct roi_source *src)
+void roi_stagesurface_unmap(struct roi_source *src)
 {
 	gs_stagesurface_unmap(src->cm.stagesurface);
 }

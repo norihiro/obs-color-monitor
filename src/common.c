@@ -260,7 +260,7 @@ bool cm_stagesurface_map(struct cm_source *src, uint8_t **video_data, uint32_t *
 void cm_stagesurface_unmap(struct cm_source *src)
 {
 	if (src->roi) {
-		roi_stagesurfae_unmap(src->roi);
+		roi_stagesurface_unmap(src->roi);
 		return;
 	}
 
