@@ -166,9 +166,9 @@ static void zb_get_properties(struct zb_source *src, obs_properties_t *props, bo
 	}
 
 	prop = obs_properties_add_list(props, "colorspace", obs_module_text("Color space"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
-	obs_property_list_add_int(prop, "Auto", 0);
-	obs_property_list_add_int(prop, "601", 1);
-	obs_property_list_add_int(prop, "709", 2);
+	obs_property_list_add_int(prop, obs_module_text("Auto"), 0);
+	obs_property_list_add_int(prop, obs_module_text("601"), 1);
+	obs_property_list_add_int(prop, obs_module_text("709"), 2);
 }
 
 static obs_properties_t *zbs_get_properties(void *data)

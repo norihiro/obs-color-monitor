@@ -480,17 +480,17 @@ bool ScopeWidget::openMenu(QMouseEvent *event)
 	QAction *act;
 
 	const char *menu_text[N_SRC] = {
-		"Show &ROI",
-		"Show &Vectorscope",
-		"Show &Waveform",
-		"Show &Histogram",
-		"Show &Zebra",
-		"Show &False Color",
+		obs_module_text("Show &ROI"),
+		obs_module_text("Show &Vectorscope"),
+		obs_module_text("Show &Waveform"),
+		obs_module_text("Show &Histogram"),
+		obs_module_text("Show &Zebra"),
+		obs_module_text("Show &False Color"),
 	};
 
 	for (int i=0; i<N_SRC; i++) {
 		uint32_t mask = 1<<i;
-		QAction *act = new QAction(obs_module_text(menu_text[i]), this);
+		QAction *act = new QAction(menu_text[i], this);
 		act->setCheckable(true);
 		act->setChecked(!!(data->src_shown & mask));
 		auto toggleCB = [=](bool checked) {

@@ -137,26 +137,26 @@ static obs_properties_t *wvs_get_properties(void *data)
 	cm_get_properties(&src->cm, props);
 
 	prop = obs_properties_add_list(props, "display", obs_module_text("Display"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
-	obs_property_list_add_int(prop, "Overlay", DISP_OVERLAY);
-	obs_property_list_add_int(prop, "Stack",   DISP_STACK);
-	obs_property_list_add_int(prop, "Parade",  DISP_PARADE);
+	obs_property_list_add_int(prop, obs_module_text("Overlay"), DISP_OVERLAY);
+	obs_property_list_add_int(prop, obs_module_text("Stack"),   DISP_STACK);
+	obs_property_list_add_int(prop, obs_module_text("Parade"),  DISP_PARADE);
 
 	prop = obs_properties_add_list(props, "components", obs_module_text("Components"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 	obs_property_set_modified_callback(prop, components_changed);
-	obs_property_list_add_int(prop, "RGB"   , COMP_RGB);
-	obs_property_list_add_int(prop, "Luma"  , COMP_Y);
-	obs_property_list_add_int(prop, "Chroma", COMP_UV);
-	obs_property_list_add_int(prop, "YUV"   , COMP_YUV);
+	obs_property_list_add_int(prop, obs_module_text("RGB")   , COMP_RGB);
+	obs_property_list_add_int(prop, obs_module_text("Luma")  , COMP_Y);
+	obs_property_list_add_int(prop, obs_module_text("Chroma"), COMP_UV);
+	obs_property_list_add_int(prop, obs_module_text("YUV")   , COMP_YUV);
 
 	// TODO: Disable this property if ROI target is selected.
 	prop = obs_properties_add_list(props, "colorspace", obs_module_text("Color space"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
-	obs_property_list_add_int(prop, "Auto", 0);
-	obs_property_list_add_int(prop, "601", 1);
-	obs_property_list_add_int(prop, "709", 2);
+	obs_property_list_add_int(prop, obs_module_text("Auto"), 0);
+	obs_property_list_add_int(prop, obs_module_text("601"), 1);
+	obs_property_list_add_int(prop, obs_module_text("709"), 2);
 
 	obs_properties_add_int(props, "intensity", obs_module_text("Intensity"), 1, 255, 1);
 	prop = obs_properties_add_list(props, "graticule_lines", obs_module_text("Graticule"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
-	obs_property_list_add_int(prop, "None", 0);
+	obs_property_list_add_int(prop, obs_module_text("None"), 0);
 	obs_property_list_add_int(prop, "0%, 100%", 1);
 	obs_property_list_add_int(prop, "0%, 50%, 100%", 2);
 	obs_property_list_add_int(prop, "each 25%", 4);

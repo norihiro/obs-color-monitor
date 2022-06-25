@@ -27,7 +27,8 @@
 #include "qt-wrappers.hpp"
 #include "properties-view.hpp"
 #include "moc_properties-view.cpp"
-#define QTStr(x) (QString(x))
+#include <obs-module.h>
+#define QTStr(x) (QString(obs_module_text(x)))
 
 #include <cstdlib>
 #include <initializer_list>

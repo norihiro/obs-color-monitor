@@ -162,18 +162,18 @@ static obs_properties_t *vss_get_properties(void *data)
 
 	obs_properties_add_int(props, "intensity", obs_module_text("Intensity"), 1, 255, 1);
 	prop = obs_properties_add_list(props, "graticule", obs_module_text("Graticule"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
-	obs_property_list_add_int(prop, "None", 0);
-	obs_property_list_add_int(prop, "Amber", 1);
-	obs_property_list_add_int(prop, "Amber, IQ", 1 + GRATICULES_IQ);
-	obs_property_list_add_int(prop, "Green", 2);
-	obs_property_list_add_int(prop, "Green, IQ", 2 + GRATICULES_IQ);
+	obs_property_list_add_int(prop, obs_module_text("None"), 0);
+	obs_property_list_add_int(prop, obs_module_text("Amber"), 1);
+	obs_property_list_add_int(prop, obs_module_text("Amber, IQ"), 1 + GRATICULES_IQ);
+	obs_property_list_add_int(prop, obs_module_text("Green"), 2);
+	obs_property_list_add_int(prop, obs_module_text("Green, IQ"), 2 + GRATICULES_IQ);
 
 	obs_properties_add_color(props, "graticule_skintone_color", obs_module_text("Skin tone color"));
 
 	prop = obs_properties_add_list(props, "colorspace", obs_module_text("Color space"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
-	obs_property_list_add_int(prop, "Auto", 0);
-	obs_property_list_add_int(prop, "601", 1);
-	obs_property_list_add_int(prop, "709", 2);
+	obs_property_list_add_int(prop, obs_module_text("Auto"), 0);
+	obs_property_list_add_int(prop, obs_module_text("601"), 1);
+	obs_property_list_add_int(prop, obs_module_text("709"), 2);
 
 	return props;
 }
