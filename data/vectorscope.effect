@@ -4,7 +4,7 @@ uniform float intensity;
 uniform float4 color = {1.0, 1.0, 1.0, 1.0};
 
 sampler_state def_sampler {
-	Filter   = Linear;
+	Filter   = Point;
 	AddressU = Clamp;
 	AddressV = Clamp;
 };

@@ -9,7 +9,7 @@ uniform float4x4 color = {
 };
 
 sampler_state def_sampler {
-	Filter   = Linear;
+	Filter   = Point;
 	AddressU = Repeat;
 	AddressV = Clamp;
 };
