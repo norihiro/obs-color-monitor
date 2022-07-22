@@ -69,11 +69,10 @@ static void his_destroy(void *data)
 	struct his_source *src = data;
 
 	obs_enter_graphics();
-
 	gs_texture_destroy(src->tex_hi);
-	bfree(src->tex_buf);
 	obs_leave_graphics();
 
+	bfree(src->tex_buf);
 	cm_destroy(&src->cm);
 	bfree(src);
 }

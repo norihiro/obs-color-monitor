@@ -75,9 +75,10 @@ static void wvs_destroy(void *data)
 
 	obs_enter_graphics();
 	gs_texture_destroy(src->tex_wv);
-	bfree(src->tex_buf);
 	gs_vertexbuffer_destroy(src->graticule_line_vbuf);
 	obs_leave_graphics();
+
+	bfree(src->tex_buf);
 
 	cm_destroy(&src->cm);
 	bfree(src);
