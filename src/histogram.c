@@ -28,6 +28,10 @@ static const char *prof_draw_name = "draw";
 #define COMP_UV  0x50
 #define COMP_YUV (COMP_Y | COMP_UV)
 
+#define LEVEL_MODE_NONE 0
+#define LEVEL_MODE_PIXEL 1
+#define LEVEL_MODE_RATIO 2
+
 struct his_source
 {
 	struct cm_source cm;
@@ -42,6 +46,8 @@ struct his_source
 	int display;
 	uint32_t components;
 	int level_height;
+	int level_fixed_value;
+	int level_ratio_value;
 	bool logscale;
 	int graticule_vertical_lines;
 	bool graticule_need_update;
@@ -103,6 +109,25 @@ static void his_update(void *data, obs_data_t *settings)
 
 	src->logscale = obs_data_get_bool(settings, "logscale");
 
+	int level_mode = (int)obs_data_get_int(settings, "level_mode");
+	switch(level_mode) {
+		case LEVEL_MODE_NONE:
+			src->level_ratio_value = 0;
+			src->level_fixed_value = 0;
+			break;
+		case LEVEL_MODE_PIXEL:
+			src->level_fixed_value = (int)obs_data_get_int(settings, "level_fixed_value");
+			src->level_ratio_value = 0;
+			break;
+		case LEVEL_MODE_RATIO:
+			src->level_ratio_value = (int)(obs_data_get_double(settings, "level_ratio_value") * 10.0 + 0.5);
+			src->level_fixed_value = 0;
+			break;
+		default:
+			blog(LOG_ERROR, "histogram '%s': Invalid level_mode %d",
+					obs_source_get_name(src->cm.self), level_mode);
+	}
+
 	int graticule_vertical_lines = (int)obs_data_get_int(settings, "graticule_vertical_lines");
 	if (graticule_vertical_lines != src->graticule_vertical_lines) {
 		src->graticule_vertical_lines = graticule_vertical_lines;
@@ -116,6 +141,8 @@ static void his_get_defaults(obs_data_t *settings)
 	obs_data_set_default_int(settings, "components", COMP_RGB);
 	obs_data_set_default_int(settings, "level_height", 200);
 	obs_data_set_default_int(settings, "graticule_vertical_lines", 5);
+	obs_data_set_default_int(settings, "level_fixed_value", 1000);
+	obs_data_set_default_double(settings, "level_ratio_value", 10.0);
 }
 
 static bool components_changed(obs_properties_t *props, obs_property_t *property, obs_data_t *settings)
@@ -128,6 +155,20 @@ static bool components_changed(obs_properties_t *props, obs_property_t *property
 		vis = false;
 	if (prop)
 		obs_property_set_visible(prop, vis);
+	return true;
+}
+
+static bool level_mode_modified(obs_properties_t *props, obs_property_t *property, obs_data_t *settings)
+{
+	obs_property_t *prop;
+	int level_mode = (int)obs_data_get_int(settings, "level_mode");
+
+	prop = obs_properties_get(props, "level_fixed_value");
+	obs_property_set_visible(prop, level_mode == LEVEL_MODE_PIXEL);
+
+	prop = obs_properties_get(props, "level_ratio_value");
+	obs_property_set_visible(prop, level_mode == LEVEL_MODE_RATIO);
+
 	return true;
 }
 
@@ -160,6 +201,17 @@ static obs_properties_t *his_get_properties(void *data)
 
 	obs_properties_add_int(props, "level_height", obs_module_text("Height"), 50, 2048, 1);
 	obs_properties_add_bool(props, "logscale", obs_module_text("Log scale"));
+
+	prop = obs_properties_add_list(props, "level_mode", obs_module_text("Level mode"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	obs_property_list_add_int(prop, obs_module_text("Auto"), LEVEL_MODE_NONE);
+	obs_property_list_add_int(prop, obs_module_text("Pixels"), LEVEL_MODE_PIXEL);
+	obs_property_list_add_int(prop, obs_module_text("Ratio"), LEVEL_MODE_RATIO);
+	obs_property_set_modified_callback(prop, level_mode_modified);
+
+	prop = obs_properties_add_int(props, "level_fixed_value", obs_module_text("Top level"), 50, 65535, 1);
+	obs_property_int_set_suffix(prop, " px");
+	prop = obs_properties_add_float(props, "level_ratio_value", obs_module_text("Top level"), 1.0, 100.0, 0.1);
+	obs_property_float_set_suffix(prop, "%");
 
 	prop = obs_properties_add_list(props, "graticule_vertical_lines", obs_module_text("Histogram.Graticule.V"),
 			OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
@@ -204,6 +256,30 @@ static uint32_t his_get_height(void *data)
 
 static inline void inc_uint16(uint16_t *c) { if (*c<65535) ++*c; }
 
+static inline void his_calculate_max(struct his_source *src, const uint16_t *dbuf)
+{
+	const bool calc_b = (src->components & 0x11) ? true : false;
+	const bool calc_g = (src->components & 0x22) ? true : false;
+	const bool calc_r = (src->components & 0x44) ? true : false;
+
+	src->hi_max[0] = 1;
+	src->hi_max[1] = 1;
+	src->hi_max[2] = 1;
+	for (int i=0; i<HI_SIZE; i++) {
+		if (calc_r && dbuf[i*4+0] > src->hi_max[0]) src->hi_max[0] = dbuf[i*4+0];
+		if (calc_g && dbuf[i*4+1] > src->hi_max[1]) src->hi_max[1] = dbuf[i*4+1];
+		if (calc_b && dbuf[i*4+2] > src->hi_max[2]) src->hi_max[2] = dbuf[i*4+2];
+	}
+}
+
+static inline void his_fix_max_level(struct his_source *src, uint32_t x)
+{
+	uint16_t v = x > UINT16_MAX ? UINT16_MAX : x == 0 ? 1 : x;
+	src->hi_max[0] = v;
+	src->hi_max[1] = v;
+	src->hi_max[2] = v;
+}
+
 static inline void his_draw_histogram(struct his_source *src, uint8_t *video_data, uint32_t video_line)
 {
 	const uint32_t height = src->cm.known_height;
@@ -235,14 +311,12 @@ static inline void his_draw_histogram(struct his_source *src, uint8_t *video_dat
 		}
 	}
 
-	src->hi_max[0] = 1;
-	src->hi_max[1] = 1;
-	src->hi_max[2] = 1;
-	for (int i=0; i<HI_SIZE; i++) {
-		if (calc_r && dbuf[i*4+0] > src->hi_max[0]) src->hi_max[0] = dbuf[i*4+0];
-		if (calc_g && dbuf[i*4+1] > src->hi_max[1]) src->hi_max[1] = dbuf[i*4+1];
-		if (calc_b && dbuf[i*4+2] > src->hi_max[2]) src->hi_max[2] = dbuf[i*4+2];
-	}
+	if (src->level_fixed_value > 0)
+		his_fix_max_level(src, src->level_fixed_value);
+	else if (src->level_ratio_value > 0)
+		his_fix_max_level(src, (uint64_t)width * height * src->level_ratio_value / 1000);
+	else
+		his_calculate_max(src, dbuf);
 
 	if (src->logscale) {
 		for (int j=0, mask=0x44; j<3; j++, mask>>=1) {
