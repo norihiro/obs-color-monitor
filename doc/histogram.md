@@ -59,6 +59,19 @@ Default is `200`. Available range is an integer number between `50` - `2048`.
 
 Check this to plot in log scale.
 
+### Graticule (Vertical)
+
+Choice of vertical graticule.
+
+| Choice | Description |
+|--------|-------------|
+| `None` | No graticule will be displayed. |
+| `0%, 100%` | 2 lines will be displayed at 0% and 100%. |
+| `0%, 50%, 100%` | 3 lines will be displayed. |
+| `each 25%` | 5 lines will be displayed. |
+| `each 20%` | 6 lines will be displayed. |
+| `each 10%` | 11 lines will be displayed. |
+
 ### Bypass
 
 If you check this, image after the scaling will be displayed.

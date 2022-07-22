@@ -1,6 +1,7 @@
 #include <obs-module.h>
 #include <util/platform.h>
 #include "plugin-macros.generated.h"
+#include <graphics/matrix4.h>
 #include "common.h"
 
 #define debug(format, ...)
@@ -36,10 +37,14 @@ struct his_source
 	uint8_t *tex_buf;
 	uint16_t hi_max[3];
 
+	gs_vertbuffer_t *graticule_line_vbuf;
+
 	int display;
 	uint32_t components;
 	int level_height;
 	bool logscale;
+	int graticule_vertical_lines;
+	bool graticule_need_update;
 };
 
 static const char *his_get_name(void *unused)
@@ -70,6 +75,7 @@ static void his_destroy(void *data)
 
 	obs_enter_graphics();
 	gs_texture_destroy(src->tex_hi);
+	gs_vertexbuffer_destroy(src->graticule_line_vbuf);
 	obs_leave_graphics();
 
 	bfree(src->tex_buf);
@@ -96,6 +102,12 @@ static void his_update(void *data, obs_data_t *settings)
 	src->level_height = (int)obs_data_get_int(settings, "level_height");
 
 	src->logscale = obs_data_get_bool(settings, "logscale");
+
+	int graticule_vertical_lines = (int)obs_data_get_int(settings, "graticule_vertical_lines");
+	if (graticule_vertical_lines != src->graticule_vertical_lines) {
+		src->graticule_vertical_lines = graticule_vertical_lines;
+		src->graticule_need_update = true;
+	}
 }
 
 static void his_get_defaults(obs_data_t *settings)
@@ -103,6 +115,7 @@ static void his_get_defaults(obs_data_t *settings)
 	obs_data_set_default_int(settings, "target_scale", 2);
 	obs_data_set_default_int(settings, "components", COMP_RGB);
 	obs_data_set_default_int(settings, "level_height", 200);
+	obs_data_set_default_int(settings, "graticule_vertical_lines", 5);
 }
 
 static bool components_changed(obs_properties_t *props, obs_property_t *property, obs_data_t *settings)
@@ -147,6 +160,15 @@ static obs_properties_t *his_get_properties(void *data)
 
 	obs_properties_add_int(props, "level_height", obs_module_text("Height"), 50, 2048, 1);
 	obs_properties_add_bool(props, "logscale", obs_module_text("Log scale"));
+
+	prop = obs_properties_add_list(props, "graticule_vertical_lines", obs_module_text("Histogram.Graticule.V"),
+			OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	obs_property_list_add_int(prop, obs_module_text("None"), 0);
+	obs_property_list_add_int(prop, "0%, 100%", 1);
+	obs_property_list_add_int(prop, "0%, 50%, 100%", 2);
+	obs_property_list_add_int(prop, "each 25%", 4);
+	obs_property_list_add_int(prop, "each 20%", 5);
+	obs_property_list_add_int(prop, "each 10%", 10);
 
 	return props;
 }
@@ -239,6 +261,53 @@ static inline void his_draw_histogram(struct his_source *src, uint8_t *video_dat
 		gs_texture_set_image(src->tex_hi, src->tex_buf, sizeof(uint16_t)*HI_SIZE*4, false);
 }
 
+static void create_graticule_vbuf(struct his_source *src)
+{
+	obs_enter_graphics();
+
+	gs_vertexbuffer_destroy(src->graticule_line_vbuf);
+	src->graticule_line_vbuf = NULL;
+
+	if (src->graticule_vertical_lines > 0) {
+		gs_render_start(true);
+		const int n = src->graticule_vertical_lines;
+		for (int i = 0; i <= n; i++) {
+			gs_vertex2f(256.0f * i / n, 0.0f);
+			gs_vertex2f(256.0f * i / n, 1.0f);
+		}
+		src->graticule_line_vbuf = gs_render_save();
+	}
+
+	obs_leave_graphics();
+}
+
+static void his_render_graticule(struct his_source *src)
+{
+	gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_SOLID);
+	gs_effect_set_color(gs_effect_get_param_by_name(effect, "color"), 0x80FFBF00); // amber
+	while (gs_effect_loop(effect, "Solid")) {
+		bool stack = src->display==DISP_STACK;
+		bool parade = src->display==DISP_PARADE;
+		int n_parade = parade ? n_components(src) : 1;
+		int n_stack = stack ? n_components(src) : 1;
+		for (int i=0; i<n_parade; i++) {
+			const float ycoe = (float)(src->level_height * n_stack);
+			const float xoff = parade ? HI_SIZE * i + 0.0f : 1.0f;
+			struct matrix4 tr = {
+				{ 1.0f, 0.0f, 0.0f, 0.0f },
+				{ 0.0f, ycoe, 0.0f, 0.0f },
+				{ 0.0f, 0.0f, 1.0f, 0.0f },
+				{ xoff, 0.0f, 0.0f, 1.0f, }
+			};
+			gs_matrix_push();
+			gs_matrix_mul(&tr);
+			gs_load_vertexbuffer(src->graticule_line_vbuf);
+			gs_draw(GS_LINES, parade && i ? 2 : 0, 0);
+			gs_matrix_pop();
+		}
+	}
+}
+
 static inline void render_histogram(struct his_source *src)
 {
 	gs_effect_t *effect = src->effect ? src->effect : obs_get_base_effect(OBS_EFFECT_DEFAULT);
@@ -294,6 +363,13 @@ static void his_render(void *data, gs_effect_t *effect)
 	if (src->tex_hi)
 		render_histogram(src);
 	PROFILE_END(prof_draw_name);
+
+	if (src->graticule_need_update) {
+		create_graticule_vbuf(src);
+		src->graticule_need_update = false;
+	}
+	if (src->graticule_line_vbuf)
+		his_render_graticule(src);
 
 	PROFILE_END(prof_render_name);
 }
