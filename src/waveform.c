@@ -250,8 +250,8 @@ static void create_graticule_vbuf(struct wvs_source *src)
 	if (src->graticule_lines > 0) {
 		gs_render_start(true);
 		for (int i=0; i<=src->graticule_lines; i++) {
-			gs_vertex2f(0.0f, 255.0f * i / src->graticule_lines);
-			gs_vertex2f(1.0f, 255.0f * i / src->graticule_lines);
+			gs_vertex2f(0.0f, 256.0f * i / src->graticule_lines);
+			gs_vertex2f(1.0f, 256.0f * i / src->graticule_lines);
 		}
 		src->graticule_line_vbuf = gs_render_save();
 	}
@@ -267,12 +267,13 @@ static void wvs_render_graticule(struct wvs_source *src)
 		bool parade = src->display==DISP_PARADE;
 		int n_stack = stack ? n_components(src) : 1;
 		for (int i=0; i<n_stack; i++) {
+			const float yoff = stack ? WV_SIZE * i + 0.5f : 0.0f;
 			struct matrix4 tr = {
 				{ (float)(parade ? src->cm.known_width*n_components(src) : src->cm.known_width),
 					0.0f, 0.0f, 0.0f },
 				{ 0.0f, 1.0f, 0.0f, 0.0f },
 				{ 0.0f, 0.0f, 1.0f, 0.0f },
-				{ 0.0f, stack ? WV_SIZE * i : 0.0f, 0.0f, 1.0f, }
+				{ 0.0f, yoff, 0.0f, 1.0f, }
 			};
 			gs_matrix_push();
 			gs_matrix_mul(&tr);
