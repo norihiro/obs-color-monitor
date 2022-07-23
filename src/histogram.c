@@ -41,7 +41,7 @@ struct his_source
 	gs_effect_t *effect;
 	gs_texture_t *tex_hi;
 	uint8_t *tex_buf;
-	uint16_t hi_max[3];
+	uint32_t hi_max[3];
 
 	gs_vertbuffer_t *graticule_line_vbuf;
 
@@ -320,7 +320,7 @@ static uint32_t his_get_height(void *data)
 
 static inline void inc_uint16(uint16_t *c) { if (*c<65535) ++*c; }
 
-static inline void his_calculate_max(struct his_source *src, const uint16_t *dbuf)
+static inline void his_calculate_max(struct his_source *src, const uint32_t *dbuf)
 {
 	const bool calc_b = (src->components & 0x11) ? true : false;
 	const bool calc_g = (src->components & 0x22) ? true : false;
@@ -338,7 +338,7 @@ static inline void his_calculate_max(struct his_source *src, const uint16_t *dbu
 
 static inline void his_fix_max_level(struct his_source *src, uint32_t x)
 {
-	uint16_t v = x > UINT16_MAX ? UINT16_MAX : x == 0 ? 1 : x;
+	uint32_t v = x == 0 ? 1 : x;
 	src->hi_max[0] = v;
 	src->hi_max[1] = v;
 	src->hi_max[2] = v;
@@ -349,10 +349,9 @@ static inline void his_draw_histogram(struct his_source *src, uint8_t *video_dat
 	const uint32_t height = src->cm.known_height;
 	const uint32_t width = src->cm.known_width;
 	if (width<=0) return;
-	if (!src->tex_buf) {
-		src->tex_buf = bzalloc(sizeof(uint16_t)*HI_SIZE*4);
-	}
-	uint16_t *dbuf = (uint16_t*)src->tex_buf;
+	if (!src->tex_buf)
+		src->tex_buf = bzalloc(sizeof(uint32_t)*HI_SIZE*4);
+	uint32_t *dbuf = (uint32_t*)src->tex_buf;
 
 	for (int i=0; i<HI_SIZE*4; i++)
 		dbuf[i] = 0;
@@ -369,9 +368,9 @@ static inline void his_draw_histogram(struct his_source *src, uint8_t *video_dat
 			const uint8_t r = *v++;
 			const uint8_t a = *v++;
 			if (!a) continue;
-			if (calc_r) inc_uint16(dbuf + r * 4 + 0);
-			if (calc_g) inc_uint16(dbuf + g * 4 + 1);
-			if (calc_b) inc_uint16(dbuf + b * 4 + 2);
+			if (calc_r) dbuf[r * 4 + 0]++;
+			if (calc_g) dbuf[g * 4 + 1]++;
+			if (calc_b) dbuf[b * 4 + 2]++;
 		}
 	}
 
@@ -382,21 +381,26 @@ static inline void his_draw_histogram(struct his_source *src, uint8_t *video_dat
 	else
 		his_calculate_max(src, dbuf);
 
+	float *flt = (float*)src->tex_buf;
 	if (src->logscale) {
 		for (int j=0, mask=0x44; j<3; j++, mask>>=1) {
 			if (!(src->components & mask))
 				continue;
-			const float s = 65535.0f / logf((float)(src->hi_max[j] + 1));
+			const float s = 1.0f / logf((float)(src->hi_max[j] + 1));
 			for (int i=0; i<HI_SIZE; i++)
-				dbuf[i*4+j] = dbuf[i*4+j] ? (uint16_t)(logf((float)(dbuf[i*4+j] + 1)) * s) : 0;
-			src->hi_max[j] = 65535;
+				flt[i*4+j] = dbuf[i*4+j] ? logf((float)(dbuf[i*4+j] + 1)) * s : 0;
+			src->hi_max[j] = 1;
 		}
+	}
+	else {
+		for (int i=0; i<HI_SIZE*4; i++)
+			flt[i] = (float)dbuf[i];
 	}
 
 	if (!src->tex_hi)
-		src->tex_hi = gs_texture_create(HI_SIZE, 1, GS_RGBA16, 1, (const uint8_t**)&src->tex_buf, GS_DYNAMIC);
+		src->tex_hi = gs_texture_create(HI_SIZE, 1, GS_RGBA32F, 1, (const uint8_t**)&src->tex_buf, GS_DYNAMIC);
 	else
-		gs_texture_set_image(src->tex_hi, src->tex_buf, sizeof(uint16_t)*HI_SIZE*4, false);
+		gs_texture_set_image(src->tex_hi, src->tex_buf, sizeof(float)*HI_SIZE*4, false);
 }
 
 static void create_graticule_vbuf(struct his_source *src)
@@ -470,7 +474,7 @@ static inline void render_histogram(struct his_source *src)
 {
 	gs_effect_t *effect = src->effect ? src->effect : obs_get_base_effect(OBS_EFFECT_DEFAULT);
 	gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), src->tex_hi);
-	struct vec3 hi_max; for (int i=0; i<3; i++) hi_max.ptr[i]=(float)src->hi_max[i] / 65535.f;
+	struct vec3 hi_max; for (int i=0; i<3; i++) hi_max.ptr[i]=(float)src->hi_max[i];
 	gs_effect_set_vec3(gs_effect_get_param_by_name(effect, "hi_max"), &hi_max);
 	const char *name = "Draw";
 	int w = HI_SIZE;
