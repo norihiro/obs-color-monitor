@@ -32,6 +32,8 @@ static const char *prof_draw_name = "draw";
 #define LEVEL_MODE_PIXEL 1
 #define LEVEL_MODE_RATIO 2
 
+#define GRATICULE_H_MAX 64
+
 struct his_source
 {
 	struct cm_source cm;
@@ -50,6 +52,7 @@ struct his_source
 	int level_ratio_value;
 	bool logscale;
 	int graticule_vertical_lines;
+	float graticule_horizontal_step;
 	bool graticule_need_update;
 };
 
@@ -91,6 +94,15 @@ static void his_destroy(void *data)
 
 static void his_update(void *data, obs_data_t *settings)
 {
+#define UPDATE_PROP(type, variable, value, update) \
+	do { \
+		type x = (value); \
+		if (x != (variable)) { \
+			(variable) = x; \
+			(update) = true; \
+		} \
+	} while (0)
+
 	struct his_source *src = data;
 	cm_update(&src->cm, settings);
 
@@ -112,15 +124,29 @@ static void his_update(void *data, obs_data_t *settings)
 	int level_mode = (int)obs_data_get_int(settings, "level_mode");
 	switch(level_mode) {
 		case LEVEL_MODE_NONE:
-			src->level_ratio_value = 0;
-			src->level_fixed_value = 0;
+			UPDATE_PROP(int, src->level_ratio_value, 0, src->graticule_need_update);
+			UPDATE_PROP(int, src->level_fixed_value, 0, src->graticule_need_update);
 			break;
 		case LEVEL_MODE_PIXEL:
-			src->level_fixed_value = (int)obs_data_get_int(settings, "level_fixed_value");
+			UPDATE_PROP(
+				int, src->level_fixed_value,
+				(int)obs_data_get_int(settings, "level_fixed_value"),
+				src->graticule_need_update );
+			UPDATE_PROP(
+				float, src->graticule_horizontal_step,
+				(float)obs_data_get_double(settings, "graticule_horizontal_step_fixed"),
+				src->graticule_need_update );
 			src->level_ratio_value = 0;
 			break;
 		case LEVEL_MODE_RATIO:
-			src->level_ratio_value = (int)(obs_data_get_double(settings, "level_ratio_value") * 10.0 + 0.5);
+			UPDATE_PROP(
+				int, src->level_ratio_value,
+				(int)(obs_data_get_double(settings, "level_ratio_value") * 10.0 + 0.5),
+				src->graticule_need_update );
+			UPDATE_PROP(
+				float, src->graticule_horizontal_step,
+				(float)obs_data_get_double(settings, "graticule_horizontal_step_ratio"),
+				src->graticule_need_update );
 			src->level_fixed_value = 0;
 			break;
 		default:
@@ -128,11 +154,12 @@ static void his_update(void *data, obs_data_t *settings)
 					obs_source_get_name(src->cm.self), level_mode);
 	}
 
-	int graticule_vertical_lines = (int)obs_data_get_int(settings, "graticule_vertical_lines");
-	if (graticule_vertical_lines != src->graticule_vertical_lines) {
-		src->graticule_vertical_lines = graticule_vertical_lines;
-		src->graticule_need_update = true;
-	}
+	UPDATE_PROP(
+		int, src->graticule_vertical_lines,
+		(int)obs_data_get_int(settings, "graticule_vertical_lines"),
+		src->graticule_need_update );
+
+#undef UPDATE_PROP
 }
 
 static void his_get_defaults(obs_data_t *settings)
@@ -158,6 +185,30 @@ static bool components_changed(obs_properties_t *props, obs_property_t *property
 	return true;
 }
 
+static void graticule_horizontal_combo_init(obs_property_t *prop, float val_min, float val_max, const char *suffix)
+{
+	float div = 1.0f;
+	while (val_min * div < 1.0f)
+		div *= 10;
+
+	obs_property_list_add_float(prop, obs_module_text("None"), -1.0f);
+
+	for (float ten = 1.0f; ten / div <= val_max; ten *= 10.0f) {
+		const float ff[] = {1.0f, 2.0f, 5.0f};
+		for (int i = 0; i < sizeof(ff) / sizeof(*ff); i++) {
+			float v = ff[i] * ten / div;
+			if (v < val_min)
+				continue;
+			if (v > val_max)
+				break;
+			char name[64];
+			snprintf(name, sizeof(name)-1, "%g%s", v, suffix);
+			name[sizeof(name)-1] = 0;
+			obs_property_list_add_float(prop, name, v);
+		}
+	}
+}
+
 static bool level_mode_modified(obs_properties_t *props, obs_property_t *property, obs_data_t *settings)
 {
 	obs_property_t *prop;
@@ -167,6 +218,12 @@ static bool level_mode_modified(obs_properties_t *props, obs_property_t *propert
 	obs_property_set_visible(prop, level_mode == LEVEL_MODE_PIXEL);
 
 	prop = obs_properties_get(props, "level_ratio_value");
+	obs_property_set_visible(prop, level_mode == LEVEL_MODE_RATIO);
+
+	prop = obs_properties_get(props, "graticule_horizontal_step_fixed");
+	obs_property_set_visible(prop, level_mode == LEVEL_MODE_PIXEL);
+
+	prop = obs_properties_get(props, "graticule_horizontal_step_ratio");
 	obs_property_set_visible(prop, level_mode == LEVEL_MODE_RATIO);
 
 	return true;
@@ -221,6 +278,13 @@ static obs_properties_t *his_get_properties(void *data)
 	obs_property_list_add_int(prop, "each 25%", 4);
 	obs_property_list_add_int(prop, "each 20%", 5);
 	obs_property_list_add_int(prop, "each 10%", 10);
+
+	prop = obs_properties_add_list(props, "graticule_horizontal_step_fixed",
+			obs_module_text("Histogram.Graticule.H"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_FLOAT);
+	graticule_horizontal_combo_init(prop, 50.0f/GRATICULE_H_MAX, 32768.f, " px");
+	prop = obs_properties_add_list(props, "graticule_horizontal_step_ratio",
+			obs_module_text("Histogram.Graticule.H"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_FLOAT);
+	graticule_horizontal_combo_init(prop, 1.0f/GRATICULE_H_MAX, 50.0f, "%");
 
 	return props;
 }
@@ -337,22 +401,42 @@ static inline void his_draw_histogram(struct his_source *src, uint8_t *video_dat
 
 static void create_graticule_vbuf(struct his_source *src)
 {
-	obs_enter_graphics();
+	float y_max = 0;
+	if (src->logscale)
+		y_max = 0;
+	else if (src->level_fixed_value)
+		y_max = (float)src->level_fixed_value;
+	else if (src->level_ratio_value)
+		y_max = src->level_ratio_value / 10.f;
+	float y_step = y_max > 0 ? src->graticule_horizontal_step / y_max : 0.0f;
+
+	bool has_graticule_vertical = src->graticule_vertical_lines > 0;
+	bool has_graticule_horizontal = y_step > 1.0f / GRATICULE_H_MAX;
 
 	gs_vertexbuffer_destroy(src->graticule_line_vbuf);
 	src->graticule_line_vbuf = NULL;
 
-	if (src->graticule_vertical_lines > 0) {
-		gs_render_start(true);
+	if (!has_graticule_vertical && !has_graticule_horizontal)
+		return;
+
+	gs_render_start(true);
+
+	if (has_graticule_vertical) {
 		const int n = src->graticule_vertical_lines;
 		for (int i = 0; i <= n; i++) {
 			gs_vertex2f(256.0f * i / n, 0.0f);
 			gs_vertex2f(256.0f * i / n, 1.0f);
 		}
-		src->graticule_line_vbuf = gs_render_save();
 	}
 
-	obs_leave_graphics();
+	if (has_graticule_horizontal) {
+		for (float y = 1.0f; y >= 0.0f; y -= y_step) {
+			gs_vertex2f(0.0f, y);
+			gs_vertex2f(256.0f, y);
+		}
+	}
+
+	src->graticule_line_vbuf = gs_render_save();
 }
 
 static void his_render_graticule(struct his_source *src)
