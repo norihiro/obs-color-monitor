@@ -82,6 +82,12 @@ Choice of vertical graticule.
 | `each 20%` | 6 lines will be displayed. |
 | `each 10%` | 11 lines will be displayed. |
 
+### Graticule (Horizontal)
+
+Only available if `Level mode` is set to `Pixels` or `Ratio`.
+
+Choice of step size for horizontal graticules.
+
 ### Bypass
 
 If you check this, image after the scaling will be displayed.
