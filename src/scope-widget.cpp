@@ -222,7 +222,7 @@ OBSEventFilter *ScopeWidget::BuildEventFilter()
 
 void ScopeWidget::CreateDisplay()
 {
-	if (data->disp || !windowHandle()->isExposed())
+	if (data->disp || !windowHandle() || !windowHandle()->isExposed())
 		return;
 
 	blog(LOG_INFO, "ScopeWidget::CreateDisplay %p", this);
