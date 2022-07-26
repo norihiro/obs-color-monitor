@@ -61,3 +61,46 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           path: '${{ env.FILE_NAME }}'
+
+  windows_build:
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        arch: [x64]
+    env:
+      visualStudio: 'Visual Studio 17 2022'
+      Configuration: 'RelWithDebInfo'
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - name: Download obs-studio
+        run: |
+          $params = @{
+            UserAgent = 'NativeHost'
+            Uri = "http://www.nagater.net/obs-studio/obs-plugintemplate-20220727-83a01f2-windows-${{ matrix.arch }}.zip"
+            OutFile = 'obs-studio-devel.zip'
+            UseBasicParsing = $true
+            ErrorAction = 'Stop'
+          }
+          Invoke-WebRequest @params
+          $params = @{
+            Path = "obs-studio-devel.zip"
+            DestinationPath = "."
+          }
+          Expand-Archive @params
+      - name: Build plugin
+        run: |
+          $CmakeArgs = @(
+            '-G', "${{ env.visualStudio }}"
+            '-DCMAKE_SYSTEM_VERSION=10.0.18363.657'
+            "-DCMAKE_INSTALL_PREFIX=$(Resolve-Path -Path "./obs-build-dependencies/plugin-deps-${{ matrix.arch }}")"
+            "-DCMAKE_PREFIX_PATH=$(Resolve-Path -Path "./obs-build-dependencies/plugin-deps-${{ matrix.arch }}")"
+          )
+          cmake -S . -B build @CmakeArgs
+          cmake --build build
+          cmake --install build --prefix "$(Resolve-Path -Path .)/release"
