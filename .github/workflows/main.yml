@@ -1,0 +1,283 @@
+name: Plugin Build
+
+on:
+  push:
+    paths-ignore:
+      - '**.md'
+    branches:
+      - main
+    tags:
+      - '*'
+  pull_request:
+    paths-ignore:
+      - '**.md'
+    branches:
+      - main
+
+jobs:
+  linux_build:
+    runs-on: ${{ matrix.ubuntu }}
+    strategy:
+      matrix:
+        ubuntu: ['ubuntu-20.04', 'ubuntu-22.04']
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - name: Install OBS basic dependencies
+        run: |
+          sudo apt update
+          sudo apt install \
+            wget \
+            cmake ninja-build pkg-config clang clang-format build-essential curl ccache g++ \
+            libx11-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xinerama0-dev libxcomposite-dev libxinerama-dev \
+            libxcb1-dev libx11-xcb-dev libxcb-xfixes0-dev libcmocka-dev libxss-dev libglvnd-dev libgles2-mesa \
+            libgles2-mesa-dev libwayland-dev
+      - name: Install OBS UI dependencies
+        run: |
+          sudo apt install \
+            qtbase5-dev qtbase5-private-dev libqt5svg5-dev qtwayland5
+      - name: Checkout obs-studio
+        run: |
+          curl -o /tmp/obs-studio-devel.deb http://www.nagater.net/obs-studio/obs-studio-27.2.0-760-ga4909a667-${{ matrix.ubuntu }}.deb
+          sudo apt install /tmp/obs-studio-devel.deb
+      - name: Build plugin
+        run: |
+          mkdir build
+          cd build
+          cmake .. \
+            -D CMAKE_INSTALL_PREFIX=/usr \
+            -D CMAKE_BUILD_TYPE=RelWithDebInfo \
+            -D LINUX_PORTABLE=OFF -D CMAKE_INSTALL_LIBDIR=/usr/lib/ \
+            -D PKG_SUFFIX=-${{ matrix.ubuntu }}-x86_64
+          make -j4
+          make package
+          echo "FILE_NAME=$(find $PWD -name '*.deb' | head -n 1)" >> $GITHUB_ENV
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          path: '${{ env.FILE_NAME }}'
+      - name: Check package
+        run: |
+          . ci/ci_includes.generated.sh
+          set -ex
+          sudo apt install '${{ env.FILE_NAME }}'
+          ldd /usr/lib/obs-plugins/${PLUGIN_NAME}.so > ldd.out
+          if grep not.found ldd.out ; then
+            echo "Error: unresolved shared object." >&2
+            exit 1
+          fi
+          ls /usr/share/obs/obs-plugins/${PLUGIN_NAME}/
+
+  macos_build:
+    runs-on: macos-12
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, arm64]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Setup Environment
+        id: setup
+        run: |
+          set -e
+          echo '::group::Set up code signing'
+          if [[ '${{ secrets.MACOS_SIGNING_APPLICATION_IDENTITY }}' != '' && \
+                '${{ secrets.MACOS_SIGNING_INSTALLER_IDENTITY }}' != '' && \
+                '${{ secrets.MACOS_SIGNING_CERT }}' != '' ]]; then
+            echo '::set-output name=haveCodesignIdent::true'
+          else
+            echo '::set-output name=haveCodesignIdent::false'
+          fi
+          if [[ '${{ secrets.MACOS_NOTARIZATION_USERNAME }}' != '' && \
+                '${{ secrets.MACOS_NOTARIZATION_PASSWORD }}' != '' ]]; then
+            echo '::set-output name=haveNotarizationUser::true'
+          else
+            echo '::set-output name=haveNotarizationUser::false'
+          fi
+          echo '::endgroup::'
+
+      - name: Install Apple Developer Certificate
+        if: ${{ github.event_name != 'pull_request' && steps.setup.outputs.haveCodesignIdent == 'true' }}
+        uses: apple-actions/import-codesign-certs@253ddeeac23f2bdad1646faac5c8c2832e800071
+        with:
+          keychain-password: ${{ github.run_id }}
+          p12-file-base64: ${{ secrets.MACOS_SIGNING_CERT }}
+          p12-password: ${{ secrets.MACOS_SIGNING_CERT_PASSWORD }}
+
+      - name: Set Signing Identity
+        if: ${{ github.event_name != 'pull_request' && steps.setup.outputs.haveCodesignIdent == 'true' }}
+        run: |
+          set -e
+          TEAM_ID=$(echo "${{ secrets.MACOS_SIGNING_APPLICATION_IDENTITY }}" | sed 's/.*(\([A-Za-z0-9]*\))$/\1/')
+          xcrun notarytool store-credentials AC_PASSWORD \
+            --apple-id "${{ secrets.MACOS_NOTARIZATION_USERNAME }}" \
+            --team-id "$TEAM_ID" \
+            --password "${{ secrets.MACOS_NOTARIZATION_PASSWORD }}"
+
+      - name: Download obs-studio
+        run: |
+          target=${{ matrix.arch }}
+          set -ex
+          brew bundle --file ci/macos/Brewfile
+          deps_version='2022-07-18'
+          deps=/tmp/deps-$target
+          case $target in
+            x86_64)
+              ci/macos/download-extract.sh \
+                "https://github.com/obsproject/obs-deps/releases/download/$deps_version/macos-deps-$deps_version-$target.tar.xz" \
+                d2fc48e4cbcef840d59d6122f0e78f69602ff8f6264ea9a6fdfcfce88607e98d \
+                $deps
+              ci/macos/download-extract.sh \
+                "https://github.com/obsproject/obs-deps/releases/download/${deps_version}/macos-deps-qt5-${deps_version}-${target}.tar.xz" \
+                13787c6c21b931373833652d5016dd80634110c2b735eb0bf03b4c77b86a4489 \
+                $deps
+              ci/macos/download-extract.sh \
+                http://www.nagater.net/obs-studio/obs-studio-devel-27.2.0-770-g51875d1aa-macos-x86_64.tar.gz \
+                057609be298faecbb3a699698c075e4edaa2541e2660ae3436a42bc4600d2a12 \
+                $deps
+              echo MACOSX_DEPLOYMENT_TARGET=10.13 >> $GITHUB_ENV
+              ;;
+            arm64)
+              ci/macos/download-extract.sh \
+                "https://github.com/obsproject/obs-deps/releases/download/$deps_version/macos-deps-$deps_version-$target.tar.xz" \
+                1386418e41a60d83dd7de8742ede3d13ebb27b40ded6e7e41c00fd85a677a09d \
+                $deps
+              ci/macos/download-extract.sh \
+                "https://github.com/obsproject/obs-deps/releases/download/${deps_version}/macos-deps-qt5-${deps_version}-universal.tar.xz" \
+                f8885ba0952740dc3f0d2bf966a05cc181e1dcd17a43bcf14f9a480fd95d65d1 \
+                $deps
+              ci/macos/download-extract.sh \
+                http://www.nagater.net/obs-studio/obs-studio-devel-27.2.0-770-g51875d1aa-macos-arm64.tar.gz \
+                1b81cf14a627d682448095737b448653380d5f4d0499a1cc135b237bc5c61e35 \
+                $deps
+              echo MACOSX_DEPLOYMENT_TARGET=11.0 >> $GITHUB_ENV
+              ;;
+            *)
+              exit 1
+              ;;
+          esac
+          echo deps=$deps >> $GITHUB_ENV
+
+      - name: Build plugin
+        run: |
+          target=${{ matrix.arch }}
+          MACOSX_DEPLOYMENT_TARGET=${{ env.MACOSX_DEPLOYMENT_TARGET }}
+          deps=${{ env.deps }}
+          set -e
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_PREFIX_PATH="$PWD/release/" \
+            -DCMAKE_OSX_ARCHITECTURES=$target \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
+            -DCMAKE_FRAMEWORK_PATH="$deps/Frameworks;$deps/lib/cmake;$deps"
+          cmake --build build --config RelWithDebInfo
+
+      - name: Prepare package
+        run: |
+          . ci/ci_includes.generated.sh
+          cmake --install build --config RelWithDebInfo --prefix=release
+          ci/macos/change-rpath.sh -obs ${{ matrix.obs }} release/${PLUGIN_NAME}/bin/${PLUGIN_NAME}.so
+          cp LICENSE release/${PLUGIN_NAME}/data/LICENSE-$PLUGIN_NAME
+
+      - name: Codesign
+        if: ${{ github.event_name != 'pull_request' && steps.setup.outputs.haveCodesignIdent == 'true' }}
+        run: |
+          . ci/ci_includes.generated.sh
+          for dylib in release/${PLUGIN_NAME}/*/*.{so,dylib}; do
+            test -f "$dylib" || continue
+            codesign --sign "${{ secrets.MACOS_SIGNING_APPLICATION_IDENTITY }}" "$dylib"
+          done
+
+      - name: Package
+        run: |
+          . ci/ci_includes.generated.sh
+          GIT_TAG=$(git describe --tags --always)
+          zipfile=$PWD/package/${PLUGIN_NAME}-${GIT_TAG}-macos.zip
+          mkdir package
+          (cd release/ && zip -r $zipfile $PLUGIN_NAME)
+          ci/macos/install-packagesbuild.sh
+          packagesbuild \
+            --build-folder $PWD/package/ \
+            build/installer-macOS.generated.pkgproj
+
+      - name: Productsign
+        if: ${{ github.event_name != 'pull_request' && steps.setup.outputs.haveCodesignIdent == 'true' }}
+        run: |
+          set -e
+          . ci/ci_includes.generated.sh
+          productsign --sign "${{ secrets.MACOS_SIGNING_INSTALLER_IDENTITY }}" package/${PLUGIN_NAME}.pkg package/${PLUGIN_NAME}-signed.pkg
+          mv package/${PLUGIN_NAME}-signed.pkg package/${PLUGIN_NAME}.pkg
+
+      - name: Notarize
+        if: ${{ github.event_name != 'pull_request' && steps.setup.outputs.haveCodesignIdent == 'true' }}
+        uses: norihiro/macos-notarize-action@v1-beta
+        with:
+          path: package/*
+          keychainProfile: AC_PASSWORD
+          verbose: true
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          path: package/*
+
+  windows_build:
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        arch: [x64]
+    env:
+      visualStudio: 'Visual Studio 17 2022'
+      Configuration: 'RelWithDebInfo'
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - name: Download obs-studio
+        run: |
+          $params = @{
+            UserAgent = 'NativeHost'
+            Uri = "http://www.nagater.net/obs-studio/obs-plugintemplate-20220727-96382bd-windows-${{ matrix.arch }}.zip"
+            OutFile = 'obs-studio-devel.zip'
+            UseBasicParsing = $true
+            ErrorAction = 'Stop'
+          }
+          Invoke-WebRequest @params
+          $params = @{
+            Path = "obs-studio-devel.zip"
+            DestinationPath = "."
+          }
+          Expand-Archive @params
+      - name: Build plugin
+        run: |
+          $CmakeArgs = @(
+            '-G', "${{ env.visualStudio }}"
+            '-DCMAKE_SYSTEM_VERSION=10.0.18363.657'
+            "-DCMAKE_INSTALL_PREFIX=$(Resolve-Path -Path "./obs-build-dependencies/plugin-deps-${{ matrix.arch }}")"
+            "-DCMAKE_PREFIX_PATH=$(Resolve-Path -Path "./obs-build-dependencies/plugin-deps-${{ matrix.arch }}")"
+          )
+          cmake -S . -B build @CmakeArgs
+          cmake --build build --config RelWithDebInfo -j 4
+          cmake --install build --config RelWithDebInfo --prefix "$(Resolve-Path -Path .)/release"
+      - name: Package plugin
+        run: ci/windows/package-windows.cmd
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          path: package/*
