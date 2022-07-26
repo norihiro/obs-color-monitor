@@ -1,0 +1,63 @@
+name: Plugin Build
+
+on:
+  push:
+    paths-ignore:
+      - '**.md'
+    branches:
+      - main
+    tags:
+      - '*'
+  pull_request:
+    paths-ignore:
+      - '**.md'
+    branches:
+      - main
+
+jobs:
+  linux_build:
+    runs-on: ${{ matrix.ubuntu }}
+    strategy:
+      matrix:
+        ubuntu: ['ubuntu-20.04', 'ubuntu-22.04']
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - name: Install OBS basic dependencies
+        run: |
+          sudo apt update
+          sudo apt install \
+            wget \
+            cmake ninja-build pkg-config clang clang-format build-essential curl ccache g++ \
+            libx11-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xinerama0-dev libxcomposite-dev libxinerama-dev \
+            libxcb1-dev libx11-xcb-dev libxcb-xfixes0-dev libcmocka-dev libxss-dev libglvnd-dev libgles2-mesa \
+            libgles2-mesa-dev libwayland-dev
+      - name: Install OBS UI dependencies
+        run: |
+          sudo apt install \
+            qtbase5-dev qtbase5-private-dev libqt5svg5-dev qtwayland5
+      - name: Checkout obs-studio
+        run: |
+          curl -o /tmp/obs-studio-devel.deb http://www.nagater.net/obs-studio/obs-studio-27.2.0-760-ga4909a667-${{ matrix.ubuntu }}.deb
+          sudo apt install /tmp/obs-studio-devel.deb
+      - name: Build plugin
+        run: |
+          mkdir build
+          cd build
+          cmake .. \
+            -D CMAKE_INSTALL_PREFIX=/usr \
+            -D CMAKE_BUILD_TYPE=RelWithDebInfo \
+            -D LINUX_PORTABLE=OFF -D CMAKE_INSTALL_LIBDIR=/usr/lib/ \
+            -D PKG_SUFFIX=-${{ matrix.ubuntu }}-x86_64
+          make -j4
+          make package
+          echo "FILE_NAME=$(find $PWD -name '*.deb' | head -n 1)" >> $GITHUB_ENV
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          path: '${{ env.FILE_NAME }}'

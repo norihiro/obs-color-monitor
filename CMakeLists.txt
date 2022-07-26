@@ -33,8 +33,10 @@ if (WIN32 OR APPLE)
 include(external/FindLibObs.cmake)
 endif()
 
-find_package(LibObs REQUIRED)
-find_package(Qt5 REQUIRED COMPONENTS Core Widgets Gui)
+find_package(libobs REQUIRED)
+find_package(obs-frontend-api REQUIRED)
+include(cmake/ObsPluginHelpers.cmake)
+find_qt(VERSION ${QT_VERSION} COMPONENTS Widgets Core Gui)
 
 configure_file(
     src/plugin-macros.h.in
@@ -100,8 +102,6 @@ set(PLUGIN_HEADERS
 add_library(${CMAKE_PROJECT_NAME} MODULE ${PLUGIN_SOURCES} ${PLUGIN_HEADERS})
 
 include_directories(
-	"${LIBOBS_INCLUDE_DIR}/../UI/obs-frontend-api"
-	${LIBOBS_INCLUDE_DIR}
 	src-obsstudio/
 	${Qt5Core_INCLUDES}
 	${Qt5Widgets_INCLUDES}
@@ -110,7 +110,8 @@ include_directories(
 )
 
 target_link_libraries(${CMAKE_PROJECT_NAME}
-	libobs
+	OBS::libobs
+	OBS::obs-frontend-api
 	Qt5::Core
 	Qt5::Widgets
 	Qt5::Gui
@@ -121,15 +122,10 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 
 # --- Windows-specific build settings and tasks ---
 if(WIN32)
-	if(NOT DEFINED OBS_FRONTEND_LIB)
-		set(OBS_FRONTEND_LIB "OBS_FRONTEND_LIB-NOTFOUND" CACHE FILEPATH "OBS frontend library")
-		message(FATAL_ERROR "Could not find OBS Frontend API\'s library !")
+	# Enable Multicore Builds and disable FH4 (to not depend on VCRUNTIME140_1.DLL when building with VS2019)
+	if (MSVC)
+		add_definitions(/MP /d2FH4-)
 	endif()
-
-    # Enable Multicore Builds and disable FH4 (to not depend on VCRUNTIME140_1.DLL when building with VS2019)
-    if (MSVC)
-        add_definitions(/MP /d2FH4-)
-    endif()
 
 	if(CMAKE_SIZEOF_VOID_P EQUAL 8)
 		set(ARCH_NAME "64bit")
@@ -139,13 +135,6 @@ if(WIN32)
 		set(OBS_BUILDDIR_ARCH "build32")
 	endif()
 
-	include_directories(
-		"${LIBOBS_INCLUDE_DIR}/../${OBS_BUILDDIR_ARCH}/UI"
-	)
-
-	target_link_libraries(${CMAKE_PROJECT_NAME}
-		"${OBS_FRONTEND_LIB}"
-    )
 
 	# --- Release package helper ---
 	# The "release" folder has a structure similar OBS' one on Windows
@@ -202,29 +191,13 @@ if(WIN32)
                 "${LIBOBS_INCLUDE_DIR}/../${OBS_BUILDDIR_ARCH}/rundir/$<CONFIG>/data/obs-plugins/${CMAKE_PROJECT_NAME}"
         )
     )
-	# --- End of sub-section ---
 
 endif()
-# --- End of section ---
 
 # --- Linux-specific build settings and tasks ---
-if(UNIX AND NOT APPLE)
-	include(GNUInstallDirs)
-
-	set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES PREFIX "")
-	if(DEFINED LIBOBS_FRONTEND_API)
-		target_link_libraries(${CMAKE_PROJECT_NAME} ${LIBOBS_FRONTEND_API})
-	else()
-		target_link_libraries(${CMAKE_PROJECT_NAME} obs-frontend-api)
-	endif()
-
-	install(TARGETS ${CMAKE_PROJECT_NAME}
-		LIBRARY DESTINATION "${CMAKE_INSTALL_FULL_LIBDIR}/obs-plugins")
-
-	install(DIRECTORY data/
-		DESTINATION "${CMAKE_INSTALL_FULL_DATAROOTDIR}/obs/obs-plugins/${CMAKE_PROJECT_NAME}")
+if(OS_LINUX)
+	target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -Wall -Wextra)
 endif()
-# --- End of section ---
 
 # -- OS X specific build settings and tasks --
 if(APPLE)
@@ -234,3 +207,5 @@ if(APPLE)
 	target_link_libraries(${CMAKE_PROJECT_NAME} "${OBS_FRONTEND_LIB}")
 endif()
 # -- End of section --
+
+setup_plugin_target(${CMAKE_PROJECT_NAME})
