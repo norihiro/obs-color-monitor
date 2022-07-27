@@ -62,6 +62,76 @@ jobs:
         with:
           path: '${{ env.FILE_NAME }}'
 
+  macos_build:
+    runs-on: macos-12
+    strategy:
+      matrix:
+        arch: [x86_64, arm64]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Setup Environment
+        id: setup
+        run: |
+          set -ex
+          echo '::group::Set up code signing'
+          if [[ '${{ secrets.MACOS_SIGNING_APPLICATION_IDENTITY }}' != '' && \
+                '${{ secrets.MACOS_SIGNING_INSTALLER_IDENTITY }}' != '' && \
+                '${{ secrets.MACOS_SIGNING_CERT }}' != '' ]]; then
+            echo '::set-output name=haveCodesignIdent::true'
+          else
+            echo '::set-output name=haveCodesignIdent::false'
+          fi
+          if [[ '${{ secrets.MACOS_NOTARIZATION_USERNAME }}' != '' && \
+                '${{ secrets.MACOS_NOTARIZATION_PASSWORD }}' != '' ]]; then
+            echo '::set-output name=haveNotarizationUser::true'
+          else
+            echo '::set-output name=haveNotarizationUser::false'
+          fi
+          echo '::endgroup::'
+
+      - name: Install Apple Developer Certificate
+        if: ${{ github.event_name != 'pull_request' && steps.setup.outputs.haveCodesignIdent == 'true' }}
+        uses: apple-actions/import-codesign-certs@253ddeeac23f2bdad1646faac5c8c2832e800071
+        with:
+          keychain-password: ${{ github.run_id }}
+          p12-file-base64: ${{ secrets.MACOS_SIGNING_CERT }}
+          p12-password: ${{ secrets.MACOS_SIGNING_CERT_PASSWORD }}
+
+      - name: Set Signing Identity
+        if: ${{ github.event_name != 'pull_request' && steps.setup.outputs.haveCodesignIdent == 'true' }}
+        run: |
+          set -ex
+          echo "CODESIGN_IDENT=${{ secrets.MACOS_SIGNING_APPLICATION_IDENTITY }}" >> $GITHUB_ENV
+          echo "CODESIGN_IDENT_INSTALLER=${{ secrets.MACOS_SIGNING_INSTALLER_IDENTITY }}" >> $GITHUB_ENV
+
+      - name: Download obs-studio
+        run: |
+          set -ex
+          brew bundle --file ci/macos/Brewfile
+          curl -o /tmp/obs-studio-devel.tar.gz http://www.nagater.net/obs-studio/obs-studio-devel-27.2.0-758-gb43aa5f65-macos-${{ matrix.arch }}.tar.gz
+          mkdir ../obs-studio
+          (cd ../obs-studio && tar xzf /tmp/obs-studio-devel.tar.gz)
+          ls -l "$PWD/../obs-studio/"
+
+      - name: Build plugin
+        run: |
+          set -ex
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_PREFIX_PATH="$PWD/../obs-studio/" \
+            -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET:-10.15} \
+            -DOBS_BUNDLE_CODESIGN_IDENTITY="${CODESIGN_IDENT:--}" \
+            -DCMAKE_FRAMEWORK_PATH="$PWD/../obs-studio/build/libobs/CMakeFiles/Export/Frameworks/"
+          cmake --build build --config RelWithDebInfo
+
   windows_build:
     runs-on: windows-2022
     strategy:
