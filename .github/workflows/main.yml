@@ -102,5 +102,5 @@ jobs:
             "-DCMAKE_PREFIX_PATH=$(Resolve-Path -Path "./obs-build-dependencies/plugin-deps-${{ matrix.arch }}")"
           )
           cmake -S . -B build @CmakeArgs
-          cmake --build build
-          cmake --install build --prefix "$(Resolve-Path -Path .)/release"
+          cmake --build build --config RelWithDebInfo -j 4
+          cmake --install build --config RelWithDebInfo --prefix "$(Resolve-Path -Path .)/release"

@@ -123,6 +123,8 @@ if(WIN32)
 		add_definitions(/MP /d2FH4-)
 	endif()
 
+	target_link_libraries(${CMAKE_PROJECT_NAME} OBS::w32-pthreads)
+
 	if(CMAKE_SIZEOF_VOID_P EQUAL 8)
 		set(ARCH_NAME "64bit")
 		set(OBS_BUILDDIR_ARCH "build64")
@@ -190,18 +192,14 @@ if(WIN32)
 
 endif()
 
-# --- Linux-specific build settings and tasks ---
 if(OS_LINUX)
 	target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -Wall -Wextra)
 endif()
 
-# -- OS X specific build settings and tasks --
 if(APPLE)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -fvisibility=default")
 
 	set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES PREFIX "")
-	target_link_libraries(${CMAKE_PROJECT_NAME} "${OBS_FRONTEND_LIB}")
 endif()
-# -- End of section --
 
 setup_plugin_target(${CMAKE_PROJECT_NAME})
