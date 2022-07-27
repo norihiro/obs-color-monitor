@@ -65,6 +65,7 @@ jobs:
   macos_build:
     runs-on: macos-12
     strategy:
+      fail-fast: false
       matrix:
         arch: [x86_64, arm64]
     defaults:
@@ -164,6 +165,10 @@ jobs:
             -DCMAKE_FRAMEWORK_PATH="/tmp/deps/Frameworks;/tmp/deps/lib/cmake;/tmp/deps" \
             -DOBS_BUNDLE_CODESIGN_IDENTITY="${CODESIGN_IDENT:--}"
           cmake --build build --config RelWithDebInfo
+
+      - name: List build files
+        run: |
+          ls -lR build
 
   windows_build:
     runs-on: windows-2022
