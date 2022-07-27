@@ -82,7 +82,7 @@ jobs:
         run: |
           $params = @{
             UserAgent = 'NativeHost'
-            Uri = "http://www.nagater.net/obs-studio/obs-plugintemplate-20220727-83a01f2-windows-${{ matrix.arch }}.zip"
+            Uri = "http://www.nagater.net/obs-studio/obs-plugintemplate-20220727-96382bd-windows-${{ matrix.arch }}.zip"
             OutFile = 'obs-studio-devel.zip'
             UseBasicParsing = $true
             ErrorAction = 'Stop'
