@@ -115,21 +115,52 @@ jobs:
         run: |
           set -ex
           brew bundle --file ci/macos/Brewfile
-          curl -o /tmp/obs-studio-devel.tar.gz http://www.nagater.net/obs-studio/obs-studio-devel-27.2.0-758-gb43aa5f65-macos-${{ matrix.arch }}.tar.gz
-          mkdir ../obs-studio
-          (cd ../obs-studio && tar xzf /tmp/obs-studio-devel.tar.gz)
-          ls -l "$PWD/../obs-studio/"
+          target=${{ matrix.arch }}
+          deps_version='2022-07-18'
+          case $target in
+            x86_64)
+              ci/macos/download-extract.sh \
+                "https://github.com/obsproject/obs-deps/releases/download/$deps_version/macos-deps-$deps_version-$target.tar.xz" \
+                d2fc48e4cbcef840d59d6122f0e78f69602ff8f6264ea9a6fdfcfce88607e98d \
+                /tmp/deps
+              ci/macos/download-extract.sh \
+                "https://github.com/obsproject/obs-deps/releases/download/${deps_version}/macos-deps-qt5-${deps_version}-${target}.tar.xz" \
+                13787c6c21b931373833652d5016dd80634110c2b735eb0bf03b4c77b86a4489 \
+                /tmp/deps
+              ci/macos/download-extract.sh \
+                "http://www.nagater.net/obs-studio/obs-studio-devel-27.2.0-758-gda694df99-macos-x86_64.tar.gz" \
+                fd11cd2126232fd9874c7b01b64a2258b88b9761070de948522388c5fab9e135 \
+                /tmp/deps
+              ;;
+            arm64)
+              ci/macos/download-extract.sh \
+                "https://github.com/obsproject/obs-deps/releases/download/$deps_version/macos-deps-$deps_version-$target.tar.xz" \
+                1386418e41a60d83dd7de8742ede3d13ebb27b40ded6e7e41c00fd85a677a09d \
+                /tmp/deps
+              ci/macos/download-extract.sh \
+                "https://github.com/obsproject/obs-deps/releases/download/${deps_version}/macos-deps-qt5-${deps_version}-universal.tar.xz" \
+                f8885ba0952740dc3f0d2bf966a05cc181e1dcd17a43bcf14f9a480fd95d65d1 \
+                /tmp/deps
+              ci/macos/download-extract.sh \
+                "http://www.nagater.net/obs-studio/obs-studio-devel-27.2.0-758-gda694df99-macos-arm64.tar.gz" \
+                73ac4b725cff264ebd61e8b6f6082833d69543214995d66166a4a343511a61a3 \
+                /tmp/deps
+              ;;
+            *)
+              exit 1
+              ;;
+          esac
 
       - name: Build plugin
         run: |
           set -ex
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-            -DCMAKE_PREFIX_PATH="$PWD/../obs-studio/" \
-            -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} \
+            -DCMAKE_PREFIX_PATH="$PWD/release/" \
+            -DCMAKE_OSX_ARCHITECTURES=$target \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET:-10.15} \
-            -DOBS_BUNDLE_CODESIGN_IDENTITY="${CODESIGN_IDENT:--}" \
-            -DCMAKE_FRAMEWORK_PATH="$PWD/../obs-studio/build/libobs/CMakeFiles/Export/Frameworks/"
+            -DCMAKE_FRAMEWORK_PATH="/tmp/deps/Frameworks;/tmp/deps/lib/cmake;/tmp/deps" \
+            -DOBS_BUNDLE_CODESIGN_IDENTITY="${CODESIGN_IDENT:--}"
           cmake --build build --config RelWithDebInfo
 
   windows_build:
