@@ -131,6 +131,7 @@ jobs:
                 "http://www.nagater.net/obs-studio/obs-studio-devel-27.2.0-758-gda694df99-macos-x86_64.tar.gz" \
                 fd11cd2126232fd9874c7b01b64a2258b88b9761070de948522388c5fab9e135 \
                 /tmp/deps
+              MACOSX_DEPLOYMENT_TARGET=10.15
               ;;
             arm64)
               ci/macos/download-extract.sh \
@@ -145,6 +146,7 @@ jobs:
                 "http://www.nagater.net/obs-studio/obs-studio-devel-27.2.0-758-gda694df99-macos-arm64.tar.gz" \
                 73ac4b725cff264ebd61e8b6f6082833d69543214995d66166a4a343511a61a3 \
                 /tmp/deps
+              MACOSX_DEPLOYMENT_TARGET=11.0
               ;;
             *)
               exit 1
@@ -158,7 +160,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_PREFIX_PATH="$PWD/release/" \
             -DCMAKE_OSX_ARCHITECTURES=$target \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET:-10.15} \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
             -DCMAKE_FRAMEWORK_PATH="/tmp/deps/Frameworks;/tmp/deps/lib/cmake;/tmp/deps" \
             -DOBS_BUNDLE_CODESIGN_IDENTITY="${CODESIGN_IDENT:--}"
           cmake --build build --config RelWithDebInfo
