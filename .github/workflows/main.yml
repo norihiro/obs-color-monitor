@@ -114,9 +114,9 @@ jobs:
 
       - name: Download obs-studio
         run: |
+          target=${{ matrix.arch }}
           set -ex
           brew bundle --file ci/macos/Brewfile
-          target=${{ matrix.arch }}
           deps_version='2022-07-18'
           case $target in
             x86_64)
@@ -156,6 +156,7 @@ jobs:
 
       - name: Build plugin
         run: |
+          target=${{ matrix.arch }}
           set -ex
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
