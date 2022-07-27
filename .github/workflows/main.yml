@@ -104,3 +104,9 @@ jobs:
           cmake -S . -B build @CmakeArgs
           cmake --build build --config RelWithDebInfo -j 4
           cmake --install build --config RelWithDebInfo --prefix "$(Resolve-Path -Path .)/release"
+      - name: Package plugin
+        run: ci/windows/package-windows.cmd
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          path: package/*
