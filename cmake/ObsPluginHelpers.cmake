@@ -86,8 +86,6 @@ if(OS_MACOS)
 	set_property(CACHE CMAKE_OSX_DEPLOYMENT_TARGET PROPERTY STRINGS 10.15 11 12)
 
 	set(OBS_BUNDLE_CODESIGN_IDENTITY "-" CACHE STRING "OBS code signing identity for macOS")
-	set(OBS_CODESIGN_ENTITLEMENTS ${CMAKE_SOURCE_DIR}/cmake/bundle/macos/entitlements.plist
-		CACHE INTERNAL "Path to codesign entitlements plist")
 	set(OBS_CODESIGN_LINKER ON
 		CACHE BOOL "Enable linker code-signing on macOS (macOS 11+ required)")
 
@@ -140,44 +138,18 @@ if(OS_MACOS)
 
 		install(
 			TARGETS ${target}
-			LIBRARY DESTINATION "."
+			LIBRARY DESTINATION "${target}/bin/"
 			COMPONENT obs_plugins
 			NAMELINK_COMPONENT ${target}_Development)
 
-		set(_COMMAND
-			"${CMAKE_INSTALL_NAME_TOOL} \\
-			-change ${CMAKE_PREFIX_PATH}/lib/QtWidgets.framework/Versions/${QT_VERSION}/QtWidgets @rpath/QtWidgets.framework/Versions/${QT_VERSION}/QtWidgets \\
-			-change ${CMAKE_PREFIX_PATH}/lib/QtCore.framework/Versions/${QT_VERSION}/QtCore @rpath/QtCore.framework/Versions/${QT_VERSION}/QtCore \\
-			-change ${CMAKE_PREFIX_PATH}/lib/QtGui.framework/Versions/${QT_VERSION}/QtGui @rpath/QtGui.framework/Versions/${QT_VERSION}/QtGui \\
-			\\\"\${CMAKE_INSTALL_PREFIX}/${target}.plugin/Contents/MacOS/${target}\\\""
-			)
-		install(CODE "execute_process(COMMAND /bin/sh -c \"${_COMMAND}\")"
-			COMPONENT obs_plugins)
-
-		if(NOT XCODE)
-			set(_COMMAND
-				"/usr/bin/codesign --force \\
-				--sign \\\"${OBS_BUNDLE_CODESIGN_IDENTITY}\\\" \\
-				--options runtime \\
-				--entitlements \\\"${CMAKE_CURRENT_FUNCTION_LIST_DIR}/bundle/macOS/entitlements.plist\\\" \\
-				\\\"${CMAKE_INSTALL_PREFIX}/${target}.plugin\\\""
-				)
-			install(CODE "execute_process(COMMAND /bin/sh -c \"${_COMMAND}\")" COMPONENT obs_plugins)
+		if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/data)
+			install(
+				DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/data/
+				DESTINATION "${target}/data/"
+				USE_SOURCE_PERMISSIONS
+				COMPONENT obs_plugins)
 		endif()
 
-		set_target_properties(
-			${target}
-			PROPERTIES
-			BUNDLE ON
-			BUNDLE_EXTENSION "plugin"
-			OUTPUT_NAME ${target}
-			MACOSX_BUNDLE_INFO_PLIST
-			"${CMAKE_CURRENT_FUNCTION_LIST_DIR}/bundle/macOS/Plugin-Info.plist.in"
-			XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER
-			"${MACOSX_PLUGIN_GUI_IDENTIFIER}"
-			XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "${OBS_BUNDLE_CODESIGN_IDENTITY}"
-			XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS
-			"${CMAKE_CURRENT_FUNCTION_LIST_DIR}/bundle/macOS/entitlements.plist")
 
 		add_custom_command(
 			TARGET ${target}
@@ -188,25 +160,8 @@ if(OS_MACOS)
 			COMMENT "Codesigning ${target}"
 			VERBATIM)
 
-		install_bundle_resources(${target})
 	endfunction()
 
-	function(install_bundle_resources target)
-		if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/data)
-			file(GLOB_RECURSE _DATA_FILES "${CMAKE_CURRENT_SOURCE_DIR}/data/*")
-			foreach(_DATA_FILE IN LISTS _DATA_FILES)
-				file(RELATIVE_PATH _RELATIVE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/data/
-					${_DATA_FILE})
-				get_filename_component(_RELATIVE_PATH ${_RELATIVE_PATH} PATH)
-				target_sources(${target} PRIVATE ${_DATA_FILE})
-				set_source_files_properties(
-					${_DATA_FILE} PROPERTIES MACOSX_PACKAGE_LOCATION
-					Resources/${_RELATIVE_PATH})
-				string(REPLACE "\\" "\\\\" _GROUP_NAME "${_RELATIVE_PATH}")
-				source_group("Resources\\${_GROUP_NAME}" FILES ${_DATA_FILE})
-			endforeach()
-		endif()
-	endfunction()
 else()
 	if(CMAKE_SIZEOF_VOID_P EQUAL 8)
 		set(_ARCH_SUFFIX 64)
