@@ -80,7 +80,7 @@ jobs:
       - name: Setup Environment
         id: setup
         run: |
-          set -ex
+          set -e
           echo '::group::Set up code signing'
           if [[ '${{ secrets.MACOS_SIGNING_APPLICATION_IDENTITY }}' != '' && \
                 '${{ secrets.MACOS_SIGNING_INSTALLER_IDENTITY }}' != '' && \
@@ -108,9 +108,14 @@ jobs:
       - name: Set Signing Identity
         if: ${{ github.event_name != 'pull_request' && steps.setup.outputs.haveCodesignIdent == 'true' }}
         run: |
-          set -ex
+          set -e
           echo "CODESIGN_IDENT=${{ secrets.MACOS_SIGNING_APPLICATION_IDENTITY }}" >> $GITHUB_ENV
           echo "CODESIGN_IDENT_INSTALLER=${{ secrets.MACOS_SIGNING_INSTALLER_IDENTITY }}" >> $GITHUB_ENV
+          TEAM_ID=$(echo "${{ secrets.MACOS_SIGNING_APPLICATION_IDENTITY }}" | sed 's/.*(\([A-Za-z0-9]*\))$/\1/')
+          xcrun notarytool store-credentials AC_PASSWORD \
+            --apple-id "${{ secrets.MACOS_NOTARIZATION_USERNAME }}" \
+            --team-id "$TEAM_ID" \
+            --password "${{ secrets.MACOS_NOTARIZATION_PASSWORD }}"
 
       - name: Download obs-studio
         run: |
@@ -118,58 +123,63 @@ jobs:
           set -ex
           brew bundle --file ci/macos/Brewfile
           deps_version='2022-07-18'
+          deps=/tmp/deps-$target
           case $target in
             x86_64)
               ci/macos/download-extract.sh \
                 "https://github.com/obsproject/obs-deps/releases/download/$deps_version/macos-deps-$deps_version-$target.tar.xz" \
                 d2fc48e4cbcef840d59d6122f0e78f69602ff8f6264ea9a6fdfcfce88607e98d \
-                /tmp/deps
+                $deps
               ci/macos/download-extract.sh \
                 "https://github.com/obsproject/obs-deps/releases/download/${deps_version}/macos-deps-qt5-${deps_version}-${target}.tar.xz" \
                 13787c6c21b931373833652d5016dd80634110c2b735eb0bf03b4c77b86a4489 \
-                /tmp/deps
+                $deps
               ci/macos/download-extract.sh \
-                "http://www.nagater.net/obs-studio/obs-studio-devel-27.2.0-758-gda694df99-macos-x86_64.tar.gz" \
-                fd11cd2126232fd9874c7b01b64a2258b88b9761070de948522388c5fab9e135 \
-                /tmp/deps
-              MACOSX_DEPLOYMENT_TARGET=10.15
+                http://www.nagater.net/obs-studio/obs-studio-devel-27.2.0-770-g51875d1aa-macos-x86_64.tar.gz \
+                057609be298faecbb3a699698c075e4edaa2541e2660ae3436a42bc4600d2a12 \
+                $deps
+              echo MACOSX_DEPLOYMENT_TARGET=10.15 >> $GITHUB_ENV
               ;;
             arm64)
               ci/macos/download-extract.sh \
                 "https://github.com/obsproject/obs-deps/releases/download/$deps_version/macos-deps-$deps_version-$target.tar.xz" \
                 1386418e41a60d83dd7de8742ede3d13ebb27b40ded6e7e41c00fd85a677a09d \
-                /tmp/deps
+                $deps
               ci/macos/download-extract.sh \
                 "https://github.com/obsproject/obs-deps/releases/download/${deps_version}/macos-deps-qt5-${deps_version}-universal.tar.xz" \
                 f8885ba0952740dc3f0d2bf966a05cc181e1dcd17a43bcf14f9a480fd95d65d1 \
-                /tmp/deps
+                $deps
               ci/macos/download-extract.sh \
-                "http://www.nagater.net/obs-studio/obs-studio-devel-27.2.0-758-gda694df99-macos-arm64.tar.gz" \
-                73ac4b725cff264ebd61e8b6f6082833d69543214995d66166a4a343511a61a3 \
-                /tmp/deps
-              MACOSX_DEPLOYMENT_TARGET=11.0
+                http://www.nagater.net/obs-studio/obs-studio-devel-27.2.0-770-g51875d1aa-macos-arm64.tar.gz \
+                1b81cf14a627d682448095737b448653380d5f4d0499a1cc135b237bc5c61e35 \
+                $deps
+              echo MACOSX_DEPLOYMENT_TARGET=11.0 >> $GITHUB_ENV
               ;;
             *)
               exit 1
               ;;
           esac
+          echo deps=$deps >> $GITHUB_ENV
 
       - name: Build plugin
         run: |
           target=${{ matrix.arch }}
+          MACOSX_DEPLOYMENT_TARGET=${{ env.MACOSX_DEPLOYMENT_TARGET }}
+          deps=${{ env.deps }}
           set -ex
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_PREFIX_PATH="$PWD/release/" \
             -DCMAKE_OSX_ARCHITECTURES=$target \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
-            -DCMAKE_FRAMEWORK_PATH="/tmp/deps/Frameworks;/tmp/deps/lib/cmake;/tmp/deps" \
+            -DCMAKE_FRAMEWORK_PATH="$deps/Frameworks;$deps/lib/cmake;$deps" \
             -DOBS_BUNDLE_CODESIGN_IDENTITY="${CODESIGN_IDENT:--}"
           cmake --build build --config RelWithDebInfo
 
-      - name: List build files
+      - name: Package plugin
         run: |
-          ls -lR build
+          cmake --install build --config RelWithDebInfo --prefix=/tmp/package
+          ci/macos/change-rpath.sh /tmp/packageobs-color-monitor/bin/obs-color-monitor.so
 
   windows_build:
     runs-on: windows-2022
