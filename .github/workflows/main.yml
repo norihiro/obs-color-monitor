@@ -166,7 +166,7 @@ jobs:
           target=${{ matrix.arch }}
           MACOSX_DEPLOYMENT_TARGET=${{ env.MACOSX_DEPLOYMENT_TARGET }}
           deps=${{ env.deps }}
-          set -ex
+          set -e
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_PREFIX_PATH="$PWD/release/" \
