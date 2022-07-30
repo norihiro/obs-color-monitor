@@ -96,9 +96,6 @@ if(OS_MACOS)
 		# https://gitlab.kitware.com/cmake/cmake/-/issues/21854
 
 		set(CMAKE_XCODE_GENERATE_SCHEME ON)
-		if(OBS_CODESIGN_LINKER)
-			set(CMAKE_XCODE_ATTRIBUTE_OTHER_CODE_SIGN_FLAGS "-o linker-signed")
-		endif()
 	endif()
 
 	# Set default options for bundling on macOS
@@ -149,16 +146,6 @@ if(OS_MACOS)
 				USE_SOURCE_PERMISSIONS
 				COMPONENT obs_plugins)
 		endif()
-
-
-		add_custom_command(
-			TARGET ${target}
-			POST_BUILD
-			COMMAND
-			/bin/sh -c
-			"codesign --force --sign \"-\" $<$<BOOL:${OBS_CODESIGN_LINKER}>:--options linker-signed >\"$<TARGET_BUNDLE_DIR:${target}>\""
-			COMMENT "Codesigning ${target}"
-			VERBATIM)
 
 	endfunction()
 
