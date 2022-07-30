@@ -199,18 +199,11 @@ jobs:
 
       - name: Notarize
         if: ${{ github.event_name != 'pull_request' && steps.setup.outputs.haveCodesignIdent == 'true' }}
-        run: |
-          for pkg in package/*; do
-            xcrun notarytool submit $pkg --keychain-profile AC_PASSWORD --wait
-            case $pkg in
-              *.zip)
-                ci/macos/stable-zip.sh
-                ;;
-              *)
-                xcrun stapler staple $pkg
-                ;;
-            esac
-          done
+        uses: norihiro/macos-notarize-action@v1-beta
+        with:
+          path: package/*
+          keychainProfile: AC_PASSWORD
+          verbose: true
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v3
