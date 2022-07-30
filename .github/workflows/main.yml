@@ -109,8 +109,6 @@ jobs:
         if: ${{ github.event_name != 'pull_request' && steps.setup.outputs.haveCodesignIdent == 'true' }}
         run: |
           set -e
-          echo "CODESIGN_IDENT=${{ secrets.MACOS_SIGNING_APPLICATION_IDENTITY }}" >> $GITHUB_ENV
-          echo "CODESIGN_IDENT_INSTALLER=${{ secrets.MACOS_SIGNING_INSTALLER_IDENTITY }}" >> $GITHUB_ENV
           TEAM_ID=$(echo "${{ secrets.MACOS_SIGNING_APPLICATION_IDENTITY }}" | sed 's/.*(\([A-Za-z0-9]*\))$/\1/')
           xcrun notarytool store-credentials AC_PASSWORD \
             --apple-id "${{ secrets.MACOS_NOTARIZATION_USERNAME }}" \
@@ -138,7 +136,7 @@ jobs:
                 http://www.nagater.net/obs-studio/obs-studio-devel-27.2.0-770-g51875d1aa-macos-x86_64.tar.gz \
                 057609be298faecbb3a699698c075e4edaa2541e2660ae3436a42bc4600d2a12 \
                 $deps
-              echo MACOSX_DEPLOYMENT_TARGET=10.15 >> $GITHUB_ENV
+              echo MACOSX_DEPLOYMENT_TARGET=10.13 >> $GITHUB_ENV
               ;;
             arm64)
               ci/macos/download-extract.sh \
@@ -172,14 +170,52 @@ jobs:
             -DCMAKE_PREFIX_PATH="$PWD/release/" \
             -DCMAKE_OSX_ARCHITECTURES=$target \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
-            -DCMAKE_FRAMEWORK_PATH="$deps/Frameworks;$deps/lib/cmake;$deps" \
-            -DOBS_BUNDLE_CODESIGN_IDENTITY="${CODESIGN_IDENT:--}"
+            -DCMAKE_FRAMEWORK_PATH="$deps/Frameworks;$deps/lib/cmake;$deps"
           cmake --build build --config RelWithDebInfo
 
-      - name: Package plugin
+      - name: Prepare package
         run: |
+          . ci/ci_includes.generated.sh
           cmake --install build --config RelWithDebInfo --prefix=/tmp/package
-          ci/macos/change-rpath.sh /tmp/packageobs-color-monitor/bin/obs-color-monitor.so
+          ci/macos/change-rpath.sh -obs ${{ matrix.obs }} /tmp/package/${PLUGIN_NAME}/bin/${PLUGIN_NAME}.so
+          cp LICENSE /tmp/package/${PLUGIN_NAME}/data/LICENSE-$PLUGIN_NAME
+
+      - name: Codesign
+        if: ${{ github.event_name != 'pull_request' && steps.setup.outputs.haveCodesignIdent == 'true' }}
+        run: |
+          . ci/ci_includes.generated.sh
+          for dylib in /tmp/package/${PLUGIN_NAME}/*/*.{so,dylib}; do
+            test -f "$dylib" || continue
+            codesign --sign "${{ secrets.MACOS_SIGNING_APPLICATION_IDENTITY }}" "$dylib"
+          done
+
+      - name: Package
+        run: |
+          . ci/ci_includes.generated.sh
+          GIT_TAG=$(git describe --tags --always)
+          zipfile=$PWD/package/${PLUGIN_NAME}-${GIT_TAG}-macos.zip
+          mkdir package
+          (cd /tmp/package/ && zip -r $zipfile $PLUGIN_NAME)
+
+      - name: Notarize
+        if: ${{ github.event_name != 'pull_request' && steps.setup.outputs.haveCodesignIdent == 'true' }}
+        run: |
+          for pkg in package/*; do
+            xcrun notarytool submit $pkg --keychain-profile AC_PASSWORD --wait
+            case $pkg in
+              *.zip)
+                ci/macos/stable-zip.sh
+                ;;
+              *)
+                xcrun stapler staple $pkg
+                ;;
+            esac
+          done
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          path: package/*
 
   windows_build:
     runs-on: windows-2022
