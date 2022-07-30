@@ -176,15 +176,15 @@ jobs:
       - name: Prepare package
         run: |
           . ci/ci_includes.generated.sh
-          cmake --install build --config RelWithDebInfo --prefix=/tmp/package
-          ci/macos/change-rpath.sh /tmp/package/${PLUGIN_NAME}/bin/${PLUGIN_NAME}.so
-          cp LICENSE /tmp/package/${PLUGIN_NAME}/data/LICENSE-$PLUGIN_NAME
+          cmake --install build --config RelWithDebInfo --prefix=release
+          ci/macos/change-rpath.sh release/${PLUGIN_NAME}/bin/${PLUGIN_NAME}.so
+          cp LICENSE release/${PLUGIN_NAME}/data/LICENSE-$PLUGIN_NAME
 
       - name: Codesign
         if: ${{ github.event_name != 'pull_request' && steps.setup.outputs.haveCodesignIdent == 'true' }}
         run: |
           . ci/ci_includes.generated.sh
-          for dylib in /tmp/package/${PLUGIN_NAME}/*/*.{so,dylib}; do
+          for dylib in release/${PLUGIN_NAME}/*/*.{so,dylib}; do
             test -f "$dylib" || continue
             codesign --sign "${{ secrets.MACOS_SIGNING_APPLICATION_IDENTITY }}" "$dylib"
           done
@@ -195,7 +195,19 @@ jobs:
           GIT_TAG=$(git describe --tags --always)
           zipfile=$PWD/package/${PLUGIN_NAME}-${GIT_TAG}-macos.zip
           mkdir package
-          (cd /tmp/package/ && zip -r $zipfile $PLUGIN_NAME)
+          (cd release/ && zip -r $zipfile $PLUGIN_NAME)
+          ci/macos/install-packagesbuild.sh
+          packagesbuild \
+            --build-folder $PWD/package/ \
+            build/installer-macOS.generated.pkgproj
+
+      - name: Productsign
+        if: ${{ github.event_name != 'pull_request' && steps.setup.outputs.haveCodesignIdent == 'true' }}
+        run: |
+          set -e
+          . ci/ci_includes.generated.sh
+          productsign --sign "${{ secrets.MACOS_SIGNING_INSTALLER_IDENTITY }}" package/${PLUGIN_NAME}.pkg package/${PLUGIN_NAME}-signed.pkg
+          mv package/${PLUGIN_NAME}-signed.pkg package/${PLUGIN_NAME}.pkg
 
       - name: Notarize
         if: ${{ github.event_name != 'pull_request' && steps.setup.outputs.haveCodesignIdent == 'true' }}
