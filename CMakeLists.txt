@@ -1,25 +1,15 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.12)
 
-# Change obs-plugintemplate to your plugin's name in a machine-readable format
-# (e.g.: obs-myawesomeplugin) and set 
-project(obs-color-monitor)
-set(CMAKE_PROJECT_VERSION 0.3.2) # update cmake to 3.12 or later, then put to 'project'
+project(obs-color-monitor VERSION 0.3.2)
 
-# Replace `Your Name Here` with the name (yours or your organization's) you want
-# to see as the author of the plugin (in the plugin's metadata itself and in the installers)
 set(PLUGIN_AUTHOR "Norihiro Kamae")
 
-# Replace `com.example.obs-plugin-template` with a unique Bundle ID for macOS releases
-# (used both in the installer and when submitting the installer for notarization)
 set(MACOS_BUNDLEID "net.nagater.obs-color-monitor")
 set(ID_PREFIX "net.nagater.obs-color-monitor.")
 
-# Replace `me@contoso.com` with the maintainer email address you want to put in Linux packages
 set(LINUX_MAINTAINER_EMAIL "norihiro@nagater.net")
 
 option(ENABLE_PROFILE "Enable profiling to see calculation time" OFF)
-
-# TAKE NOTE: No need to edit things past this point
 
 set(CMAKE_PREFIX_PATH "${QTDIR}")
 set(CMAKE_AUTOMOC ON)
@@ -94,7 +84,6 @@ set(PLUGIN_HEADERS
 	src-obsstudio/qt-wrappers.hpp
 )
 
-# --- Platform-independent build settings ---
 add_library(${CMAKE_PROJECT_NAME} MODULE ${PLUGIN_SOURCES} ${PLUGIN_HEADERS})
 
 include_directories(
@@ -114,82 +103,13 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 	Qt5::GuiPrivate
 )
 
-# --- End of section ---
-
-# --- Windows-specific build settings and tasks ---
-if(WIN32)
+if(OS_WINDOWS)
 	# Enable Multicore Builds and disable FH4 (to not depend on VCRUNTIME140_1.DLL when building with VS2019)
 	if (MSVC)
 		add_definitions(/MP /d2FH4-)
 	endif()
 
 	target_link_libraries(${CMAKE_PROJECT_NAME} OBS::w32-pthreads)
-
-	if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-		set(ARCH_NAME "64bit")
-		set(OBS_BUILDDIR_ARCH "build64")
-	else()
-		set(ARCH_NAME "32bit")
-		set(OBS_BUILDDIR_ARCH "build32")
-	endif()
-
-
-	# --- Release package helper ---
-	# The "release" folder has a structure similar OBS' one on Windows
-	set(RELEASE_DIR "${PROJECT_SOURCE_DIR}/release")
-
-    add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
-        # If config is Release or RelWithDebInfo, package release files
-        COMMAND if $<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>==1 (
-            "${CMAKE_COMMAND}" -E make_directory
-                "${RELEASE_DIR}/data/obs-plugins/${CMAKE_PROJECT_NAME}"
-                "${RELEASE_DIR}/obs-plugins/${ARCH_NAME}"
-        )
-
-        COMMAND if $<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>==1 (
-            "${CMAKE_COMMAND}" -E copy_directory
-                "${PROJECT_SOURCE_DIR}/data"
-                "${RELEASE_DIR}/data/obs-plugins/${CMAKE_PROJECT_NAME}"
-        )
-
-        COMMAND if $<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>==1 (
-            "${CMAKE_COMMAND}" -E copy
-                "$<TARGET_FILE:${CMAKE_PROJECT_NAME}>"
-                "${RELEASE_DIR}/obs-plugins/${ARCH_NAME}"
-        )
-
-        # If config is RelWithDebInfo, copy the pdb file
-        COMMAND if $<CONFIG:RelWithDebInfo>==1 (
-            "${CMAKE_COMMAND}" -E copy
-                "$<TARGET_PDB_FILE:${CMAKE_PROJECT_NAME}>"
-                "${RELEASE_DIR}/obs-plugins/${ARCH_NAME}"
-        )
-
-        # Copy to obs-studio dev environment for immediate testing
-        COMMAND if $<CONFIG:Debug>==1 (
-            "${CMAKE_COMMAND}" -E copy
-                "$<TARGET_FILE:${CMAKE_PROJECT_NAME}>"
-                "${LIBOBS_INCLUDE_DIR}/../${OBS_BUILDDIR_ARCH}/rundir/$<CONFIG>/obs-plugins/${ARCH_NAME}"
-        )
-
-        COMMAND if $<CONFIG:Debug>==1 (
-            "${CMAKE_COMMAND}" -E copy
-                "$<TARGET_PDB_FILE:${CMAKE_PROJECT_NAME}>"
-                "${LIBOBS_INCLUDE_DIR}/../${OBS_BUILDDIR_ARCH}/rundir/$<CONFIG>/obs-plugins/${ARCH_NAME}"
-        )
-
-        COMMAND if $<CONFIG:Debug>==1 (
-            "${CMAKE_COMMAND}" -E make_directory
-                "${LIBOBS_INCLUDE_DIR}/../${OBS_BUILDDIR_ARCH}/rundir/$<CONFIG>/data/obs-plugins/${CMAKE_PROJECT_NAME}"
-        )
-
-        COMMAND if $<CONFIG:Debug>==1 (
-            "${CMAKE_COMMAND}" -E copy_directory
-                "${PROJECT_SOURCE_DIR}/data"
-                "${LIBOBS_INCLUDE_DIR}/../${OBS_BUILDDIR_ARCH}/rundir/$<CONFIG>/data/obs-plugins/${CMAKE_PROJECT_NAME}"
-        )
-    )
-
 endif()
 
 if(OS_LINUX)

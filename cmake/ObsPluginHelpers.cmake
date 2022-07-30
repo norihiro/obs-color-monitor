@@ -82,7 +82,7 @@ if(OS_MACOS)
 	set(CMAKE_OSX_ARCHITECTURES "x86_64" CACHE STRING "OBS build architecture for macOS - x86_64 required at least")
 	set_property(CACHE CMAKE_OSX_ARCHITECTURES PROPERTY STRINGS x86_64 arm64 "x86_64;arm64")
 
-	set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "OBS deployment target for macOS - 10.15+ required")
+	set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "OBS deployment target for macOS - 10.13+ required")
 	set_property(CACHE CMAKE_OSX_DEPLOYMENT_TARGET PROPERTY STRINGS 10.15 11 12)
 
 	set(OBS_BUNDLE_CODESIGN_IDENTITY "-" CACHE STRING "OBS code signing identity for macOS")
@@ -247,10 +247,6 @@ else()
 
 		setup_target_resources(${target} obs-plugins/${target})
 
-		if(OS_WINDOWS AND DEFINED OBS_BUILD_DIR)
-			setup_target_for_testing(${target} obs-plugins/${target})
-		endif()
-
 		add_custom_command(
 			TARGET ${target}
 			POST_BUILD
@@ -279,39 +275,4 @@ else()
 				EXCLUDE_FROM_ALL)
 		endif()
 	endfunction()
-
-	if(OS_WINDOWS)
-		function(setup_target_for_testing target destination)
-			install(
-				FILES $<TARGET_FILE:${target}>
-				DESTINATION $<CONFIG>/${OBS_PLUGIN_DESTINATION}
-				COMPONENT obs_testing
-				EXCLUDE_FROM_ALL)
-
-			install(
-				FILES $<TARGET_PDB_FILE:${target}>
-				CONFIGURATIONS "RelWithDebInfo" "Debug"
-				DESTINATION $<CONFIG>/${OBS_PLUGIN_DESTINATION}
-				COMPONENT obs_testing
-				OPTIONAL EXCLUDE_FROM_ALL)
-
-			install(
-				DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/data/
-				DESTINATION $<CONFIG>/${OBS_DATA_DESTINATION}/${destination}
-				USE_SOURCE_PERMISSIONS
-				COMPONENT obs_testing
-				EXCLUDE_FROM_ALL)
-
-			add_custom_command(
-				TARGET ${target}
-				POST_BUILD
-				COMMAND
-				"${CMAKE_COMMAND}" -DCMAKE_INSTALL_PREFIX=${OBS_BUILD_DIR}/rundir
-				-DCMAKE_INSTALL_COMPONENT=obs_testing
-				-DCMAKE_INSTALL_CONFIG_NAME=$<CONFIG> -P
-				${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
-				COMMENT "Installing to OBS test directory"
-				VERBATIM)
-		endfunction()
-	endif()
 endif()
