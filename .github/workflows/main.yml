@@ -18,6 +18,7 @@ jobs:
   linux_build:
     runs-on: ${{ matrix.ubuntu }}
     strategy:
+      fail-fast: false
       matrix:
         obs: [27, 28]
         ubuntu: ['ubuntu-20.04', 'ubuntu-22.04']
