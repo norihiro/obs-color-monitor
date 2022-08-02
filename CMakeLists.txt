@@ -88,19 +88,15 @@ add_library(${CMAKE_PROJECT_NAME} MODULE ${PLUGIN_SOURCES} ${PLUGIN_HEADERS})
 
 include_directories(
 	src-obsstudio/
-	${Qt5Core_INCLUDES}
-	${Qt5Widgets_INCLUDES}
-	${Qt5Gui_INCLUDES}
-	${Qt5Gui_PRIVATE_INCLUDE_DIRS}
 )
 
 target_link_libraries(${CMAKE_PROJECT_NAME}
 	OBS::libobs
 	OBS::obs-frontend-api
-	Qt5::Core
-	Qt5::Widgets
-	Qt5::Gui
-	Qt5::GuiPrivate
+	Qt::Core
+	Qt::Widgets
+	Qt::Gui
+	Qt::GuiPrivate
 )
 
 if(OS_WINDOWS)
