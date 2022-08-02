@@ -96,8 +96,13 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 	Qt::Core
 	Qt::Widgets
 	Qt::Gui
-	Qt::GuiPrivate
 )
+
+if(${QT_VERSION} EQUAL 5)
+	target_link_libraries(${CMAKE_PROJECT_NAME} Qt5::GuiPrivate)
+elseif(${QT_VERSION} EQUAL 6)
+	target_link_libraries(${CMAKE_PROJECT_NAME} Qt6::GuiPrivate)
+endif()
 
 if(OS_WINDOWS)
 	# Enable Multicore Builds and disable FH4 (to not depend on VCRUNTIME140_1.DLL when building with VS2019)
