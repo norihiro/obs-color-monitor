@@ -202,8 +202,6 @@ OBSEventFilter *ScopeWidget::BuildEventFilter()
 			return this->HandleMouseClickEvent(
 				static_cast<QMouseEvent *>(event));
 		case QEvent::MouseMove:
-		case QEvent::Enter:
-		case QEvent::Leave:
 			return this->HandleMouseMoveEvent(
 				static_cast<QMouseEvent *>(event));
 
