@@ -48,7 +48,7 @@ jobs:
             -D CMAKE_INSTALL_PREFIX=/usr \
             -D CMAKE_BUILD_TYPE=RelWithDebInfo \
             -D LINUX_PORTABLE=OFF -D CMAKE_INSTALL_LIBDIR=/usr/lib/ \
-            -D PKG_SUFFIX=-${{ matrix.ubuntu }}-x86_64
+            -D PKG_SUFFIX=-obs${{ matrix.obs }}-${{ matrix.ubuntu }}-x86_64
           make -j4
           make package
           echo "FILE_NAME=$(find $PWD -name '*.deb' | head -n 1)" >> $GITHUB_ENV
@@ -137,6 +137,8 @@ jobs:
           deps=/tmp/deps-${{ matrix.obs }}-${{ matrix.arch }}
           MACOSX_DEPLOYMENT_TARGET=${{ steps.obsdeps.outputs.MACOSX_DEPLOYMENT_TARGET }}
           OBS_QT_VERSION_MAJOR=${{ steps.obsdeps.outputs.OBS_QT_VERSION_MAJOR }}
+          GIT_TAG=$(git describe --tags --always)
+          PKG_SUFFIX=-${GIT_TAG}-obs${{ matrix.obs }}-macos-${{ matrix.arch }}
           set -e
           cmake -S . -B build -G Ninja \
             -D QT_VERSION=$OBS_QT_VERSION_MAJOR \
@@ -144,7 +146,8 @@ jobs:
             -DCMAKE_PREFIX_PATH="$PWD/release/" \
             -DCMAKE_OSX_ARCHITECTURES=$arch \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
-            -DCMAKE_FRAMEWORK_PATH="$deps/Frameworks;$deps/lib/cmake;$deps"
+            -DCMAKE_FRAMEWORK_PATH="$deps/Frameworks;$deps/lib/cmake;$deps" \
+            -D PKG_SUFFIX=$PKG_SUFFIX
           cmake --build build --config RelWithDebInfo
 
       - name: Prepare package
@@ -167,7 +170,8 @@ jobs:
         run: |
           . ci/ci_includes.generated.sh
           GIT_TAG=$(git describe --tags --always)
-          zipfile=$PWD/package/${PLUGIN_NAME}-${GIT_TAG}-macos.zip
+          PKG_SUFFIX=-${GIT_TAG}-obs${{ matrix.obs }}-macos-${{ matrix.arch }}
+          zipfile=$PWD/package/${PLUGIN_NAME}${PKG_SUFFIX}.zip
           mkdir package
           (cd release/ && zip -r $zipfile $PLUGIN_NAME)
           ci/macos/install-packagesbuild.sh
@@ -178,10 +182,13 @@ jobs:
       - name: Productsign
         if: ${{ github.event_name != 'pull_request' && steps.setup.outputs.haveCodesignIdent == 'true' }}
         run: |
+          GIT_TAG=$(git describe --tags --always)
+          PKG_SUFFIX=-${GIT_TAG}-obs${{ matrix.obs }}-macos-${{ matrix.arch }}
+          pkgfile=package/${PLUGIN_NAME}${PKG_SUFFIX}.pkg
           set -e
           . ci/ci_includes.generated.sh
-          productsign --sign "${{ secrets.MACOS_SIGNING_INSTALLER_IDENTITY }}" package/${PLUGIN_NAME}.pkg package/${PLUGIN_NAME}-signed.pkg
-          mv package/${PLUGIN_NAME}-signed.pkg package/${PLUGIN_NAME}.pkg
+          productsign --sign "${{ secrets.MACOS_SIGNING_INSTALLER_IDENTITY }}" $pkgfile package/${PLUGIN_NAME}-signed.pkg
+          mv package/${PLUGIN_NAME}-signed.pkg $pkgfile
 
       - name: Notarize
         if: ${{ github.event_name != 'pull_request' && steps.setup.outputs.haveCodesignIdent == 'true' }}
@@ -232,7 +239,7 @@ jobs:
           cmake --build build --config RelWithDebInfo -j 4
           cmake --install build --config RelWithDebInfo --prefix "$(Resolve-Path -Path .)/release"
       - name: Package plugin
-        run: ci/windows/package-windows.cmd
+        run: ci/windows/package-windows.cmd ${{ matrix.obs }}
       - name: Upload build artifact
         uses: actions/upload-artifact@v3
         with:
