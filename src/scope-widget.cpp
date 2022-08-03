@@ -202,8 +202,6 @@ OBSEventFilter *ScopeWidget::BuildEventFilter()
 			return this->HandleMouseClickEvent(
 				static_cast<QMouseEvent *>(event));
 		case QEvent::MouseMove:
-		case QEvent::Enter:
-		case QEvent::Leave:
 			return this->HandleMouseMoveEvent(
 				static_cast<QMouseEvent *>(event));
 
@@ -255,7 +253,7 @@ void ScopeWidget::resizeEvent(QResizeEvent *event)
 	obs_display_resize(data->disp, size.width(), size.height());
 }
 
-void ScopeWidget::paintEvent(QPaintEvent *event)
+void ScopeWidget::paintEvent(QPaintEvent *)
 {
 	CreateDisplay();
 }
@@ -265,7 +263,7 @@ class QPaintEngine *ScopeWidget::paintEngine() const
 	return NULL;
 }
 
-void ScopeWidget::closeEvent(QCloseEvent *event)
+void ScopeWidget::closeEvent(QCloseEvent *)
 {
 	setShown(false);
 }
@@ -382,7 +380,13 @@ bool ScopeWidget::HandleMouseClickEvent(QMouseEvent *event)
 		return false;
 	}
 
-	obs_source_t *src = get_source_from_mouse(data, event->x(), event->y(), &mouseEvent);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+	QPointF qtPos = event->position() * devicePixelRatio();
+#else
+	QPointF qtPos = event->localPos();
+#endif
+
+	obs_source_t *src = get_source_from_mouse(data, qtPos.x(), qtPos.y(), &mouseEvent);
 	mouseEvent.modifiers &= ~INTERACT_KEEP_SOURCE;
 
 	if (src)
@@ -400,14 +404,18 @@ bool ScopeWidget::HandleMouseMoveEvent(QMouseEvent *event)
 	if (!mouseLeave)
 		mouseEvent.modifiers = TranslateQtMouseEventModifiers(event);
 
-	int x = event->x();
-	int y = event->y();
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+	QPointF qtPos = event->position() * devicePixelRatio();
+#else
+	QPointF qtPos = event->localPos();
+#endif
+
 	mouseEvent.modifiers |= INTERACT_KEEP_SOURCE;
-	obs_source_t *src0 = get_source_from_mouse(data, x, y, &mouseEvent);
+	obs_source_t *src0 = get_source_from_mouse(data, qtPos.x(), qtPos.y(), &mouseEvent);
 	mouseEvent.modifiers &= ~INTERACT_KEEP_SOURCE;
 
 	struct obs_mouse_event mouseEvent1 = mouseEvent;
-	obs_source_t *src1 = get_source_from_mouse(data, x, y, &mouseEvent1);
+	obs_source_t *src1 = get_source_from_mouse(data, qtPos.x(), qtPos.y(), &mouseEvent1);
 
 	if (src0 && src0!=src1)
 		obs_source_send_mouse_move(src0, &mouseEvent, true);
@@ -440,7 +448,11 @@ bool ScopeWidget::HandleMouseWheelEvent(QWheelEvent *event)
 			yDelta = angleDelta.y();
 	}
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+	QPointF qtPos = event->position() * devicePixelRatio();
+	const int x = qtPos.x();
+	const int y = qtPos.y();
+#elif QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
 	const QPointF position = event->position();
 	const int x = position.x();
 	const int y = position.y();
@@ -456,25 +468,13 @@ bool ScopeWidget::HandleMouseWheelEvent(QWheelEvent *event)
 	return true;
 }
 
-bool ScopeWidget::HandleKeyEvent(QKeyEvent *event)
+bool ScopeWidget::HandleKeyEvent(QKeyEvent *)
 {
-	struct obs_key_event keyEvent;
-
-	QByteArray text = event->text().toUtf8();
-	keyEvent.modifiers = TranslateQtKeyboardEventModifiers(event, false);
-	keyEvent.text = text.data();
-	keyEvent.native_modifiers = event->nativeModifiers();
-	keyEvent.native_scancode = event->nativeScanCode();
-	keyEvent.native_vkey = event->nativeVirtualKey();
-
-	bool keyUp = event->type() == QEvent::KeyRelease;
-
-	// TODO: implement me obs_source_send_key_click(source, &keyEvent, keyUp);
-
+	// Implement if necessary
 	return true;
 }
 
-bool ScopeWidget::openMenu(QMouseEvent *event)
+bool ScopeWidget::openMenu(QMouseEvent *)
 {
 	QMenu popup(this);
 	QAction *act;
