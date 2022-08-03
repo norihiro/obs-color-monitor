@@ -181,10 +181,6 @@ else()
 				"${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}${PKG_SUFFIX}")
 
 			set(CPACK_GENERATOR "DEB")
-			# TODO: revise these dependencies
-			set(CPACK_DEBIAN_PACKAGE_DEPENDS
-				"obs-studio (>= 27.0.0), libqt5core5a (>= 5.9.0~beta), libqt5gui5 (>= 5.3.0), libqt5widgets5 (>= 5.7.0)"
-				)
 
 			if(NOT LINUX_PORTABLE)
 				set(CPACK_SET_DESTDIR ON)
@@ -247,16 +243,18 @@ else()
 
 		setup_target_resources(${target} obs-plugins/${target})
 
-		add_custom_command(
-			TARGET ${target}
-			POST_BUILD
-			COMMAND
-			"${CMAKE_COMMAND}" -DCMAKE_INSTALL_PREFIX=${OBS_OUTPUT_DIR}
-			-DCMAKE_INSTALL_COMPONENT=obs_rundir
-			-DCMAKE_INSTALL_CONFIG_NAME=$<CONFIG> -P
-			${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
-			COMMENT "Installing to plugin rundir"
-			VERBATIM)
+		if(OS_WINDOWS)
+			add_custom_command(
+				TARGET ${target}
+				POST_BUILD
+				COMMAND
+				"${CMAKE_COMMAND}" -DCMAKE_INSTALL_PREFIX=${OBS_OUTPUT_DIR}
+				-DCMAKE_INSTALL_COMPONENT=obs_rundir
+				-DCMAKE_INSTALL_CONFIG_NAME=$<CONFIG> -P
+				${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
+				COMMENT "Installing to plugin rundir"
+				VERBATIM)
+		endif()
 	endfunction()
 
 	function(setup_target_resources target destination)

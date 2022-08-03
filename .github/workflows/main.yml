@@ -56,6 +56,17 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           path: '${{ env.FILE_NAME }}'
+      - name: Check package
+        run: |
+          . ci/ci_includes.generated.sh
+          set -ex
+          sudo apt install '${{ env.FILE_NAME }}'
+          ldd /usr/lib/obs-plugins/${PLUGIN_NAME}.so > ldd.out
+          if grep not.found ldd.out ; then
+            echo "Error: unresolved shared object." >&2
+            exit 1
+          fi
+          ls /usr/share/obs/obs-plugins/${PLUGIN_NAME}/
 
   macos_build:
     runs-on: macos-12
