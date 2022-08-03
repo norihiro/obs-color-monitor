@@ -253,7 +253,7 @@ void ScopeWidget::resizeEvent(QResizeEvent *event)
 	obs_display_resize(data->disp, size.width(), size.height());
 }
 
-void ScopeWidget::paintEvent(QPaintEvent *event)
+void ScopeWidget::paintEvent(QPaintEvent *)
 {
 	CreateDisplay();
 }
@@ -263,7 +263,7 @@ class QPaintEngine *ScopeWidget::paintEngine() const
 	return NULL;
 }
 
-void ScopeWidget::closeEvent(QCloseEvent *event)
+void ScopeWidget::closeEvent(QCloseEvent *)
 {
 	setShown(false);
 }
@@ -454,25 +454,13 @@ bool ScopeWidget::HandleMouseWheelEvent(QWheelEvent *event)
 	return true;
 }
 
-bool ScopeWidget::HandleKeyEvent(QKeyEvent *event)
+bool ScopeWidget::HandleKeyEvent(QKeyEvent *)
 {
-	struct obs_key_event keyEvent;
-
-	QByteArray text = event->text().toUtf8();
-	keyEvent.modifiers = TranslateQtKeyboardEventModifiers(event, false);
-	keyEvent.text = text.data();
-	keyEvent.native_modifiers = event->nativeModifiers();
-	keyEvent.native_scancode = event->nativeScanCode();
-	keyEvent.native_vkey = event->nativeVirtualKey();
-
-	bool keyUp = event->type() == QEvent::KeyRelease;
-
-	// TODO: implement me obs_source_send_key_click(source, &keyEvent, keyUp);
-
+	// Implement if necessary
 	return true;
 }
 
-bool ScopeWidget::openMenu(QMouseEvent *event)
+bool ScopeWidget::openMenu(QMouseEvent *)
 {
 	QMenu popup(this);
 	QAction *act;

@@ -206,9 +206,9 @@ static inline void vss_draw_vectorscope(struct vss_source *src, uint8_t *video_d
 	for (uint32_t y=0; y<height; y++) {
 		for (uint32_t x=0; x<width; x++) {
 			const uint8_t u = *vd++;
-			const uint8_t b = *vd++;
+			/*            b */ vd++;
 			const uint8_t v = *vd++;
-			const uint8_t a = *vd++;
+			/*            a */ vd++;
 			uint8_t *c = dbuf + (u + VS_SIZE*(255-v));
 			if (*c<255) ++*c;
 		}
@@ -355,12 +355,13 @@ static void vss_render(void *data, gs_effect_t *effect)
 
 	const bool b_zoom = src->zoom > 1.01f;
 	if (b_zoom) {
-		float offset = 127.5f * (1.0f - src->zoom);
+		float zoom = src->zoom;
+		float ofst = 127.5f * (1.0f - zoom);
 		struct matrix4 tr = {
-			{ src->zoom, 0.0f, 0.0f, 0.0f },
-			{ 0.0f, src->zoom, 0.0f, 0.0f },
-			{ 0.0f, 0.0f, 1.0f, 0.0f },
-			{ offset, offset, 0.0f, 1.0f, } // TODO: add offset here
+			{.ptr={ zoom, 0.0f, 0.0f, 0.0f }},
+			{.ptr={ 0.0f, zoom, 0.0f, 0.0f }},
+			{.ptr={ 0.0f, 0.0f, 1.0f, 0.0f }},
+			{.ptr={ ofst, ofst, 0.0f, 1.0f, }}
 		};
 		gs_matrix_push();
 		gs_matrix_mul(&tr);
@@ -405,6 +406,8 @@ static void vss_render(void *data, gs_effect_t *effect)
 
 void vss_mouse_wheel(void *data, const struct obs_mouse_event *event, int x_delta, int y_delta)
 {
+	UNUSED_PARAMETER(event);
+	UNUSED_PARAMETER(x_delta);
 	struct vss_source *src = data;
 
 	src->zoom *= expf(y_delta * 5e-4f);
