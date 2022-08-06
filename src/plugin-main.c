@@ -52,6 +52,12 @@ bool obs_module_load(void)
 	obs_register_source(&colormonitor_falsecolor);
 	obs_register_source(&colormonitor_falsecolor_filter);
 	obs_register_source(&colormonitor_roi);
+
+	if (!obs_get_latest_input_type_id(colormonitor_roi.id)) {
+		blog(LOG_ERROR, "failed to load source '%s'", colormonitor_roi.id);
+		return false;
+	}
+
 	scope_docks_init();
 	blog(LOG_INFO, "plugin loaded successfully (plugin version %s, API version %d.%d.%d)",
 			PLUGIN_VERSION, LIBOBS_API_MAJOR_VER, LIBOBS_API_MINOR_VER, LIBOBS_API_PATCH_VER);

@@ -54,6 +54,10 @@ struct scope_widget_s
 static obs_source_t *create_scope_source_roi(const char *id, obs_data_t *settings, const char *name)
 {
 	const char *v_id = obs_get_latest_input_type_id(id);
+	if (!v_id) {
+		blog(LOG_ERROR, "create_scope_source(id=%s): obs_get_latest_input_type_id failed", id);
+		return NULL;
+	}
 	obs_source_t *src = obs_source_create(v_id, name, settings, NULL);
 
 	return src;
