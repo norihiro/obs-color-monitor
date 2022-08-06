@@ -51,6 +51,7 @@ jobs:
             -D CMAKE_INSTALL_PREFIX=/usr \
             -D CMAKE_BUILD_TYPE=RelWithDebInfo \
             -D LINUX_PORTABLE=OFF -D CMAKE_INSTALL_LIBDIR=/usr/lib/ \
+            -D CPACK_DEBIAN_PACKAGE_SHLIBDEPS=ON \
             -D PKG_SUFFIX=-obs${{ matrix.obs }}-${{ matrix.ubuntu }}-x86_64
           make -j4
           make package
