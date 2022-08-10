@@ -65,26 +65,7 @@ set(PLUGIN_SOURCES
 	src-obsstudio/qt-wrappers.cpp
 )
 
-set(PLUGIN_HEADERS
-	src/plugin-macros.generated.h
-	src/roi.h
-	src/common.h
-	src/obs-convenience.h
-	src/scope-dock.hpp
-	src/scope-dock-new-dialog.hpp
-	src/scope-widget.hpp
-	src/obsgui-helper.hpp
-	src/scope-widget-properties.hpp
-	src-obsstudio/properties-view.hpp
-	src-obsstudio/vertical-scroll-area.hpp
-	src-obsstudio/combobox-ignorewheel.hpp
-	src-obsstudio/spinbox-ignorewheel.hpp
-	src-obsstudio/double-slider.hpp
-	src-obsstudio/slider-ignorewheel.hpp
-	src-obsstudio/qt-wrappers.hpp
-)
-
-add_library(${CMAKE_PROJECT_NAME} MODULE ${PLUGIN_SOURCES} ${PLUGIN_HEADERS})
+add_library(${CMAKE_PROJECT_NAME} MODULE ${PLUGIN_SOURCES})
 
 include_directories(
 	src-obsstudio/
