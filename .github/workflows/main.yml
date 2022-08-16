@@ -43,6 +43,7 @@ jobs:
 
       - name: Build plugin
         run: |
+          set -ex
           OBS_QT_VERSION_MAJOR=${{ steps.obsdeps.outputs.OBS_QT_VERSION_MAJOR }}
           mkdir build
           cd build
@@ -158,9 +159,10 @@ jobs:
 
       - name: Prepare package
         run: |
+          set -ex
           . ci/ci_includes.generated.sh
           cmake --install build --config RelWithDebInfo --prefix=release
-          ci/macos/change-rpath.sh -obs ${{ matrix.obs }} release/${PLUGIN_NAME}/bin/${PLUGIN_NAME}.so
+          (cd release/${PLUGIN_NAME} && ../../ci/macos/change-rpath.sh -obs ${{ matrix.obs }} -lib lib/ bin/${PLUGIN_NAME}.so)
           cp LICENSE release/${PLUGIN_NAME}/data/LICENSE-$PLUGIN_NAME
 
       - name: Codesign
