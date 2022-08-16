@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-project(obs-color-monitor VERSION 0.3.2)
+project(obs-color-monitor VERSION 0.4.1)
 
 set(PLUGIN_AUTHOR "Norihiro Kamae")
 
