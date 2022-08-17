@@ -201,7 +201,7 @@ jobs:
               cp LICENSE release/${PLUGIN_NAME}/data/LICENSE-$PLUGIN_NAME
               ;;
             28)
-              (cd release/${PLUGIN_NAME}.plugin/Contents && ../../../ci/macos/change-rpath.sh -obs 28 -lib lib/ bin/${PLUGIN_NAME})
+              (cd release/${PLUGIN_NAME}.plugin/Contents && ../../../ci/macos/change-rpath.sh -obs 28 -lib lib/ MacOS/${PLUGIN_NAME})
               cp LICENSE release/${PLUGIN_NAME}.plugin/Contents/Resources/LICENSE-$PLUGIN_NAME
               ;;
           esac
@@ -210,18 +210,26 @@ jobs:
         if: ${{ github.event_name != 'pull_request' && steps.setup.outputs.haveCodesignIdent == 'true' }}
         run: |
           . ci/ci_includes.generated.sh
-          set -ex
-          files=($(ls release/${PLUGIN_NAME}/*/*.dylib || :))
+          set -e
           case ${{ matrix.obs }} in
             27)
-              files=(release/${PLUGIN_NAME}/bin/${PLUGIN_NAME}.so "${files[@]}")
+              files=(
+                $(find release/${PLUGIN_NAME}/ -name '*.dylib')
+                release/${PLUGIN_NAME}/bin/${PLUGIN_NAME}.so
+              )
               ;;
             28)
-              files=(release/${PLUGIN_NAME}.plugin/Contents/MacOS/${PLUGIN_NAME} "${files[@]}")
+              files=(
+                $(find release/${PLUGIN_NAME}.plugin/ -name '*.dylib')
+                release/${PLUGIN_NAME}.plugin/Contents/MacOS/${PLUGIN_NAME}
+              )
               ;;
           esac
           for dylib in "${files[@]}"; do
-            codesign --sign "${{ secrets.MACOS_SIGNING_APPLICATION_IDENTITY }}" "$dylib"
+            codesign --force --sign "${{ secrets.MACOS_SIGNING_APPLICATION_IDENTITY }}" "$dylib"
+          done
+          for dylib in "${files[@]}"; do
+            codesign -vvv --deep --strict "$dylib"
           done
 
       - name: Package
