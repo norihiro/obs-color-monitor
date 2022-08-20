@@ -97,8 +97,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        obs: [27, 28]
-        arch: [x86_64, arm64]
+        include:
+          - obs: 27
+            arch: x86_64
+          - obs: 28
+            arch: universal
     defaults:
       run:
         shell: bash
@@ -179,7 +182,7 @@ jobs:
             -D QT_VERSION=$OBS_QT_VERSION_MAJOR \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_PREFIX_PATH="$PWD/release/" \
-            -DCMAKE_OSX_ARCHITECTURES=$arch \
+            -DCMAKE_OSX_ARCHITECTURES=${arch/#universal/x86_64;arm64} \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
             -DCMAKE_FRAMEWORK_PATH="$deps/Frameworks;$deps/lib/cmake;$deps" \
             -D PKG_SUFFIX=$PKG_SUFFIX \
