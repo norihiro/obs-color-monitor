@@ -20,6 +20,6 @@
         "x": 416,
         "y": 180,
         "type": "link",
-        "path": "/Library/Application Support/obs-studio/plugins"
+        "path": "~/Library/Application Support/obs-studio/plugins"
     }]
 }
