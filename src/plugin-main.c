@@ -59,7 +59,7 @@ bool obs_module_load(void)
 	}
 
 	scope_docks_init();
-	blog(LOG_INFO, "plugin loaded successfully (plugin version %s, API version %d.%d.%d)",
+	blog(LOG_INFO, "plugin loaded (plugin version %s, API version %d.%d.%d)",
 			PLUGIN_VERSION, LIBOBS_API_MAJOR_VER, LIBOBS_API_MINOR_VER, LIBOBS_API_PATCH_VER);
 	return true;
 }
