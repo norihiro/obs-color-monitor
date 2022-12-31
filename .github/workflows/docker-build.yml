@@ -1,0 +1,51 @@
+name: Plugin Build on Docker
+
+on:
+  push:
+    paths-ignore:
+      - '**.md'
+    branches:
+      - main
+    tags:
+      - '*'
+  pull_request:
+    paths-ignore:
+      - '**.md'
+    branches:
+      - main
+
+env:
+  artifactName: ${{ contains(github.ref_name, '/') && 'docker-artifact' || github.ref_name }}
+
+jobs:
+  docker_build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - fedora36
+          - fedora37
+    defaults:
+      run:
+        shell: bash
+    env:
+      target: ${{ matrix.target }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Build environment
+        run: docker build -t obs-plugin-build/$target .github/containers/$target
+
+      - name: Build package
+        run: .github/containers/$target/build.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.artifactName }}
+          path: '${{ env.FILE_NAME }}'
