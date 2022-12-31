@@ -38,8 +38,31 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Restore docker from cache
+        id: docker-cache
+        uses: actions/cache/restore@v3
+        with:
+          path: ${{ github.workspace }}/docker-cache
+          key: docker-cache-${{ matrix.target }}-${{ hashFiles(format('.github/containers/{0}/Dockerfile', matrix.target)) }}
+
       - name: Build environment
-        run: docker build -t obs-plugin-build/$target .github/containers/$target
+        if: ${{ steps.docker-cache.outputs.cache-hit != 'true' }}
+        run: |
+          docker build -t obs-plugin-build/$target .github/containers/$target
+          mkdir -p docker-cache
+          docker save obs-plugin-build/$target | gzip > docker-cache/obs-plugin-build-$target.tar.gz
+
+      - name: Save docker to cache
+        uses: actions/cache/save@v3
+        if: ${{ steps.docker-cache.outputs.cache-hit != 'true' }}
+        with:
+          path: ${{ github.workspace }}/docker-cache
+          key: docker-cache-${{ matrix.target }}-${{ hashFiles(format('.github/containers/{0}/Dockerfile', matrix.target)) }}
+
+      - name: Extract cached environment
+        if: ${{ steps.docker-cache.outputs.cache-hit == 'true' }}
+        run: |
+          zcat docker-cache/obs-plugin-build-$target.tar.gz | docker load
 
       - name: Build package
         run: .github/containers/$target/build.sh
