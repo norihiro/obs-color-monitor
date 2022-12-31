@@ -15,7 +15,7 @@ on:
       - main
 
 env:
-  artifactName: ${{ contains(github.ref_name, '/') && 'docker-artifact' || github.ref_name }}
+  artifactName: ${{ contains(github.ref_name, '/') && 'docker-artifact' || github.ref_name }}-rpm
 
 jobs:
   docker_build:
