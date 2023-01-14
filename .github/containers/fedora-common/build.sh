@@ -6,6 +6,7 @@ docker_image="$1"
 rpmbuild="$2"
 
 PLUGIN_NAME=$(awk '/^project\(/{print gensub(/project\(([^ ()]*).*/, "\\1", 1, $0)}' CMakeLists.txt)
+OBS_VERSION=$(docker run $docker_image bash -c 'rpm -q --qf "%{version}" obs-studio')
 eval $(git describe --tag --always --long | awk '
 BEGIN {
 	VERSION="unknown";
@@ -34,6 +35,7 @@ sed \
 	-e "s/@PLUGIN_NAME@/$PLUGIN_NAME/g" \
 	-e "s/@VERSION@/$VERSION/g" \
 	-e "s/@RELEASE@/$RELEASE/g" \
+	-e "s/@OBS_VERSION@/$OBS_VERSION/g" \
 	< ci/plugin.spec \
 	> $rpmbuild/SPECS/$PLUGIN_NAME.spec
 
