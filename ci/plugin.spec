@@ -1,6 +1,6 @@
 Name: @PLUGIN_NAME@
 Version: @VERSION@
-Release: 1%{?dist}
+Release: @RELEASE@%{?dist}
 Summary: Color monitor plugin for OBS Studio
 License: GPLv2+
 

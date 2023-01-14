@@ -6,7 +6,22 @@ docker_image="$1"
 rpmbuild="$2"
 
 PLUGIN_NAME=$(awk '/^project\(/{print gensub(/project\(([^ ()]*).*/, "\\1", 1, $0)}' CMakeLists.txt)
-VERSION=$(git describe --tag --always | sed -e 's/-\(alpha\|beta\|rc\)/~\1/g' -e 's/-/./g')
+eval $(git describe --tag --always --long | awk '
+BEGIN {
+	VERSION="unknown";
+	RELEASE=0;
+}
+{
+	if (match($0, /^(.*)-([0-9]*)-g[0-9a-f]*$/, aa)) {
+		VERSION = aa[1]
+		RELEASE = aa[2]
+	}
+}
+END {
+	VERSION = gensub(/-(alpha|beta|rc)/, "~\\1", 1, VERSION);
+	gsub(/["'\''-]/, ".", VERSION);
+	printf("VERSION='\''%s'\'' RELEASE=%d\n", VERSION, RELEASE + 1);
+}')
 
 rm -rf $rpmbuild
 mkdir -p $rpmbuild/{BUILD,BUILDROOT,SRPMS,SOURCES,SPECS,RPMS}
@@ -18,6 +33,7 @@ test -x /usr/sbin/selinuxenabled && /usr/sbin/selinuxenabled && chcon -Rt contai
 sed \
 	-e "s/@PLUGIN_NAME@/$PLUGIN_NAME/g" \
 	-e "s/@VERSION@/$VERSION/g" \
+	-e "s/@RELEASE@/$RELEASE/g" \
 	< ci/plugin.spec \
 	> $rpmbuild/SPECS/$PLUGIN_NAME.spec
 
