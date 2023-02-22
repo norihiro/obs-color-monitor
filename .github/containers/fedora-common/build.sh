@@ -41,10 +41,9 @@ sed \
 
 git archive --format=tar --prefix=$PLUGIN_NAME-$VERSION/ HEAD | bzip2 > $rpmbuild/SOURCES/$PLUGIN_NAME-$VERSION.tar.bz2
 
-# FIXME: Remove a workaround QA_RPATHS, which avoid failure caused by the so file containing standard runpath.
 docker run -v $rpmbuild:/home/rpm/rpmbuild $docker_image bash -c "
 sudo dnf builddep -y ~/rpmbuild/SPECS/$PLUGIN_NAME.spec &&
 sudo chown 0.0 ~/rpmbuild/SOURCES/* &&
 sudo chown 0.0 ~/rpmbuild/SPECS/* &&
-QA_RPATHS=0x0001 rpmbuild -ba ~/rpmbuild/SPECS/$PLUGIN_NAME.spec
+rpmbuild -ba ~/rpmbuild/SPECS/$PLUGIN_NAME.spec
 "
