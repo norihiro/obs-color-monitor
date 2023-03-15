@@ -8,6 +8,7 @@ set(MACOS_BUNDLEID "net.nagater.obs-color-monitor")
 set(ID_PREFIX "net.nagater.obs-color-monitor.")
 set(MACOS_PACKAGE_UUID "0EA80C5E-945D-4A0A-A30D-593014BB5631")
 set(MACOS_INSTALLER_UUID "A5C3A087-9A85-4E45-B755-C7FBE53177A9")
+set(PLUGIN_URL "https://obsproject.com/forum/resources/color-monitor.1277/")
 
 set(LINUX_MAINTAINER_EMAIL "norihiro@nagater.net")
 
