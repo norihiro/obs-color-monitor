@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This plugin provides five sources to monitor color balances.
+This plugin provides these sources to monitor color balances.
 
 - [Vectorscope](doc/vectorscope.md)
 - [Waveform](doc/waveform.md)
