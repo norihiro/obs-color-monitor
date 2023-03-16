@@ -18,7 +18,7 @@ ScopeDockNewDialog::ScopeDockNewDialog(QMainWindow *parent)
 	int ix = 0;
 	mainLayout = new QGridLayout;
 
-	label = new QLabel(obs_module_text("Dock Title"));
+	label = new QLabel(obs_module_text("dock.dialog.title"));
 	editTitle = new QLineEdit();
 	editTitle->setText("Scope Dock");
 	mainLayout->addWidget(label, ix, 0, Qt::AlignRight);
@@ -31,7 +31,7 @@ ScopeDockNewDialog::ScopeDockNewDialog(QMainWindow *parent)
 	mainLayout->addWidget(label, ix, 0, 3, 1, Qt::AlignRight);
 	mainLayout->addWidget(radioProgram, ix++, 1, Qt::AlignLeft);
 	mainLayout->addWidget(radioPreview, ix++, 1, Qt::AlignLeft);
-	mainLayout->addWidget(new QLabel(obs_module_text("Other sources can be selected after creation")), ix++, 1, Qt::AlignLeft);
+	mainLayout->addWidget(new QLabel(obs_module_text("dock.dialog.note")), ix++, 1, Qt::AlignLeft);
 	// TODO: other sources
 
 	QDialogButtonBox *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);

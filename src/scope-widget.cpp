@@ -484,12 +484,12 @@ bool ScopeWidget::openMenu(QMouseEvent *)
 	QAction *act;
 
 	const char *menu_text[N_SRC] = {
-		obs_module_text("Show &ROI"),
-		obs_module_text("Show &Vectorscope"),
-		obs_module_text("Show &Waveform"),
-		obs_module_text("Show &Histogram"),
-		obs_module_text("Show &Zebra"),
-		obs_module_text("Show &False Color"),
+		obs_module_text("dock.menu.show.roi"),
+		obs_module_text("dock.menu.show.vectorscope"),
+		obs_module_text("dock.menu.show.waveform"),
+		obs_module_text("dock.menu.show.histogram"),
+		obs_module_text("dock.menu.show.zebra"),
+		obs_module_text("dock.menu.show.falsecolor"),
 	};
 
 	for (int i=0; i<N_SRC; i++) {
@@ -507,7 +507,7 @@ bool ScopeWidget::openMenu(QMouseEvent *)
 		popup.addAction(act);
 	}
 
-	act = new QAction(obs_module_text("Properties..."), this);
+	act = new QAction(obs_module_text("dock.menu.properties"), this);
 	connect(act, &QAction::triggered, this, &ScopeWidget::createProperties);
 	popup.addAction(act);
 
