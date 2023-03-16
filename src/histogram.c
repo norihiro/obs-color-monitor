@@ -273,11 +273,11 @@ static obs_properties_t *his_get_properties(void *data)
 	prop = obs_properties_add_list(props, "graticule_vertical_lines", obs_module_text("Histogram.Graticule.V"),
 			OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, obs_module_text("None"), 0);
-	obs_property_list_add_int(prop, "0%, 100%", 1);
-	obs_property_list_add_int(prop, "0%, 50%, 100%", 2);
-	obs_property_list_add_int(prop, "each 25%", 4);
-	obs_property_list_add_int(prop, "each 20%", 5);
-	obs_property_list_add_int(prop, "each 10%", 10);
+	obs_property_list_add_int(prop, obs_module_text("Graticule.Step.100"), 1);
+	obs_property_list_add_int(prop, obs_module_text("Graticule.Step.50"), 2);
+	obs_property_list_add_int(prop, obs_module_text("Graticule.Step.25"), 4);
+	obs_property_list_add_int(prop, obs_module_text("Graticule.Step.20"), 5);
+	obs_property_list_add_int(prop, obs_module_text("Graticule.Step.10"), 10);
 
 	prop = obs_properties_add_list(props, "graticule_horizontal_step_fixed",
 			obs_module_text("Histogram.Graticule.H"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_FLOAT);
