@@ -30,21 +30,21 @@ include(cmake/ObsPluginHelpers.cmake)
 find_qt(VERSION ${QT_VERSION} COMPONENTS Widgets Core Gui)
 
 configure_file(
-    src/plugin-macros.h.in
-    ../src/plugin-macros.generated.h
+	src/plugin-macros.h.in
+	plugin-macros.generated.h
 )
 configure_file(
-    installer/installer-Windows.iss.in
-    ../installer/installer-Windows.generated.iss
+	installer/installer-Windows.iss.in
+	installer-Windows.generated.iss
 )
 
 configure_file(
-    ci/ci_includes.sh.in
-    ../ci/ci_includes.generated.sh
+	ci/ci_includes.sh.in
+	ci/ci_includes.generated.sh
 )
 configure_file(
-    ci/ci_includes.cmd.in
-    ../ci/ci_includes.generated.cmd
+	ci/ci_includes.cmd.in
+	ci/ci_includes.generated.cmd
 )
 
 set(PLUGIN_SOURCES
@@ -75,10 +75,6 @@ set(PLUGIN_SOURCES
 
 add_library(${CMAKE_PROJECT_NAME} MODULE ${PLUGIN_SOURCES})
 
-include_directories(
-	src-obsstudio/
-)
-
 target_link_libraries(${CMAKE_PROJECT_NAME}
 	OBS::libobs
 	OBS::obs-frontend-api
@@ -86,6 +82,12 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 	Qt::Widgets
 	Qt::Gui
 	Qt::GuiPrivate
+)
+
+target_include_directories(${PROJECT_NAME}
+	PRIVATE
+	src-obsstudio/
+	${CMAKE_CURRENT_BINARY_DIR}
 )
 
 if(OS_WINDOWS)
