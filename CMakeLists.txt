@@ -13,6 +13,7 @@ set(PLUGIN_URL "https://obsproject.com/forum/resources/color-monitor.1277/")
 set(LINUX_MAINTAINER_EMAIL "norihiro@nagater.net")
 
 option(ENABLE_PROFILE "Enable profiling to see calculation time" OFF)
+option(SHOW_ROI "Show ROI source to users" OFF)
 
 set(CMAKE_PREFIX_PATH "${QTDIR}")
 set(CMAKE_AUTOMOC ON)
