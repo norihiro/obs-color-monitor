@@ -4,10 +4,6 @@
 /build32/
 /build64/
 /release/
-/installer/Output/
 
 .vscode
 .idea
-
-# ignore generated files
-*.generated.*
