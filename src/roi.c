@@ -5,6 +5,7 @@
 #include "plugin-macros.generated.h"
 #include "obs-convenience.h"
 #include "roi.h"
+#include "common.h"
 
 #define debug(format, ...)
 
@@ -12,14 +13,10 @@
 #define PROFILE_START(x) profile_start(x)
 #define PROFILE_END(x) profile_end(x)
 static const char *prof_render_name = "roi_render";
-static const char *prof_convert_yuv_name = "convert_yuv";
-static const char *prof_stage_surface_name = "stage_surface";
 #else // ENABLE_PROFILE
 #define PROFILE_START(x)
 #define PROFILE_END(x)
 #endif // ! ENABLE_PROFILE
-
-// #define ENABLE_ROI_USER // uncomment if you want to use or debug
 
 #define INTERACT_DRAW_ROI_RECT 1
 #define INTERACT_DRAG_FIRST 2
@@ -34,13 +31,16 @@ static const char *prof_stage_surface_name = "stage_surface";
 #define INTERACT_HANDLE_TI 0x200
 #define INTERACT_HANDLE_BI 0x800
 
+#define ROI_DEFAULT_CM_FLAG (CM_FLAG_ROI | CM_FLAG_RAW_TEXTURE)
+
+static void roi_update(void *, obs_data_t *);
+static void roi_surface_cb(void *data, struct cm_surface_data *surface_data);
+
 static const char *roi_get_name(void *unused)
 {
 	UNUSED_PARAMETER(unused);
 	return obs_module_text("ROI");
 }
-
-static void roi_update(void *, obs_data_t *);
 
 static void cb_get_roi(void *data, calldata_t *cd)
 {
@@ -51,13 +51,14 @@ static void *roi_create(obs_data_t *settings, obs_source_t *source)
 {
 	struct roi_source *src = bzalloc(sizeof(struct roi_source));
 
-	src->cm.flags = CM_FLAG_ROI;
+	src->cm.flags = ROI_DEFAULT_CM_FLAG;
 	cm_create(&src->cm, settings, source);
+	cm_request(&src->cm, roi_surface_cb, src);
 
-	src->x0 = -1;
-	src->x1 = -1;
-	src->y0 = -1;
-	src->y1 = -1;
+	src->cm.x0 = -1;
+	src->cm.x1 = -1;
+	src->cm.y0 = -1;
+	src->cm.y1 = -1;
 	src->x0in = -1;
 	src->x1in = -1;
 	src->y0in = -1;
@@ -75,6 +76,8 @@ static void roi_destroy(void *data)
 	struct roi_source *src = data;
 
 	cm_destroy(&src->cm);
+	da_free(src->sources);
+
 	bfree(src);
 }
 
@@ -103,16 +106,24 @@ static obs_properties_t *roi_get_properties(void *data)
 	return props;
 }
 
-static uint32_t roi_get_width(void *data)
+static inline uint32_t roi_get_width(const struct roi_source *src)
 {
-	struct roi_source *src = data;
-	return src->cm.known_width;
+	return src->cm.texrender_width;
 }
 
-static uint32_t roi_get_height(void *data)
+static inline uint32_t roi_get_height(const struct roi_source *src)
 {
-	struct roi_source *src = data;
-	return src->cm.known_height;
+	return src->cm.texrender_height;
+}
+
+static uint32_t roi_get_width_1(void *data)
+{
+	return roi_get_width(data);
+}
+
+static uint32_t roi_get_height_1(void *data)
+{
+	return roi_get_height(data);
 }
 
 static inline int min_int(int a, int b) { return a<b ? a : b; }
@@ -121,13 +132,17 @@ static inline void swap_int (int *a, int *b) { int c=*a; *a=*b; *b=c; }
 
 static inline int handle_size(const struct roi_source *src)
 {
-	const int wh_min = min_int(src->cm.known_width, src->cm.known_height);
+	uint32_t w = roi_get_width(src);
+	uint32_t h = roi_get_height(src);
+	const int wh_min = min_int(w, h);
 	return wh_min / 12;
 }
 
 static inline bool handle_is_outside_x(const struct roi_source *src, int x0, int x1, uint32_t flags)
 {
-	const int wh_min = min_int(src->cm.known_width, src->cm.known_height);
+	uint32_t w = roi_get_width(src);
+	uint32_t h = roi_get_height(src);
+	const int wh_min = min_int(w, h);
 	int size_th = wh_min / 3;
 	if (flags & (INTERACT_HANDLE_LO | INTERACT_HANDLE_RO))
 		return true;
@@ -140,7 +155,9 @@ static inline bool handle_is_outside_x(const struct roi_source *src, int x0, int
 
 static inline bool handle_is_outside_y(const struct roi_source *src, int x0, int x1, uint32_t flags)
 {
-	const int wh_min = min_int(src->cm.known_width, src->cm.known_height);
+	uint32_t w = roi_get_width(src);
+	uint32_t h = roi_get_height(src);
+	const int wh_min = min_int(w, h);
 	int size_th = wh_min / 3;
 	if (flags & (INTERACT_HANDLE_TO | INTERACT_HANDLE_BO))
 		return true;
@@ -169,7 +186,7 @@ static inline void draw_add_handle_y(int x0, int x1, int yh, int y, bool outside
 	}
 }
 
-static inline void draw_roi_rect(const struct roi_source *src, int x0, int y0, int x1, int y1, uint32_t flags)
+static inline void draw_roi_rect(struct roi_source *src, int x0, int y0, int x1, int y1, uint32_t flags)
 {
 	gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_SOLID);
 	gs_effect_set_color(gs_effect_get_param_by_name(effect, "color"), 0xFF00FF00);
@@ -207,8 +224,8 @@ static inline void draw_roi_range(const struct roi_source *src, float x0, float 
 	gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_SOLID);
 	gs_effect_set_color(gs_effect_get_param_by_name(effect, "color"), 0x80000000);
 	while (gs_effect_loop(effect, "Solid")) {
-		float w = (float)src->cm.known_width;
-		float h = (float)src->cm.known_height;
+		float w = (float)roi_get_width(src);
+		float h = (float)roi_get_height(src);
 		gs_render_start(false);
 		gs_vertex2f(x0, y1);
 		gs_vertex2f(0.0f, h);
@@ -224,119 +241,13 @@ static inline void draw_roi_range(const struct roi_source *src, float x0, float 
 	}
 }
 
-static inline gs_stagesurf_t *resize_stagesurface(gs_stagesurf_t *stagesurface, int width, int height)
-{
-	if (
-			!stagesurface ||
-			width != gs_stagesurface_get_width(stagesurface) ||
-			height != gs_stagesurface_get_height(stagesurface) ) {
-		gs_stagesurface_destroy(stagesurface);
-		stagesurface = gs_stagesurface_create(width, height, GS_BGRA);
-	}
-	return stagesurface;
-}
-
-static inline void set_roi_info(struct roi_surface_info_s *pos, struct roi_source *src)
-{
-	if (0 <= src->x0 && src->x0 <= src->x1 && src->x1 <= (int)src->cm.known_width) {
-		pos->x0 = src->x0;
-		pos->w = src->x1 - src->x0;
-	}
-	else {
-		pos->x0 = 0;
-		pos->w = src->cm.known_width;
-	}
-	if (0 <= src->y0 && src->y0 <= src->y1 && src->y1 <= (int)src->cm.known_height) {
-		pos->y0 = src->y0;
-		pos->h = src->y1 - src->y0;
-	}
-	else {
-		pos->y0 = 0;
-		pos->h = src->cm.known_height;
-	}
-}
-
-static void roi_stage_texture(struct roi_source *src)
-{
-	const bool b_rgb = src->b_rgb;
-	const bool b_yuv = src->b_yuv;
-
-	if (!b_rgb && !b_yuv)
-		return;
-
-	const int height0 = src->cm.known_height;
-	const int height = height0 * (b_rgb && b_yuv ? 2 : 1);
-	const int width = src->cm.known_width;
-
-	src->cm.stagesurface = resize_stagesurface(src->cm.stagesurface, width, height);
-
-	if (b_rgb && !b_yuv) {
-		PROFILE_START(prof_stage_surface_name);
-		gs_stage_texture(src->cm.stagesurface, gs_texrender_get_texture(src->cm.texrender));
-		PROFILE_END(prof_stage_surface_name);
-		set_roi_info(&src->roi_surface_pos_next, src);
-		src->roi_surface_pos_next.surface_height = height;
-		src->roi_surface_pos_next.b_rgb = src->b_rgb;
-		src->roi_surface_pos_next.b_yuv = src->b_yuv;
-		return;
-	}
-
-	gs_texrender_reset(src->cm.texrender_yuv);
-	if (!gs_texrender_begin(src->cm.texrender_yuv, width, height)) {
-		blog(LOG_ERROR, "colormonitor_roi: gs_texrender_begin failed %p %d %d", src->cm.texrender_yuv, width, height);
-		return;
-	}
-
-	struct vec4 background;
-	vec4_zero(&background);
-	gs_clear(GS_CLEAR_COLOR, &background, 0.0f, 0);
-	gs_blend_state_push();
-	gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
-	gs_ortho(0.0f, (float)width, 0.0f, (float)height, -100.0f, 100.0f);
-
-	if (b_rgb) {
-		gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
-		gs_texture_t *tex = gs_texrender_get_texture(src->cm.texrender);
-		if (tex) {
-			gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), tex);
-			while (gs_effect_loop(effect, "Draw"))
-				gs_draw_sprite(tex, 0, width, height0);
-		}
-
-		// YUV texture will be drawn on bottom
-		gs_matrix_translate3f(0.0f, (float)height0, 0.0f);
-	}
-
-	gs_texture_t *tex = gs_texrender_get_texture(src->cm.texrender);
-	if (src->cm.effect && tex) {
-		PROFILE_START(prof_convert_yuv_name);
-		gs_effect_set_texture(gs_effect_get_param_by_name(src->cm.effect, "image"), tex);
-		while (gs_effect_loop(src->cm.effect, src->cm.colorspace==1 ? "ConvertRGB_YUV601" : "ConvertRGB_YUV709"))
-			gs_draw_sprite(tex, 0, width, height0);
-		PROFILE_END(prof_convert_yuv_name);
-	}
-
-	gs_blend_state_pop();
-	gs_texrender_end(src->cm.texrender_yuv);
-
-	PROFILE_START(prof_stage_surface_name);
-	gs_stage_texture(src->cm.stagesurface, gs_texrender_get_texture(src->cm.texrender_yuv));
-	PROFILE_END(prof_stage_surface_name);
-	set_roi_info(&src->roi_surface_pos_next, src);
-	src->roi_surface_pos_next.surface_height = height;
-	src->roi_surface_pos_next.b_rgb = src->b_rgb;
-	src->roi_surface_pos_next.b_yuv = src->b_yuv;
-}
-
 bool roi_target_render(struct roi_source *src)
 {
 	src->interleave_rendered = true;
 	if (src->i_interleave!=0 && src->n_interleave>0)
 		return true;
 
-	bool updated = cm_render_target(&src->cm);
-	if (updated)
-		roi_stage_texture(src);
+	cm_render_target(&src->cm);
 
 	if (src->n_interleave<=0)
 		return true;
@@ -355,53 +266,56 @@ static void roi_render(void *data, gs_effect_t *effect)
 	gs_blend_state_push();
 	gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
 
-	effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
+	cm_render_target(&src->cm);
+
 	gs_texture_t *tex = gs_texrender_get_texture(src->cm.texrender);
-	if (effect && tex) {
+	if (tex) {
+		gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
 		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), tex);
 		while (gs_effect_loop(effect, "Draw")) {
-			gs_draw_sprite(tex, 0, src->cm.known_width, src->cm.known_height);
+			gs_draw_sprite(tex, 0, src->cm.texrender_width, src->cm.texrender_height);
 		}
 	}
 
-	draw_roi_range(src, (float)src->x0, (float)src->y0, (float)src->x1, (float)src->y1);
+	draw_roi_range(src, (float)src->cm.x0, (float)src->cm.y0, (float)src->cm.x1, (float)src->cm.y1);
 
 	uint32_t flags_interact = src->flags_interact_gs;
 	if (flags_interact & (INTERACT_DRAG_RESIZE | INTERACT_DRAG_FIRST))
 		draw_roi_rect(src, src->x0sizing, src->y0sizing, src->x1sizing, src->y1sizing, flags_interact);
 	else if (flags_interact & INTERACT_DRAW_ROI_RECT)
-		draw_roi_rect(src, src->x0, src->y0, src->x1, src->y1, flags_interact);
+		draw_roi_rect(src, src->cm.x0, src->cm.y0, src->cm.x1, src->cm.y1, flags_interact);
 
 	gs_blend_state_pop();
 
 	PROFILE_END(prof_render_name);
 }
 
-bool roi_stagesurface_map(struct roi_source *src, uint8_t **video_data, uint32_t *video_linesize, int ix)
+void roi_register_source(struct roi_source *src, struct cm_source *cm)
 {
-	if (ix && !src->roi_surface_pos.b_yuv) {
-		blog(LOG_INFO, "roi_stagesurface_map: YUV frame is not staged");
-		return false;
-	}
-	if (!ix && !src->roi_surface_pos.b_rgb) {
-		blog(LOG_INFO, "roi_stagesurface_map: RGB frame is not staged");
-		return false;
-	}
-	bool ret = gs_stagesurface_map(src->cm.stagesurface, video_data, video_linesize);
-	int x0 = src->roi_surface_pos.x0;
-	int y0 = src->roi_surface_pos.y0;
-	if (x0 > 0)
-		*video_data += 4 * x0;
-	if (y0 > 0)
-		*video_data += *video_linesize * y0;
-	if (ix && src->roi_surface_pos.b_rgb && src->roi_surface_pos.b_yuv)
-		*video_data += *video_linesize * src->cm.known_height;
-	return ret;
+	pthread_mutex_lock(&src->sources_mutex);
+	da_push_back(src->sources, &cm);
+	pthread_mutex_unlock(&src->sources_mutex);
 }
 
-void roi_stagesurface_unmap(struct roi_source *src)
+void roi_unregister_source(struct roi_source *src, struct cm_source *cm)
 {
-	gs_stagesurface_unmap(src->cm.stagesurface);
+	pthread_mutex_lock(&src->sources_mutex);
+	da_erase_item(src->sources, &cm);
+	pthread_mutex_unlock(&src->sources_mutex);
+}
+
+static void roi_surface_cb(void *data, struct cm_surface_data *surface_data)
+{
+	struct roi_source *src = data;
+
+	pthread_mutex_lock(&src->sources_mutex);
+	for (size_t i = 0; i < src->sources.num; i++) {
+		struct cm_source *cm = src->sources.array[i];
+		if (cm->callback) {
+			cm->callback(cm->callback_data, surface_data);
+		}
+	}
+	pthread_mutex_unlock(&src->sources_mutex);
 }
 
 static uint32_t handle_from_pos(struct roi_source *src, int x, int y)
@@ -503,6 +417,11 @@ static void roi_mouse_click(void *data, const struct obs_mouse_event *event, int
 {
 	struct roi_source *src = data;
 
+	UNUSED_PARAMETER(click_count);
+
+	if (type != MOUSE_LEFT)
+		return;
+
 	src->x_mouse = event->x;
 	src->y_mouse = event->y;
 
@@ -559,18 +478,24 @@ static void roi_mouse_click(void *data, const struct obs_mouse_event *event, int
 
 static void roi_send_range(struct roi_source *src)
 {
+	int w = (int)roi_get_width(src);
+	int h = (int)roi_get_height(src);
 	uint32_t flags_interact = src->flags_interact;
 	src->flags_interact_gs = flags_interact;
-	src->x0 = src->x0in;
-	src->y0 = src->y0in;
-	src->x1 = src->x1in;
-	src->y1 = src->y1in;
-	if (src->x0<0) src->x0 = 0;
-	if (src->x1<0 || (int)src->cm.known_width < src->x1)
-		src->x1 = src->cm.known_width;
-	if (src->y0<0) src->y0 = 0;
-	if (src->y1<0 || (int)src->cm.known_height < src->y1)
-		src->y1 = src->cm.known_height;
+	int x0 = src->x0in;
+	int y0 = src->y0in;
+	int x1 = src->x1in;
+	int y1 = src->y1in;
+	if (x0<0) x0 = 0;
+	if (x1<0 || w < x1)
+		x1 = w;
+	if (y0<0) y0 = 0;
+	if (y1<0 || h < y1)
+		y1 = h;
+	src->cm.x0 = x0;
+	src->cm.y0 = y0;
+	src->cm.y1 = y1;
+	src->cm.x1 = x1;
 
 	if (flags_interact & INTERACT_DRAG_FIRST) {
 		src->x0sizing = min_int(src->x_start, src->x_mouse);
@@ -605,20 +530,15 @@ static void roi_tick(void *data, float unused)
 	if (src->i_interleave==0 || src->n_interleave<=0)
 		cm_tick(data, unused);
 
-	src->b_rgb = src->n_rgb > 0;
-	src->b_yuv = (src->n_uv > 0 || src->n_y > 0);
-
-	if (src->n_rgb > 0)
-		src->n_rgb --;
-	if (src->n_uv > 0)
-		src->n_uv --;
-	if (src->n_y > 0)
-		src->n_y --;
+	src->cm.flags = ROI_DEFAULT_CM_FLAG;
+	pthread_mutex_lock(&src->sources_mutex);
+	for (size_t i = 0; i < src->sources.num; i++) {
+		struct cm_source *cm = src->sources.array[i];
+		src->cm.flags |= cm->flags & (CM_FLAG_CONVERT_RGB | CM_FLAG_CONVERT_YUV);
+	}
+	pthread_mutex_unlock(&src->sources_mutex);
 
 	roi_send_range(src);
-
-	if (src->n_interleave<=0 || src->i_interleave!=0)
-		src->roi_surface_pos = src->roi_surface_pos_next;
 }
 
 struct roi_source *roi_from_source(obs_source_t *s)
@@ -630,9 +550,10 @@ struct roi_source *roi_from_source(obs_source_t *s)
 	struct roi_source *ret = NULL;
 
 	calldata_t cd = {0};
+	uint8_t stack[128];
+	calldata_init_fixed(&cd, stack, sizeof(stack));
 	proc_handler_call(ph, "get_roi", &cd);
 	calldata_get_ptr(&cd, "roi", &ret);
-	calldata_free(&cd);
 
 	return ret;
 }
@@ -651,7 +572,7 @@ struct obs_source_info colormonitor_roi = {
 	.id = "colormonitor_roi",
 	.type = OBS_SOURCE_TYPE_INPUT,
 	.output_flags =
-#ifndef ENABLE_ROI_USER
+#ifndef SHOW_ROI
 		OBS_SOURCE_CAP_DISABLED |
 #endif
 		OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW | OBS_SOURCE_INTERACTION,
@@ -661,8 +582,8 @@ struct obs_source_info colormonitor_roi = {
 	.update = roi_update,
 	.get_defaults = roi_get_defaults,
 	.get_properties = roi_get_properties,
-	.get_width = roi_get_width,
-	.get_height = roi_get_height,
+	.get_width = roi_get_width_1,
+	.get_height = roi_get_height_1,
 	.enum_active_sources = cm_enum_sources,
 	.video_render = roi_render,
 	.video_tick = roi_tick,

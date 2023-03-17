@@ -52,7 +52,7 @@ static const char *fc_get_name(void *unused)
 static void zbs_update(void *, obs_data_t *);
 static void zbf_update(void *, obs_data_t *);
 
-static void zb_init(struct zb_source *src, obs_data_t *settings)
+static void zb_init(struct zb_source *src)
 {
 	obs_enter_graphics();
 	src->effect = create_effect_from_module_file(src->is_falsecolor ? "falsecolor.effect" : "zebra.effect");
@@ -63,8 +63,9 @@ static void *zbs_create(obs_data_t *settings, obs_source_t *source)
 {
 	struct zbs_source *src = bzalloc(sizeof(struct zbs_source));
 
+	src->cm.flags = CM_FLAG_RAW_TEXTURE;
 	cm_create(&src->cm, settings, source);
-	zb_init(&src->zb, settings);
+	zb_init(&src->zb);
 
 	zbs_update(src, settings);
 
@@ -75,7 +76,7 @@ static void *zbf_create(obs_data_t *settings, obs_source_t *source)
 {
 	struct zbf_source *src = bzalloc(sizeof(struct zbf_source));
 
-	zb_init(&src->zb, settings);
+	zb_init(&src->zb);
 	src->context = source;
 
 	zbf_update(src, settings);
@@ -88,8 +89,9 @@ static void *fcs_create(obs_data_t *settings, obs_source_t *source)
 	struct zbs_source *src = bzalloc(sizeof(struct zbs_source));
 	src->zb.is_falsecolor = true;
 
+	src->cm.flags = CM_FLAG_RAW_TEXTURE;
 	cm_create(&src->cm, settings, source);
-	zb_init(&src->zb, settings);
+	zb_init(&src->zb);
 
 	zbs_update(src, settings);
 
@@ -101,7 +103,7 @@ static void *fcf_create(obs_data_t *settings, obs_source_t *source)
 	struct zbf_source *src = bzalloc(sizeof(struct zbf_source));
 	src->zb.is_falsecolor = true;
 
-	zb_init(&src->zb, settings);
+	zb_init(&src->zb);
 	src->context = source;
 
 	zbf_update(src, settings);
@@ -154,7 +156,7 @@ static void zb_get_defaults(obs_data_t *settings)
 	obs_data_set_default_int(settings, "zebra_th_high", 100);
 }
 
-static void zb_get_properties(struct zb_source *src, obs_properties_t *props, bool is_falsecolor)
+static void zb_get_properties(obs_properties_t *props, bool is_falsecolor)
 {
 	obs_property_t *prop;
 
@@ -178,18 +180,18 @@ static obs_properties_t *zbs_get_properties(void *data)
 	props = obs_properties_create();
 
 	cm_get_properties(&src->cm, props);
-	zb_get_properties(&src->zb, props, false);
+	zb_get_properties(props, false);
 
 	return props;
 }
 
 static obs_properties_t *zbf_get_properties(void *data)
 {
-	struct zbf_source *src = data;
+	UNUSED_PARAMETER(data);
 	obs_properties_t *props;
 	props = obs_properties_create();
 
-	zb_get_properties(&src->zb, props, false);
+	zb_get_properties(props, false);
 
 	return props;
 }
@@ -201,18 +203,18 @@ static obs_properties_t *fcs_get_properties(void *data)
 	props = obs_properties_create();
 
 	cm_get_properties(&src->cm, props);
-	zb_get_properties(&src->zb, props, true);
+	zb_get_properties(props, true);
 
 	return props;
 }
 
 static obs_properties_t *fcf_get_properties(void *data)
 {
-	struct zbf_source *src = data;
+	UNUSED_PARAMETER(data);
 	obs_properties_t *props;
 	props = obs_properties_create();
 
-	zb_get_properties(&src->zb, props, true);
+	zb_get_properties(props, true);
 
 	return props;
 }
@@ -220,13 +222,13 @@ static obs_properties_t *fcf_get_properties(void *data)
 static uint32_t zbs_get_width(void *data)
 {
 	struct zbs_source *src = data;
-	return src->cm.known_width;
+	return cm_bypass_get_width(&src->cm);
 }
 
 static uint32_t zbs_get_height(void *data)
 {
 	struct zbs_source *src = data;
-	return src->cm.known_height;
+	return cm_bypass_get_height(&src->cm);
 }
 
 const char *draw_name(int colorspace, bool is_falsecolor)
@@ -246,7 +248,7 @@ static void zbs_render(void *data, gs_effect_t *effect)
 	UNUSED_PARAMETER(effect);
 	struct zbs_source *src = data;
 	if (src->cm.bypass) {
-		cm_render_bypass(&src->cm);
+		cm_bypass_render(&src->cm);
 		return;
 	}
 
@@ -254,16 +256,11 @@ static void zbs_render(void *data, gs_effect_t *effect)
 
 	PROFILE_START(prof_render_name);
 
-	gs_texture_t *tex = cm_get_texture(&src->cm);
+	gs_texture_t *tex = cm_bypass_get_texture(&src->cm);
 	gs_effect_t *e = src->zb.effect;
 	if (e && tex) {
-		int sub_x = 0;
-		int sub_y = 0;
-		if (cm_is_roi(&src->cm)) {
-			struct roi_source *roi = src->cm.roi;
-			sub_x = roi->roi_surface_pos.x0;
-			sub_y = roi->roi_surface_pos.y0;
-		}
+		uint32_t cx = cm_bypass_get_width(&src->cm);
+		uint32_t cy = cm_bypass_get_height(&src->cm);
 
 		gs_effect_set_texture(gs_effect_get_param_by_name(e, "image"), tex);
 		if (!src->zb.is_falsecolor) {
@@ -273,7 +270,7 @@ static void zbs_render(void *data, gs_effect_t *effect)
 		}
 		const char *draw = draw_name(src->cm.colorspace, src->zb.is_falsecolor);
 		while (gs_effect_loop(e, draw))
-			gs_draw_sprite_subregion(tex, 0, sub_x, sub_y, src->cm.known_width, src->cm.known_height);
+			gs_draw_sprite_subregion(tex, 0, 0, 0, cx, cy);
 	}
 
 	PROFILE_END(prof_render_name);
@@ -281,6 +278,7 @@ static void zbs_render(void *data, gs_effect_t *effect)
 
 static void zbf_render(void *data, gs_effect_t *effect)
 {
+	UNUSED_PARAMETER(effect);
 	struct zbf_source *src = data;
 	gs_effect_t *e = src->zb.effect;
 
