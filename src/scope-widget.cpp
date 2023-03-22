@@ -511,6 +511,12 @@ bool ScopeWidget::openMenu(QMouseEvent *)
 	connect(act, &QAction::triggered, this, &ScopeWidget::createProperties);
 	popup.addAction(act);
 
+	act = new QAction(obs_module_text("dock.menu.close"), this);
+	connect(act, &QAction::triggered, this, [&]() {
+		QMetaObject::invokeMethod(parentWidget(), "close", Qt::QueuedConnection);
+	});
+	popup.addAction(act);
+
 	popup.exec(QCursor::pos());
 	return true;
 }
