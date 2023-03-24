@@ -234,7 +234,8 @@ QWidget *OBSPropertiesView::AddText(obs_property_t *prop, QFormLayout *layout,
 		subLayout->addWidget(edit);
 		subLayout->addWidget(show);
 
-		DockProp_WidgetInfo *info = new DockProp_WidgetInfo(this, prop, edit);
+		DockProp_WidgetInfo *info =
+			new DockProp_WidgetInfo(this, prop, edit);
 		connect(show, &QAbstractButton::toggled, info,
 			&DockProp_WidgetInfo::TogglePasswordText);
 		connect(show, &QAbstractButton::toggled, [=](bool hide) {
@@ -525,7 +526,8 @@ QWidget *OBSPropertiesView::AddList(obs_property_t *prop, bool &warning)
 	return combo;
 }
 
-static void NewButton(QLayout *layout, DockProp_WidgetInfo *info, const char *themeIcon,
+static void NewButton(QLayout *layout, DockProp_WidgetInfo *info,
+		      const char *themeIcon,
 		      void (DockProp_WidgetInfo::*method)())
 {
 	QPushButton *button = new QPushButton();
@@ -573,7 +575,8 @@ void OBSPropertiesView::AddEditableList(obs_property_t *prop,
 				       const QModelIndex &, int)));
 
 	QVBoxLayout *sideLayout = new QVBoxLayout();
-	NewButton(sideLayout, info, "addIconSmall", &DockProp_WidgetInfo::EditListAdd);
+	NewButton(sideLayout, info, "addIconSmall",
+		  &DockProp_WidgetInfo::EditListAdd);
 	NewButton(sideLayout, info, "removeIconSmall",
 		  &DockProp_WidgetInfo::EditListRemove);
 	NewButton(sideLayout, info, "configIconSmall",
@@ -647,7 +650,8 @@ void OBSPropertiesView::AddColor(obs_property_t *prop, QFormLayout *layout,
 	subLayout->addWidget(colorLabel);
 	subLayout->addWidget(button);
 
-	DockProp_WidgetInfo *info = new DockProp_WidgetInfo(this, prop, colorLabel);
+	DockProp_WidgetInfo *info =
+		new DockProp_WidgetInfo(this, prop, colorLabel);
 	connect(button, SIGNAL(clicked()), info, SLOT(ControlChanged()));
 	children.emplace_back(info);
 
@@ -723,7 +727,8 @@ void OBSPropertiesView::AddFont(obs_property_t *prop, QFormLayout *layout,
 	subLayout->addWidget(fontLabel);
 	subLayout->addWidget(button);
 
-	DockProp_WidgetInfo *info = new DockProp_WidgetInfo(this, prop, fontLabel);
+	DockProp_WidgetInfo *info =
+		new DockProp_WidgetInfo(this, prop, fontLabel);
 	connect(button, SIGNAL(clicked()), info, SLOT(ControlChanged()));
 	children.emplace_back(info);
 
@@ -776,7 +781,8 @@ void OBSPropertiesView::AddGroup(obs_property_t *prop, QFormLayout *layout)
 			  QFormLayout::ItemRole::SpanningRole, groupBox);
 
 	// Register Group Widget
-	DockProp_WidgetInfo *info = new DockProp_WidgetInfo(this, prop, groupBox);
+	DockProp_WidgetInfo *info =
+		new DockProp_WidgetInfo(this, prop, groupBox);
 	children.emplace_back(info);
 
 	// Signals
@@ -835,7 +841,8 @@ void OBSPropertiesView::AddProperty(obs_property_t *property,
 		AddGroup(property, layout);
 		break;
 	default:
-		blog(LOG_ERROR, "%s: type %d is not handled", __func__, (int)type);
+		blog(LOG_ERROR, "%s: type %d is not handled", __func__,
+		     (int)type);
 	}
 
 	if (widget && !obs_property_enabled(property))
@@ -1103,9 +1110,10 @@ void DockProp_WidgetInfo::GroupChanged(const char *setting)
 						  : true);
 }
 
-void DockProp_WidgetInfo::EditListReordered(const QModelIndex &parent, int start,
-				   int end, const QModelIndex &destination,
-				   int row)
+void DockProp_WidgetInfo::EditListReordered(const QModelIndex &parent,
+					    int start, int end,
+					    const QModelIndex &destination,
+					    int row)
 {
 	UNUSED_PARAMETER(parent);
 	UNUSED_PARAMETER(start);
@@ -1192,7 +1200,8 @@ void DockProp_WidgetInfo::ControlChanged()
 		GroupChanged(setting);
 		break;
 	default:
-		blog(LOG_ERROR, "%s: type %d is not handled", __func__, (int)type);
+		blog(LOG_ERROR, "%s: type %d is not handled", __func__,
+		     (int)type);
 	}
 
 	if (view->callback && !view->deferUpdate)
@@ -1212,9 +1221,7 @@ class EditableItemDialog : public QDialog {
 	QString filter;
 	QString default_path;
 
-	void BrowseClicked()
-	{
-	}
+	void BrowseClicked() {}
 
 public:
 	EditableItemDialog(QWidget *parent, const QString &text, bool browse,
