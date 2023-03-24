@@ -36,23 +36,6 @@ class QLayout;
 class QString;
 struct gs_window;
 
-class OBSMessageBox {
-public:
-	static QMessageBox::StandardButton
-	question(QWidget *parent, const QString &title, const QString &text,
-		 QMessageBox::StandardButtons buttons =
-			 QMessageBox::StandardButtons(QMessageBox::Yes |
-						      QMessageBox::No),
-		 QMessageBox::StandardButton defaultButton =
-			 QMessageBox::NoButton);
-	static void information(QWidget *parent, const QString &title,
-				const QString &text);
-	static void warning(QWidget *parent, const QString &title,
-			    const QString &text, bool enableRichText = false);
-	static void critical(QWidget *parent, const QString &title,
-			     const QString &text);
-};
-
 void OBSErrorBox(QWidget *parent, const char *msg, ...);
 
 void QTToGSWindow(WId windowId, gs_window &gswindow);

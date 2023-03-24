@@ -4,6 +4,7 @@
 #include <obs-nix-platform.h>
 #include <QGuiApplication>
 #include <qpa/qplatformnativeinterface.h>
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #endif
 
 // copied from obs-studio/UI/qt-wrappers.cpp and modified to support OBS-26
