@@ -36,10 +36,6 @@ public:
 	void Init();
 	void Cleanup();
 
-private:
-	int CheckSettings();
-	bool ConfirmQuit();
-
 protected:
 	void closeEvent(QCloseEvent *event) override;
 };

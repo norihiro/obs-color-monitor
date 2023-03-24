@@ -91,13 +91,6 @@ void ScopeWidgetProperties::Cleanup()
 
 void ScopeWidgetProperties::closeEvent(QCloseEvent *event)
 {
-	if (!acceptClicked && (CheckSettings() != 0)) {
-		if (!ConfirmQuit()) {
-			event->ignore();
-			return;
-		}
-	}
-
 	QDialog::closeEvent(event);
 	if (!event->isAccepted())
 		return;
@@ -120,36 +113,4 @@ void ScopeWidgetProperties::on_buttonBox_clicked(QAbstractButton *button)
 	else if (val == QDialogButtonBox::ResetRole) {
 		// TODO: implement me
 	}
-}
-
-int ScopeWidgetProperties::CheckSettings()
-{
-	return 0; // TODO: implement me
-}
-
-bool ScopeWidgetProperties::ConfirmQuit()
-{
-	QMessageBox::StandardButton button;
-
-	button = QMessageBox::question(
-			this, ("Basic.PropertiesWindow.ConfirmTitle"),
-			("Basic.PropertiesWindow.Confirm"),
-			QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
-
-	switch (button) {
-		case QMessageBox::Save:
-			acceptClicked = true;
-			break;
-		case QMessageBox::Discard:
-			static_cast<ScopeWidget*>(parent())->load_properties(oldSettings);
-			break;
-		case QMessageBox::Cancel:
-			return false;
-			break;
-		default:
-			/* If somehow the dialog fails to show, just default to
-			 * saving the settings. */
-			break;
-	}
-	return true;
 }
