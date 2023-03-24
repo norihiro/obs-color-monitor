@@ -40,7 +40,7 @@ bool obs_module_load(void)
 	int version_major = atoi(obs_get_version_string());
 	if (version_major && version_major < LIBOBS_API_MAJOR_VER) {
 		blog(LOG_ERROR, "Cancel loading plugin since OBS version '%s' is older than plugin API version %d",
-				obs_get_version_string(), LIBOBS_API_MAJOR_VER);
+		     obs_get_version_string(), LIBOBS_API_MAJOR_VER);
 		return false;
 	}
 
@@ -59,8 +59,8 @@ bool obs_module_load(void)
 	}
 
 	scope_docks_init();
-	blog(LOG_INFO, "plugin loaded (plugin version %s, API version %d.%d.%d)",
-			PLUGIN_VERSION, LIBOBS_API_MAJOR_VER, LIBOBS_API_MINOR_VER, LIBOBS_API_PATCH_VER);
+	blog(LOG_INFO, "plugin loaded (plugin version %s, API version %d.%d.%d)", PLUGIN_VERSION, LIBOBS_API_MAJOR_VER,
+	     LIBOBS_API_MINOR_VER, LIBOBS_API_PATCH_VER);
 	return true;
 }
 

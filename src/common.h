@@ -10,12 +10,12 @@ void property_list_add_sources(obs_property_t *prop, obs_source_t *self);
 
 static inline bool is_program_name(const char *name)
 {
-	return *name && name[0]==0;
+	return *name && name[0] == 0;
 }
 
 static inline bool is_preview_name(const char *name)
 {
-	return *name && name[0]==0x10 && name[1]==0;
+	return *name && name[0] == 0x10 && name[1] == 0;
 }
 
 struct cm_surface_data
@@ -30,7 +30,7 @@ typedef void (*cm_surface_cb_t)(void *data, struct cm_surface_data *surface_data
 struct cm_surface_queue_item
 {
 	gs_texrender_t *texrender;
-	gs_stagesurf_t* stagesurface;
+	gs_stagesurf_t *stagesurface;
 	uint32_t width, height, sheight;
 	uint32_t flags; // RGB or YUV
 
@@ -85,7 +85,7 @@ struct cm_source
 #define CM_FLAG_CONVERT_RGB 1
 #define CM_FLAG_CONVERT_YUV 2
 #define CM_FLAG_RAW_TEXTURE 4
-#define CM_FLAG_ROI         8
+#define CM_FLAG_ROI 8
 
 void cm_create(struct cm_source *src, obs_data_t *settings, obs_source_t *source);
 void cm_destroy(struct cm_source *src);

@@ -15,12 +15,8 @@
 #define N_SRC SCOPE_WIDGET_N_SRC
 
 static const char *id_list[N_SRC] = {
-	"colormonitor_roi",
-	"vectorscope_source",
-	"waveform_source",
-	"histogram_source",
-	ID_PREFIX"zebra_source",
-	ID_PREFIX"falsecolor_source",
+	"colormonitor_roi", "vectorscope_source",     "waveform_source",
+	"histogram_source", ID_PREFIX "zebra_source", ID_PREFIX "falsecolor_source",
 };
 
 struct src_rect_s
@@ -28,15 +24,12 @@ struct src_rect_s
 	int x0, y0, x1, y1;
 	int w, h;
 
-	inline bool is_inside(int x, int y) const {
-		return x0<=x && x<=x1 && x0<x1 && y0<=y && y<=y1 && y0<y1;
+	inline bool is_inside(int x, int y) const
+	{
+		return x0 <= x && x <= x1 && x0 < x1 && y0 <= y && y <= y1 && y0 < y1;
 	}
-	inline int x_from_widget(int x) const {
-		return x1>x0 ? (x-x0) * w / (x1-x0) : 0;
-	}
-	inline int y_from_widget(int y) const {
-		return y1>y0 ? (y-y0) * h / (y1-y0) : 0;
-	}
+	inline int x_from_widget(int x) const { return x1 > x0 ? (x - x0) * w / (x1 - x0) : 0; }
+	inline int y_from_widget(int y) const { return y1 > y0 ? (y - y0) * h / (y1 - y0) : 0; }
 };
 
 struct scope_widget_s
@@ -81,28 +74,30 @@ static obs_source_t *create_scope_source(const char *id, obs_data_t *settings)
 
 static void draw(void *param, uint32_t cx, uint32_t cy)
 {
-	auto *data = (struct scope_widget_s*)param;
+	auto *data = (struct scope_widget_s *)param;
 
 	if (pthread_mutex_trylock(&data->mutex))
 		return;
 
 	int n_src = 0;
 	const auto src_shown = data->src_shown;
-	for (int i=0; i<N_SRC; i++) if (src_shown & (1<<i)) {
-		n_src += 1;
-	}
+	for (int i = 0; i < N_SRC; i++)
+		if (src_shown & (1 << i)) {
+			n_src += 1;
+		}
 
 	gs_blend_state_push();
 	gs_reset_blend_state();
 
 	int y0 = 0;
-	for (int i=0, k=0; i<N_SRC; i++) if (data->src[i] && (src_shown & (1<<i))) {
-		obs_source_t *s = data->src[i];
-		int w_src = obs_source_get_width(s);
-		int h_src = obs_source_get_height(s);
-		int w = cx;
-		int h = (cy-y0) / (n_src-k);
-		switch (i) {
+	for (int i = 0, k = 0; i < N_SRC; i++)
+		if (data->src[i] && (src_shown & (1 << i))) {
+			obs_source_t *s = data->src[i];
+			int w_src = obs_source_get_width(s);
+			int h_src = obs_source_get_height(s);
+			int w = cx;
+			int h = (cy - y0) / (n_src - k);
+			switch (i) {
 			case 0: // ROI
 			case 4: // Zebra
 			case 5: // False color
@@ -114,47 +109,44 @@ static void draw(void *param, uint32_t cx, uint32_t cy)
 			case 1: // vectorscope
 				w = h = std::min(w, h);
 				break;
+			}
+
+			gs_projection_push();
+			gs_viewport_push();
+			gs_set_viewport((cx - w) / 2, y0, w, h);
+			gs_ortho(0.0f, w_src, -1.0f, h_src, -100.0f, 100.0f);
+
+			auto &r = data->src_rect[i];
+			r.x0 = (cx - w) / 2;
+			r.y0 = y0;
+			r.x1 = r.x0 + w;
+			r.y1 = r.y0 + h;
+			r.w = w_src;
+			r.h = h_src;
+
+			obs_source_video_render(s);
+
+			gs_viewport_pop();
+			gs_projection_pop();
+
+			y0 += h;
+			k++;
+		} else {
+			auto &r = data->src_rect[i];
+			r.x0 = INT_MIN;
+			r.y0 = INT_MIN;
+			r.x1 = INT_MIN;
+			r.y1 = INT_MIN;
+			r.w = 0;
+			r.h = 0;
 		}
-
-		gs_projection_push();
-		gs_viewport_push();
-		gs_set_viewport((cx-w)/2, y0, w, h);
-		gs_ortho(0.0f, w_src, -1.0f, h_src, -100.0f, 100.0f);
-
-		auto &r = data->src_rect[i];
-		r.x0 = (cx-w)/2;
-		r.y0 = y0;
-		r.x1 = r.x0 + w;
-		r.y1 = r.y0 + h;
-		r.w = w_src;
-		r.h = h_src;
-
-		obs_source_video_render(s);
-
-		gs_viewport_pop();
-		gs_projection_pop();
-
-		y0 += h;
-		k ++;
-	}
-	else {
-		auto &r = data->src_rect[i];
-		r.x0 = INT_MIN;
-		r.y0 = INT_MIN;
-		r.x1 = INT_MIN;
-		r.y1 = INT_MIN;
-		r.w = 0;
-		r.h = 0;
-	}
 
 	gs_blend_state_pop();
 
 	pthread_mutex_unlock(&data->mutex);
 }
 
-ScopeWidget::ScopeWidget(QWidget *parent)
-	: QWidget(parent)
-	, eventFilter(BuildEventFilter())
+ScopeWidget::ScopeWidget(QWidget *parent) : QWidget(parent), eventFilter(BuildEventFilter())
 {
 	properties = NULL;
 	setAttribute(Qt::WA_PaintOnScreen);
@@ -167,9 +159,9 @@ ScopeWidget::ScopeWidget(QWidget *parent)
 	setMouseTracking(true);
 	QObject::installEventFilter(eventFilter.get());
 
-	data = (struct scope_widget_s*)bzalloc(sizeof(struct scope_widget_s));
+	data = (struct scope_widget_s *)bzalloc(sizeof(struct scope_widget_s));
 	pthread_mutex_init(&data->mutex, NULL);
-	data->src_shown = (1<<N_SRC)-1;
+	data->src_shown = (1 << N_SRC) - 1;
 	data->i_mouse_last = -1;
 	data->i_src_menu = -1;
 }
@@ -183,15 +175,17 @@ ScopeWidget::~ScopeWidget()
 		data->disp = NULL;
 
 		pthread_mutex_lock(&data->mutex);
-		for (int i=0; i<N_SRC; i++) if (data->src[i]) {
-			obs_source_release(data->src[i]);
-			data->src[i] = NULL;
-		}
+		for (int i = 0; i < N_SRC; i++)
+			if (data->src[i]) {
+				obs_source_release(data->src[i]);
+				data->src[i] = NULL;
+			}
 		pthread_mutex_unlock(&data->mutex);
 
 		pthread_mutex_destroy(&data->mutex);
 	}
-	bfree(data); data = NULL;
+	bfree(data);
+	data = NULL;
 }
 
 OBSEventFilter *ScopeWidget::BuildEventFilter()
@@ -203,19 +197,15 @@ OBSEventFilter *ScopeWidget::BuildEventFilter()
 		case QEvent::MouseButtonPress:
 		case QEvent::MouseButtonRelease:
 		case QEvent::MouseButtonDblClick:
-			return this->HandleMouseClickEvent(
-				static_cast<QMouseEvent *>(event));
+			return this->HandleMouseClickEvent(static_cast<QMouseEvent *>(event));
 		case QEvent::MouseMove:
-			return this->HandleMouseMoveEvent(
-				static_cast<QMouseEvent *>(event));
+			return this->HandleMouseMoveEvent(static_cast<QMouseEvent *>(event));
 
 		case QEvent::Wheel:
-			return this->HandleMouseWheelEvent(
-				static_cast<QWheelEvent *>(event));
+			return this->HandleMouseWheelEvent(static_cast<QWheelEvent *>(event));
 		case QEvent::KeyPress:
 		case QEvent::KeyRelease:
-			return this->HandleKeyEvent(
-				static_cast<QKeyEvent *>(event));
+			return this->HandleKeyEvent(static_cast<QKeyEvent *>(event));
 		default:
 			return false;
 		}
@@ -283,20 +273,22 @@ void ScopeWidget::setShown(bool shown)
 	}
 }
 
-#define INTERACT_KEEP_SOURCE (1<<30)
+#define INTERACT_KEEP_SOURCE (1 << 30)
 
 static obs_source_t *get_source_from_mouse(struct scope_widget_s *data, int x, int y, struct obs_mouse_event *event)
 {
 	int i_mouse;
-	if (event->modifiers & (INTERACT_MOUSE_LEFT | INTERACT_MOUSE_MIDDLE | INTERACT_MOUSE_RIGHT | INTERACT_KEEP_SOURCE))
+	if (event->modifiers &
+	    (INTERACT_MOUSE_LEFT | INTERACT_MOUSE_MIDDLE | INTERACT_MOUSE_RIGHT | INTERACT_KEEP_SOURCE))
 		i_mouse = data->i_mouse_last;
-	else for (i_mouse=0; i_mouse<N_SRC; i_mouse++) {
-		const auto &r = data->src_rect[i_mouse];
-		if (r.is_inside(x, y))
-			break;
-	}
+	else
+		for (i_mouse = 0; i_mouse < N_SRC; i_mouse++) {
+			const auto &r = data->src_rect[i_mouse];
+			if (r.is_inside(x, y))
+				break;
+		}
 
-	if (i_mouse<0 || N_SRC<=i_mouse) {
+	if (i_mouse < 0 || N_SRC <= i_mouse) {
 		data->i_mouse_last = -1;
 		return NULL;
 	}
@@ -307,8 +299,7 @@ static obs_source_t *get_source_from_mouse(struct scope_widget_s *data, int x, i
 	return data->src[i_mouse];
 }
 
-static int TranslateQtKeyboardEventModifiers(QInputEvent *event,
-					     bool mouseEvent)
+static int TranslateQtKeyboardEventModifiers(QInputEvent *event, bool mouseEvent)
 {
 	int obsModifiers = INTERACT_NONE;
 
@@ -371,7 +362,8 @@ bool ScopeWidget::HandleMouseClickEvent(QMouseEvent *event)
 	switch (event->button()) {
 	case Qt::LeftButton:
 		button = MOUSE_LEFT;
-		if (mouseUp) mouseEvent.modifiers |= INTERACT_KEEP_SOURCE; // Not to change i_mouse if released outside
+		if (mouseUp)
+			mouseEvent.modifiers |= INTERACT_KEEP_SOURCE; // Not to change i_mouse if released outside
 		break;
 	case Qt::MiddleButton:
 		button = MOUSE_MIDDLE;
@@ -421,7 +413,7 @@ bool ScopeWidget::HandleMouseMoveEvent(QMouseEvent *event)
 	struct obs_mouse_event mouseEvent1 = mouseEvent;
 	obs_source_t *src1 = get_source_from_mouse(data, qtPos.x(), qtPos.y(), &mouseEvent1);
 
-	if (src0 && src0!=src1)
+	if (src0 && src0 != src1)
 		obs_source_send_mouse_move(src0, &mouseEvent, true);
 
 	if (src1)
@@ -484,16 +476,13 @@ bool ScopeWidget::openMenu(QMouseEvent *)
 	QAction *act;
 
 	const char *menu_text[N_SRC] = {
-		obs_module_text("dock.menu.show.roi"),
-		obs_module_text("dock.menu.show.vectorscope"),
-		obs_module_text("dock.menu.show.waveform"),
-		obs_module_text("dock.menu.show.histogram"),
-		obs_module_text("dock.menu.show.zebra"),
-		obs_module_text("dock.menu.show.falsecolor"),
+		obs_module_text("dock.menu.show.roi"),      obs_module_text("dock.menu.show.vectorscope"),
+		obs_module_text("dock.menu.show.waveform"), obs_module_text("dock.menu.show.histogram"),
+		obs_module_text("dock.menu.show.zebra"),    obs_module_text("dock.menu.show.falsecolor"),
 	};
 
-	for (int i=0; i<N_SRC; i++) {
-		uint32_t mask = 1<<i;
+	for (int i = 0; i < N_SRC; i++) {
+		uint32_t mask = 1 << i;
 		QAction *act = new QAction(menu_text[i], this);
 		act->setCheckable(true);
 		act->setChecked(!!(data->src_shown & mask));
@@ -512,9 +501,8 @@ bool ScopeWidget::openMenu(QMouseEvent *)
 	popup.addAction(act);
 
 	act = new QAction(obs_module_text("dock.menu.close"), this);
-	connect(act, &QAction::triggered, this, [&]() {
-		QMetaObject::invokeMethod(parentWidget(), "close", Qt::QueuedConnection);
-	});
+	connect(act, &QAction::triggered, this,
+		[&]() { QMetaObject::invokeMethod(parentWidget(), "close", Qt::QueuedConnection); });
 	popup.addAction(act);
 
 	popup.exec(QCursor::pos());
@@ -535,8 +523,10 @@ void ScopeWidget::createProperties()
 
 void ScopeWidget::default_properties(obs_data_t *props)
 {
-	for (int i=0; i<N_SRC; i++) {
-		char s[64]; snprintf(s, sizeof(s), "%s-shown", id_list[i]); s[sizeof(s)-1]=0;
+	for (int i = 0; i < N_SRC; i++) {
+		char s[64];
+		snprintf(s, sizeof(s), "%s-shown", id_list[i]);
+		s[sizeof(s) - 1] = 0;
 		obs_data_set_default_bool(props, s, true);
 	}
 }
@@ -545,13 +535,15 @@ void ScopeWidget::save_properties(obs_data_t *props)
 {
 	pthread_mutex_lock(&data->mutex);
 	const auto src_shown = data->src_shown;
-	for (int i=0; i<N_SRC; i++) {
+	for (int i = 0; i < N_SRC; i++) {
 		char s[64];
-		snprintf(s, sizeof(s), "%s-shown", id_list[i]); s[sizeof(s)-1]=0;
-		obs_data_set_bool(props, s, !!(src_shown & (1<<i)));
+		snprintf(s, sizeof(s), "%s-shown", id_list[i]);
+		s[sizeof(s) - 1] = 0;
+		obs_data_set_bool(props, s, !!(src_shown & (1 << i)));
 
 		if (data->src[i]) {
-			snprintf(s, sizeof(s), "%s-prop", id_list[i]); s[sizeof(s)-1]=0;
+			snprintf(s, sizeof(s), "%s-prop", id_list[i]);
+			s[sizeof(s) - 1] = 0;
 			obs_data_t *prop = obs_source_get_settings(data->src[i]);
 			if (prop) {
 				obs_data_set_obj(props, s, prop);
@@ -564,28 +556,30 @@ void ScopeWidget::save_properties(obs_data_t *props)
 
 void ScopeWidget::load_properties(obs_data_t *props)
 {
-	char roi_name[64]; snprintf(roi_name, sizeof(roi_name), "dock-roi-%p", this);
+	char roi_name[64];
+	snprintf(roi_name, sizeof(roi_name), "dock-roi-%p", this);
 
 	pthread_mutex_lock(&data->mutex);
 	data->src_shown = 0;
-	for (int i=0; i<N_SRC; i++) {
+	for (int i = 0; i < N_SRC; i++) {
 		char s[64];
-		snprintf(s, sizeof(s), "%s-shown", id_list[i]); s[sizeof(s)-1]=0;
+		snprintf(s, sizeof(s), "%s-shown", id_list[i]);
+		s[sizeof(s) - 1] = 0;
 		if (obs_data_get_bool(props, s))
-			data->src_shown |= 1<<i;
+			data->src_shown |= 1 << i;
 
-		snprintf(s, sizeof(s), "%s-prop", id_list[i]); s[sizeof(s)-1]=0;
+		snprintf(s, sizeof(s), "%s-prop", id_list[i]);
+		s[sizeof(s) - 1] = 0;
 		obs_data_t *prop = obs_data_get_obj(props, s);
 		if (!prop)
 			prop = obs_data_create();
 
-		if (i>0)
+		if (i > 0)
 			obs_data_set_string(prop, "target_name", roi_name);
 
 		if (!data->src[i])
-			data->src[i] = i==0 ?
-				create_scope_source_roi(id_list[i], prop, roi_name) :
-				create_scope_source(id_list[i], prop);
+			data->src[i] = i == 0 ? create_scope_source_roi(id_list[i], prop, roi_name)
+					      : create_scope_source(id_list[i], prop);
 		else
 			obs_source_update(data->src[i], prop);
 

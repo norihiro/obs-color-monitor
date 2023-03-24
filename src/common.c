@@ -95,7 +95,7 @@ void cm_update(struct cm_source *src, obs_data_t *settings)
 	}
 
 	src->target_scale = (int)obs_data_get_int(settings, "target_scale");
-	if (src->target_scale<1)
+	if (src->target_scale < 1)
 		src->target_scale = 1;
 
 	src->bypass = obs_data_get_bool(settings, "bypass");
@@ -121,7 +121,8 @@ void cm_get_properties(struct cm_source *src, obs_properties_t *props)
 {
 	obs_property_t *prop;
 
-	prop = obs_properties_add_list(props, "target_name", obs_module_text("Source"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
+	prop = obs_properties_add_list(props, "target_name", obs_module_text("Source"), OBS_COMBO_TYPE_LIST,
+				       OBS_COMBO_FORMAT_STRING);
 	property_list_add_sources(prop, src ? src->self : NULL);
 	obs_properties_add_int(props, "target_scale", obs_module_text("Scale"), 1, 128, 1);
 
@@ -140,7 +141,8 @@ static void prepare_stagesurface(struct cm_surface_queue_item *item, uint32_t wi
 	item->height = height;
 }
 
-static bool render_target_to_texrender(obs_source_t *target, uint32_t target_width, uint32_t target_height, gs_texrender_t *texrender, uint32_t width, uint32_t height)
+static bool render_target_to_texrender(obs_source_t *target, uint32_t target_width, uint32_t target_height,
+				       gs_texrender_t *texrender, uint32_t width, uint32_t height)
 {
 	gs_texrender_reset(texrender);
 	if (!gs_texrender_begin(texrender, width, height))
@@ -196,7 +198,8 @@ static bool render_rgb_yuv(struct cm_source *src, struct cm_surface_queue_item *
 					gs_matrix_translate3f(0.0f, (float)offset, 0.0f);
 				}
 
-				const char *conversion = src->colorspace==1 ? "ConvertRGB_YUV601" : "ConvertRGB_YUV709";
+				const char *conversion = src->colorspace == 1 ? "ConvertRGB_YUV601"
+									      : "ConvertRGB_YUV709";
 				gs_effect_set_texture(gs_effect_get_param_by_name(src->effect, "image"), tex);
 				while (gs_effect_loop(src->effect, conversion)) {
 					gs_draw_sprite_subregion(tex, 0, x, y, item->width, item->height);
@@ -230,8 +233,7 @@ void cm_render_target(struct cm_source *src)
 	if (target) {
 		target_width = obs_source_get_width(target);
 		target_height = obs_source_get_height(target);
-	}
-	else {
+	} else {
 		struct obs_video_info ovi;
 		obs_get_video_info(&ovi);
 		target_width = ovi.base_width;
@@ -239,7 +241,7 @@ void cm_render_target(struct cm_source *src)
 	}
 	uint32_t scaled_width = target_width / src->target_scale;
 	uint32_t scaled_height = target_height / src->target_scale;
-	if (scaled_width<=0 || scaled_height<=0) {
+	if (scaled_width <= 0 || scaled_height <= 0) {
 		obs_source_release(target);
 		return;
 	}
@@ -282,14 +284,16 @@ void cm_render_target(struct cm_source *src)
 	}
 	item->cb = src->callback;
 	item->cb_data = src->callback_data;
-	item->flags = src->bypass ? CM_FLAG_RAW_TEXTURE : src->flags & (CM_FLAG_CONVERT_RGB | CM_FLAG_CONVERT_YUV | CM_FLAG_RAW_TEXTURE);
+	item->flags = src->bypass ? CM_FLAG_RAW_TEXTURE
+				  : src->flags & (CM_FLAG_CONVERT_RGB | CM_FLAG_CONVERT_YUV | CM_FLAG_RAW_TEXTURE);
 
 	prepare_stagesurface(item, cx, cy, sheight);
 
 	if (!src->texrender)
 		src->texrender = gs_texrender_create(GS_BGRA, GS_ZS_NONE);
 
-	if (!render_target_to_texrender(target, target_width, target_height, src->texrender, scaled_width, scaled_height)) {
+	if (!render_target_to_texrender(target, target_width, target_height, src->texrender, scaled_width,
+					scaled_height)) {
 		obs_source_release(target);
 		return;
 	}
@@ -562,17 +566,17 @@ void cm_tick(void *data, float unused)
 
 int calc_colorspace(int colorspace)
 {
-	if (1<=colorspace && colorspace<=2)
+	if (1 <= colorspace && colorspace <= 2)
 		return colorspace;
 	struct obs_video_info ovi;
 	if (obs_get_video_info(&ovi)) {
 		switch (ovi.colorspace) {
-			case VIDEO_CS_601:
-				return 1;
-			case VIDEO_CS_709:
-				return 2;
-			default:
-				return 2; // TODO: Implement
+		case VIDEO_CS_601:
+			return 1;
+		case VIDEO_CS_709:
+			return 2;
+		default:
+			return 2; // TODO: Implement
 		}
 	}
 	return 2; // default
