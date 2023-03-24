@@ -119,7 +119,11 @@ static void his_update(void *data, obs_data_t *settings)
 
 	src->level_height = (int)obs_data_get_int(settings, "level_height");
 
-	src->logscale = obs_data_get_bool(settings, "logscale");
+	bool logscale = obs_data_get_bool(settings, "logscale");
+	if (logscale != src->logscale) {
+		src->logscale = logscale;
+		src->graticule_need_update = true;
+	}
 
 	int level_mode = (int)obs_data_get_int(settings, "level_mode");
 	switch(level_mode) {
@@ -452,20 +456,23 @@ static void his_render_graticule(struct his_source *src)
 		bool parade = src->display==DISP_PARADE;
 		int n_parade = parade ? n_components(src) : 1;
 		int n_stack = stack ? n_components(src) : 1;
-		for (int i=0; i<n_parade; i++) {
-			const float ycoe = (float)(src->level_height * n_stack);
-			const float xoff = parade ? HI_SIZE * i + 0.0f : 1.0f;
-			struct matrix4 tr = {
-				{ 1.0f, 0.0f, 0.0f, 0.0f },
-				{ 0.0f, ycoe, 0.0f, 0.0f },
-				{ 0.0f, 0.0f, 1.0f, 0.0f },
-				{ xoff, 0.0f, 0.0f, 1.0f, }
-			};
-			gs_matrix_push();
-			gs_matrix_mul(&tr);
-			gs_load_vertexbuffer(src->graticule_line_vbuf);
-			gs_draw(GS_LINES, parade && i ? 2 : 0, 0);
-			gs_matrix_pop();
+		for (int j = 0; j < n_stack; j++) {
+			for (int i = 0; i < n_parade; i++) {
+				const float ycoe = (float)(src->level_height * 1);
+				const float yoff = (float)(src->level_height * j);
+				const float xoff = parade ? HI_SIZE * i + 0.0f : 1.0f;
+				struct matrix4 tr = {
+					{ 1.0f, 0.0f, 0.0f, 0.0f },
+					{ 0.0f, ycoe, 0.0f, 0.0f },
+					{ 0.0f, 0.0f, 1.0f, 0.0f },
+					{ xoff, yoff, 0.0f, 1.0f, }
+				};
+				gs_matrix_push();
+				gs_matrix_mul(&tr);
+				gs_load_vertexbuffer(src->graticule_line_vbuf);
+				gs_draw(GS_LINES, parade && i ? 2 : 0, 0);
+				gs_matrix_pop();
+			}
 		}
 	}
 }
