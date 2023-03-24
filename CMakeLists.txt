@@ -14,6 +14,7 @@ set(LINUX_MAINTAINER_EMAIL "norihiro@nagater.net")
 
 option(ENABLE_PROFILE "Enable profiling to see calculation time" OFF)
 option(SHOW_ROI "Show ROI source to users" OFF)
+option(ENABLE_COVERAGE "Enable coverage option for GCC" OFF)
 
 set(CMAKE_PREFIX_PATH "${QTDIR}")
 set(CMAKE_AUTOMOC ON)
@@ -95,6 +96,10 @@ endif()
 
 if(OS_LINUX)
 	target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -Wall -Wextra)
+	if(ENABLE_COVERAGE)
+		target_compile_options(${PROJECT_NAME} PRIVATE -coverage)
+		target_link_options(${PROJECT_NAME} PRIVATE -coverage)
+	endif()
 endif()
 
 if(APPLE)
