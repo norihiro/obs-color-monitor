@@ -21,12 +21,12 @@ static const char *prof_draw_graticule_name = "graticule";
 #define WV_SIZE 256
 
 #define DISP_OVERLAY 0
-#define DISP_STACK   1
-#define DISP_PARADE  2
+#define DISP_STACK 1
+#define DISP_PARADE 2
 
 #define COMP_RGB 0x07
-#define COMP_Y   0x20
-#define COMP_UV  0x50
+#define COMP_Y 0x20
+#define COMP_UV 0x50
 #define COMP_YUV (COMP_Y | COMP_UV)
 
 struct wvs_source
@@ -99,15 +99,14 @@ static void wvs_update(void *data, obs_data_t *settings)
 	src->display = (int)obs_data_get_int(settings, "display");
 
 	src->components = (uint32_t)obs_data_get_int(settings, "components");
-	src->cm.flags =
-		(src->components & COMP_RGB ? CM_FLAG_CONVERT_RGB : 0) |
-		(src->components & COMP_YUV ? CM_FLAG_CONVERT_YUV : 0);
+	src->cm.flags = (src->components & COMP_RGB ? CM_FLAG_CONVERT_RGB : 0) |
+			(src->components & COMP_YUV ? CM_FLAG_CONVERT_YUV : 0);
 
 	int colorspace = (int)obs_data_get_int(settings, "colorspace");
 	src->cm.colorspace = calc_colorspace(colorspace);
 
 	src->intensity = (int)obs_data_get_int(settings, "intensity");
-	if (src->intensity<1)
+	if (src->intensity < 1)
 		src->intensity = 1;
 
 	src->graticule_lines = (int)obs_data_get_int(settings, "graticule_lines");
@@ -144,26 +143,30 @@ static obs_properties_t *wvs_get_properties(void *data)
 
 	cm_get_properties(&src->cm, props);
 
-	prop = obs_properties_add_list(props, "display", obs_module_text("Display"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	prop = obs_properties_add_list(props, "display", obs_module_text("Display"), OBS_COMBO_TYPE_LIST,
+				       OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, obs_module_text("Overlay"), DISP_OVERLAY);
-	obs_property_list_add_int(prop, obs_module_text("Stack"),   DISP_STACK);
-	obs_property_list_add_int(prop, obs_module_text("Parade"),  DISP_PARADE);
+	obs_property_list_add_int(prop, obs_module_text("Stack"), DISP_STACK);
+	obs_property_list_add_int(prop, obs_module_text("Parade"), DISP_PARADE);
 
-	prop = obs_properties_add_list(props, "components", obs_module_text("Components"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	prop = obs_properties_add_list(props, "components", obs_module_text("Components"), OBS_COMBO_TYPE_LIST,
+				       OBS_COMBO_FORMAT_INT);
 	obs_property_set_modified_callback(prop, components_changed);
-	obs_property_list_add_int(prop, obs_module_text("RGB")   , COMP_RGB);
-	obs_property_list_add_int(prop, obs_module_text("Luma")  , COMP_Y);
+	obs_property_list_add_int(prop, obs_module_text("RGB"), COMP_RGB);
+	obs_property_list_add_int(prop, obs_module_text("Luma"), COMP_Y);
 	obs_property_list_add_int(prop, obs_module_text("Chroma"), COMP_UV);
-	obs_property_list_add_int(prop, obs_module_text("YUV")   , COMP_YUV);
+	obs_property_list_add_int(prop, obs_module_text("YUV"), COMP_YUV);
 
 	// TODO: Disable this property if ROI target is selected.
-	prop = obs_properties_add_list(props, "colorspace", obs_module_text("Color space"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	prop = obs_properties_add_list(props, "colorspace", obs_module_text("Color space"), OBS_COMBO_TYPE_LIST,
+				       OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, obs_module_text("Auto"), 0);
 	obs_property_list_add_int(prop, obs_module_text("601"), 1);
 	obs_property_list_add_int(prop, obs_module_text("709"), 2);
 
 	obs_properties_add_int(props, "intensity", obs_module_text("Intensity"), 1, 255, 1);
-	prop = obs_properties_add_list(props, "graticule_lines", obs_module_text("Graticule"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	prop = obs_properties_add_list(props, "graticule_lines", obs_module_text("Graticule"), OBS_COMBO_TYPE_LIST,
+				       OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, obs_module_text("None"), 0);
 	obs_property_list_add_int(prop, obs_module_text("Graticule.Step.100"), 1);
 	obs_property_list_add_int(prop, obs_module_text("Graticule.Step.50"), 2);
@@ -188,7 +191,7 @@ static uint32_t wvs_get_width(void *data)
 	struct wvs_source *src = data;
 	if (src->cm.bypass)
 		return cm_bypass_get_width(&src->cm);
-	if (src->display==DISP_PARADE)
+	if (src->display == DISP_PARADE)
 		return src->tex_buf_width[src->r_tex_buf] * n_components(src);
 	return src->tex_buf_width[src->r_tex_buf];
 }
@@ -198,12 +201,16 @@ static uint32_t wvs_get_height(void *data)
 	struct wvs_source *src = data;
 	if (src->cm.bypass)
 		return cm_bypass_get_height(&src->cm);
-	if (src->display==DISP_STACK)
+	if (src->display == DISP_STACK)
 		return WV_SIZE * n_components(src);
 	return WV_SIZE;
 }
 
-static inline void inc_uint8(uint8_t *c) { if (*c<255) ++*c; }
+static inline void inc_uint8(uint8_t *c)
+{
+	if (*c < 255)
+		++*c;
+}
 
 static inline void ensure_tex_buf_size(struct wvs_source *src, const uint32_t width, int ix)
 {
@@ -211,7 +218,7 @@ static inline void ensure_tex_buf_size(struct wvs_source *src, const uint32_t wi
 		return;
 
 	bfree(src->tex_buf[ix]);
-	src->tex_buf[ix] = bzalloc(width*WV_SIZE*4);
+	src->tex_buf[ix] = bzalloc(width * WV_SIZE * 4);
 	src->tex_buf_width[ix] = width;
 }
 
@@ -220,7 +227,7 @@ static inline void wvs_draw_waveform(struct wvs_source *src, uint8_t *dbuf, cons
 	const uint32_t height = surface_data->height;
 	const uint32_t width = surface_data->width;
 
-	for (uint32_t i=0; i<width*WV_SIZE*4; i++)
+	for (uint32_t i = 0; i < width * WV_SIZE * 4; i++)
 		dbuf[i] = 0;
 
 	const uint8_t *video_data = NULL;
@@ -235,17 +242,21 @@ static inline void wvs_draw_waveform(struct wvs_source *src, uint8_t *dbuf, cons
 	const bool calc_g = (src->components & 0x22) ? true : false;
 	const bool calc_r = (src->components & 0x44) ? true : false;
 
-	for (uint32_t y=0; y<height; y++) {
+	for (uint32_t y = 0; y < height; y++) {
 		const uint8_t *v = video_data + surface_data->linesize * y;
-		for (uint32_t x=0; x<width; x++) {
+		for (uint32_t x = 0; x < width; x++) {
 			const uint8_t b = *v++;
 			const uint8_t g = *v++;
 			const uint8_t r = *v++;
 			const uint8_t a = *v++;
-			if (!a) continue;
-			if (calc_b) inc_uint8(dbuf + x*4 + (WV_SIZE-1 - b) * width*4 + 0);
-			if (calc_g) inc_uint8(dbuf + x*4 + (WV_SIZE-1 - g) * width*4 + 1);
-			if (calc_r) inc_uint8(dbuf + x*4 + (WV_SIZE-1 - r) * width*4 + 2);
+			if (!a)
+				continue;
+			if (calc_b)
+				inc_uint8(dbuf + x * 4 + (WV_SIZE - 1 - b) * width * 4 + 0);
+			if (calc_g)
+				inc_uint8(dbuf + x * 4 + (WV_SIZE - 1 - g) * width * 4 + 1);
+			if (calc_r)
+				inc_uint8(dbuf + x * 4 + (WV_SIZE - 1 - r) * width * 4 + 2);
 		}
 	}
 }
@@ -253,7 +264,7 @@ static inline void wvs_draw_waveform(struct wvs_source *src, uint8_t *dbuf, cons
 static void wvs_set_image(struct wvs_source *src, const uint8_t *tex_buf, uint32_t width)
 {
 	if (src->tex_wv && src->tex_wv_width == width) {
-		gs_texture_set_image(src->tex_wv, tex_buf, width*4, false);
+		gs_texture_set_image(src->tex_wv, tex_buf, width * 4, false);
 		return;
 	}
 
@@ -289,7 +300,7 @@ static void create_graticule_vbuf(struct wvs_source *src)
 	src->graticule_line_vbuf = NULL;
 	if (src->graticule_lines > 0) {
 		gs_render_start(true);
-		for (int i=0; i<=src->graticule_lines; i++) {
+		for (int i = 0; i <= src->graticule_lines; i++) {
 			gs_vertex2f(0.0f, 256.0f * i / src->graticule_lines);
 			gs_vertex2f(1.0f, 256.0f * i / src->graticule_lines);
 		}
@@ -303,17 +314,18 @@ static void wvs_render_graticule(struct wvs_source *src)
 	gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_SOLID);
 	gs_effect_set_color(gs_effect_get_param_by_name(effect, "color"), 0x80FFBF00); // amber
 	while (gs_effect_loop(effect, "Solid")) {
-		bool stack = src->display==DISP_STACK;
-		bool parade = src->display==DISP_PARADE;
+		bool stack = src->display == DISP_STACK;
+		bool parade = src->display == DISP_PARADE;
 		int n_stack = stack ? n_components(src) : 1;
-		for (int i=0; i<n_stack; i++) {
+		for (int i = 0; i < n_stack; i++) {
 			const float yoff = stack ? WV_SIZE * i + 0.5f : 0.0f;
-			const float xcoe = (float)(src->tex_buf_width[src->r_tex_buf] * (parade ? n_components(src) : 1));
+			const float xcoe =
+				(float)(src->tex_buf_width[src->r_tex_buf] * (parade ? n_components(src) : 1));
 			struct matrix4 tr = {
-				{ xcoe, 0.0f, 0.0f, 0.0f },
-				{ 0.0f, 1.0f, 0.0f, 0.0f },
-				{ 0.0f, 0.0f, 1.0f, 0.0f },
-				{ 0.0f, yoff, 0.0f, 1.0f, }
+				{.ptr = {xcoe, 0.0f, 0.0f, 0.0f}},
+				{.ptr = {0.0f, 1.0f, 0.0f, 0.0f}},
+				{.ptr = {0.0f, 0.0f, 1.0f, 0.0f}},
+				{.ptr = {0.0f, yoff, 0.0f, 1.0f}},
 			};
 			gs_matrix_push();
 			gs_matrix_mul(&tr);
@@ -333,19 +345,20 @@ static void render_waveform(struct wvs_source *src)
 	int w = src->tex_wv_width;
 	int h = WV_SIZE;
 	int n = n_components(src);
-	if (src->effect) switch(src->display) {
+	if (src->effect)
+		switch (src->display) {
 		case DISP_STACK:
-			name = n==3 ? "DrawStack" : n==2 ? "DrawStackUV" : "DrawOverlay";
+			name = n == 3 ? "DrawStack" : n == 2 ? "DrawStackUV" : "DrawOverlay";
 			h *= n;
 			break;
 		case DISP_PARADE:
-			name = n==3 ? "DrawParade" : n==2 ? "DrawParadeUV" : "DrawOverlay";
+			name = n == 3 ? "DrawParade" : n == 2 ? "DrawParadeUV" : "DrawOverlay";
 			w *= n;
 			break;
 		default:
 			name = "DrawOverlay";
 			break;
-	}
+		}
 
 	while (gs_effect_loop(effect, name))
 		gs_draw_sprite(src->tex_wv, 0, w, h);

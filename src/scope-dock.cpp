@@ -7,7 +7,7 @@
 #include "scope-dock-new-dialog.hpp"
 #include "scope-widget.hpp"
 
-#define SAVE_DATA_NAME PLUGIN_NAME"-dock"
+#define SAVE_DATA_NAME PLUGIN_NAME "-dock"
 #define OBJ_NAME_SUFFIX "_scope_dock"
 
 void ScopeDock::closeEvent(QCloseEvent *event)
@@ -15,7 +15,7 @@ void ScopeDock::closeEvent(QCloseEvent *event)
 	QDockWidget::closeEvent(event);
 }
 
-static std::vector<ScopeDock*> *docks;
+static std::vector<ScopeDock *> *docks;
 
 static inline bool is_program_dock(obs_data_t *props)
 {
@@ -48,14 +48,13 @@ void scope_dock_add(const char *name, obs_data_t *props)
 	auto flag = is_program_dock(props) ? Qt::RightDockWidgetArea : Qt::LeftDockWidgetArea;
 
 	main_window->addDockWidget(flag, dock);
-	dock->action = (QAction*)obs_frontend_add_dock(dock);
+	dock->action = (QAction *)obs_frontend_add_dock(dock);
 
 	if (docks)
 		docks->push_back(dock);
 }
 
-ScopeDock::ScopeDock(QWidget *parent)
-	: QDockWidget(parent)
+ScopeDock::ScopeDock(QWidget *parent) : QDockWidget(parent)
 {
 	setAttribute(Qt::WA_DeleteOnClose);
 }
@@ -64,12 +63,13 @@ ScopeDock::~ScopeDock()
 {
 	if (action)
 		delete action;
-	if (docks) for (size_t i=0; i<docks->size(); i++) {
-		if ((*docks)[i] == this) {
-			docks->erase(docks->begin()+i);
-			break;
+	if (docks)
+		for (size_t i = 0; i < docks->size(); i++) {
+			if ((*docks)[i] == this) {
+				docks->erase(docks->begin() + i);
+				break;
+			}
 		}
-	}
 }
 
 void ScopeDock::showEvent(QShowEvent *)
@@ -86,10 +86,11 @@ void ScopeDock::hideEvent(QHideEvent *)
 
 static void close_all_docks()
 {
-	if (docks) while (docks->size()) {
-		(*docks)[docks->size()-1]->close();
-		delete (*docks)[docks->size()-1];
-	}
+	if (docks)
+		while (docks->size()) {
+			(*docks)[docks->size() - 1]->close();
+			delete (*docks)[docks->size() - 1];
+		}
 }
 
 static void save_load_scope_docks(obs_data_t *save_data, bool saving, void *)
@@ -100,7 +101,7 @@ static void save_load_scope_docks(obs_data_t *save_data, bool saving, void *)
 	if (saving) {
 		obs_data_t *props = obs_data_create();
 		obs_data_array_t *array = obs_data_array_create();
-		for (size_t i=0; i<docks->size(); i++) {
+		for (size_t i = 0; i < docks->size(); i++) {
 			ScopeDock *d = (*docks)[i];
 			obs_data_t *obj = obs_data_create();
 			d->widget->save_properties(obj);
@@ -125,11 +126,12 @@ static void save_load_scope_docks(obs_data_t *save_data, bool saving, void *)
 
 		obs_data_array_t *array = obs_data_get_array(props, "docks");
 		size_t count = obs_data_array_count(array);
-		for (size_t i=0; i<count; i++) {
+		for (size_t i = 0; i < count; i++) {
 			obs_data_t *obj = obs_data_array_item(array, i);
 			ScopeWidget::default_properties(obj);
 			const char *name = obs_data_get_string(obj, "name");
-			if (!name) name = "Scope: program";
+			if (!name)
+				name = "Scope: program";
 			scope_dock_add(name, obj);
 			obs_data_release(obj);
 		}
@@ -140,24 +142,22 @@ static void save_load_scope_docks(obs_data_t *save_data, bool saving, void *)
 
 static void frontend_event(enum obs_frontend_event event, void *)
 {
-	if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP ||
-			event == OBS_FRONTEND_EVENT_EXIT) {
+	if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP || event == OBS_FRONTEND_EVENT_EXIT) {
 		close_all_docks();
 	}
 }
 
 void scope_docks_init()
 {
-	docks = new std::vector<ScopeDock*>;
+	docks = new std::vector<ScopeDock *>;
 	obs_frontend_add_save_callback(save_load_scope_docks, NULL);
 	obs_frontend_add_event_callback(frontend_event, nullptr);
 
-	QAction *action = static_cast<QAction *>(obs_frontend_add_tools_menu_qaction(
-				obs_module_text("New Scope Dock...") ));
+	QAction *action =
+		static_cast<QAction *>(obs_frontend_add_tools_menu_qaction(obs_module_text("New Scope Dock...")));
 	auto cb = [] {
 		obs_frontend_push_ui_translation(obs_module_get_string);
-		auto *dialog = new ScopeDockNewDialog(static_cast<QMainWindow *>(
-					obs_frontend_get_main_window() ));
+		auto *dialog = new ScopeDockNewDialog(static_cast<QMainWindow *>(obs_frontend_get_main_window()));
 		dialog->show();
 		dialog->setAttribute(Qt::WA_DeleteOnClose, true);
 		obs_frontend_pop_ui_translation();

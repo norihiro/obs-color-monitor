@@ -21,12 +21,12 @@ static const char *prof_draw_name = "draw";
 #define HI_SIZE 256
 
 #define DISP_OVERLAY 0
-#define DISP_STACK   1
-#define DISP_PARADE  2
+#define DISP_STACK 1
+#define DISP_PARADE 2
 
 #define COMP_RGB 0x07
-#define COMP_Y   0x20
-#define COMP_UV  0x50
+#define COMP_Y 0x20
+#define COMP_UV 0x50
 #define COMP_YUV (COMP_Y | COMP_UV)
 
 #define LEVEL_MODE_NONE 0
@@ -103,12 +103,12 @@ static void his_destroy(void *data)
 static void his_update(void *data, obs_data_t *settings)
 {
 #define UPDATE_PROP(type, variable, value, update) \
-	do { \
-		type x = (value); \
-		if (x != (variable)) { \
-			(variable) = x; \
-			(update) = true; \
-		} \
+	do {                                       \
+		type x = (value);                  \
+		if (x != (variable)) {             \
+			(variable) = x;            \
+			(update) = true;           \
+		}                                  \
 	} while (0)
 
 	struct his_source *src = data;
@@ -117,9 +117,8 @@ static void his_update(void *data, obs_data_t *settings)
 	src->display = (int)obs_data_get_int(settings, "display");
 
 	src->components = (uint32_t)obs_data_get_int(settings, "components");
-	src->cm.flags =
-		(src->components & COMP_RGB ? CM_FLAG_CONVERT_RGB : 0) |
-		(src->components & COMP_YUV ? CM_FLAG_CONVERT_YUV : 0) ;
+	src->cm.flags = (src->components & COMP_RGB ? CM_FLAG_CONVERT_RGB : 0) |
+			(src->components & COMP_YUV ? CM_FLAG_CONVERT_YUV : 0);
 
 	int colorspace = (int)obs_data_get_int(settings, "colorspace");
 	src->cm.colorspace = calc_colorspace(colorspace);
@@ -133,42 +132,34 @@ static void his_update(void *data, obs_data_t *settings)
 	}
 
 	int level_mode = (int)obs_data_get_int(settings, "level_mode");
-	switch(level_mode) {
-		case LEVEL_MODE_NONE:
-			UPDATE_PROP(int, src->level_ratio_value, 0, src->graticule_need_update);
-			UPDATE_PROP(int, src->level_fixed_value, 0, src->graticule_need_update);
-			break;
-		case LEVEL_MODE_PIXEL:
-			UPDATE_PROP(
-				int, src->level_fixed_value,
-				(int)obs_data_get_int(settings, "level_fixed_value"),
-				src->graticule_need_update );
-			UPDATE_PROP(
-				float, src->graticule_horizontal_step,
-				(float)obs_data_get_double(settings, "graticule_horizontal_step_fixed"),
-				src->graticule_need_update );
-			src->level_ratio_value = 0;
-			break;
-		case LEVEL_MODE_RATIO:
-			UPDATE_PROP(
-				int, src->level_ratio_value,
-				(int)(obs_data_get_double(settings, "level_ratio_value") * 10.0 + 0.5),
-				src->graticule_need_update );
-			UPDATE_PROP(
-				float, src->graticule_horizontal_step,
-				(float)obs_data_get_double(settings, "graticule_horizontal_step_ratio"),
-				src->graticule_need_update );
-			src->level_fixed_value = 0;
-			break;
-		default:
-			blog(LOG_ERROR, "histogram '%s': Invalid level_mode %d",
-					obs_source_get_name(src->cm.self), level_mode);
+	switch (level_mode) {
+	case LEVEL_MODE_NONE:
+		UPDATE_PROP(int, src->level_ratio_value, 0, src->graticule_need_update);
+		UPDATE_PROP(int, src->level_fixed_value, 0, src->graticule_need_update);
+		break;
+	case LEVEL_MODE_PIXEL:
+		UPDATE_PROP(int, src->level_fixed_value, (int)obs_data_get_int(settings, "level_fixed_value"),
+			    src->graticule_need_update);
+		UPDATE_PROP(float, src->graticule_horizontal_step,
+			    (float)obs_data_get_double(settings, "graticule_horizontal_step_fixed"),
+			    src->graticule_need_update);
+		src->level_ratio_value = 0;
+		break;
+	case LEVEL_MODE_RATIO:
+		UPDATE_PROP(int, src->level_ratio_value,
+			    (int)(obs_data_get_double(settings, "level_ratio_value") * 10.0 + 0.5),
+			    src->graticule_need_update);
+		UPDATE_PROP(float, src->graticule_horizontal_step,
+			    (float)obs_data_get_double(settings, "graticule_horizontal_step_ratio"),
+			    src->graticule_need_update);
+		src->level_fixed_value = 0;
+		break;
+	default:
+		blog(LOG_ERROR, "histogram '%s': Invalid level_mode %d", obs_source_get_name(src->cm.self), level_mode);
 	}
 
-	UPDATE_PROP(
-		int, src->graticule_vertical_lines,
-		(int)obs_data_get_int(settings, "graticule_vertical_lines"),
-		src->graticule_need_update );
+	UPDATE_PROP(int, src->graticule_vertical_lines, (int)obs_data_get_int(settings, "graticule_vertical_lines"),
+		    src->graticule_need_update);
 
 #undef UPDATE_PROP
 }
@@ -214,8 +205,8 @@ static void graticule_horizontal_combo_init(obs_property_t *prop, float val_min,
 			if (v > val_max)
 				break;
 			char name[64];
-			snprintf(name, sizeof(name)-1, "%g%s", v, suffix);
-			name[sizeof(name)-1] = 0;
+			snprintf(name, sizeof(name) - 1, "%g%s", v, suffix);
+			name[sizeof(name) - 1] = 0;
 			obs_property_list_add_float(prop, name, v);
 		}
 	}
@@ -251,20 +242,23 @@ static obs_properties_t *his_get_properties(void *data)
 
 	cm_get_properties(&src->cm, props);
 
-	prop = obs_properties_add_list(props, "display", obs_module_text("Display"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	prop = obs_properties_add_list(props, "display", obs_module_text("Display"), OBS_COMBO_TYPE_LIST,
+				       OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, obs_module_text("Overlay"), DISP_OVERLAY);
-	obs_property_list_add_int(prop, obs_module_text("Stack"),   DISP_STACK);
-	obs_property_list_add_int(prop, obs_module_text("Parade"),  DISP_PARADE);
+	obs_property_list_add_int(prop, obs_module_text("Stack"), DISP_STACK);
+	obs_property_list_add_int(prop, obs_module_text("Parade"), DISP_PARADE);
 
-	prop = obs_properties_add_list(props, "components", obs_module_text("Components"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	prop = obs_properties_add_list(props, "components", obs_module_text("Components"), OBS_COMBO_TYPE_LIST,
+				       OBS_COMBO_FORMAT_INT);
 	obs_property_set_modified_callback(prop, components_changed);
-	obs_property_list_add_int(prop, obs_module_text("RGB")   , COMP_RGB);
-	obs_property_list_add_int(prop, obs_module_text("Luma")  , COMP_Y);
+	obs_property_list_add_int(prop, obs_module_text("RGB"), COMP_RGB);
+	obs_property_list_add_int(prop, obs_module_text("Luma"), COMP_Y);
 	obs_property_list_add_int(prop, obs_module_text("Chroma"), COMP_UV);
-	obs_property_list_add_int(prop, obs_module_text("YUV")   , COMP_YUV);
+	obs_property_list_add_int(prop, obs_module_text("YUV"), COMP_YUV);
 
 	// TODO: Disable this property if ROI target is selected.
-	prop = obs_properties_add_list(props, "colorspace", obs_module_text("Color space"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	prop = obs_properties_add_list(props, "colorspace", obs_module_text("Color space"), OBS_COMBO_TYPE_LIST,
+				       OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, obs_module_text("Auto"), 0);
 	obs_property_list_add_int(prop, obs_module_text("601"), 1);
 	obs_property_list_add_int(prop, obs_module_text("709"), 2);
@@ -272,7 +266,8 @@ static obs_properties_t *his_get_properties(void *data)
 	obs_properties_add_int(props, "level_height", obs_module_text("Height"), 50, 2048, 1);
 	obs_properties_add_bool(props, "logscale", obs_module_text("Log scale"));
 
-	prop = obs_properties_add_list(props, "level_mode", obs_module_text("Level mode"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	prop = obs_properties_add_list(props, "level_mode", obs_module_text("Level mode"), OBS_COMBO_TYPE_LIST,
+				       OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, obs_module_text("Auto"), LEVEL_MODE_NONE);
 	obs_property_list_add_int(prop, obs_module_text("Pixels"), LEVEL_MODE_PIXEL);
 	obs_property_list_add_int(prop, obs_module_text("Ratio"), LEVEL_MODE_RATIO);
@@ -284,7 +279,7 @@ static obs_properties_t *his_get_properties(void *data)
 	obs_property_float_set_suffix(prop, "%");
 
 	prop = obs_properties_add_list(props, "graticule_vertical_lines", obs_module_text("Histogram.Graticule.V"),
-			OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+				       OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, obs_module_text("None"), 0);
 	obs_property_list_add_int(prop, obs_module_text("Graticule.Step.100"), 1);
 	obs_property_list_add_int(prop, obs_module_text("Graticule.Step.50"), 2);
@@ -293,11 +288,13 @@ static obs_properties_t *his_get_properties(void *data)
 	obs_property_list_add_int(prop, obs_module_text("Graticule.Step.10"), 10);
 
 	prop = obs_properties_add_list(props, "graticule_horizontal_step_fixed",
-			obs_module_text("Histogram.Graticule.H"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_FLOAT);
-	graticule_horizontal_combo_init(prop, 50.0f/GRATICULE_H_MAX, 32768.f, " px");
+				       obs_module_text("Histogram.Graticule.H"), OBS_COMBO_TYPE_LIST,
+				       OBS_COMBO_FORMAT_FLOAT);
+	graticule_horizontal_combo_init(prop, 50.0f / GRATICULE_H_MAX, 32768.f, " px");
 	prop = obs_properties_add_list(props, "graticule_horizontal_step_ratio",
-			obs_module_text("Histogram.Graticule.H"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_FLOAT);
-	graticule_horizontal_combo_init(prop, 1.0f/GRATICULE_H_MAX, 50.0f, "%");
+				       obs_module_text("Histogram.Graticule.H"), OBS_COMBO_TYPE_LIST,
+				       OBS_COMBO_FORMAT_FLOAT);
+	graticule_horizontal_combo_init(prop, 1.0f / GRATICULE_H_MAX, 50.0f, "%");
 
 	return props;
 }
@@ -316,8 +313,8 @@ static uint32_t his_get_width(void *data)
 	struct his_source *src = data;
 	if (src->cm.bypass)
 		return cm_bypass_get_width(&src->cm);
-	if (src->display==DISP_PARADE)
-		return HI_SIZE*n_components(src);
+	if (src->display == DISP_PARADE)
+		return HI_SIZE * n_components(src);
 	return HI_SIZE;
 }
 
@@ -326,12 +323,16 @@ static uint32_t his_get_height(void *data)
 	struct his_source *src = data;
 	if (src->cm.bypass)
 		return cm_bypass_get_height(&src->cm);
-	if (src->display==DISP_STACK)
-		return src->level_height*n_components(src);
+	if (src->display == DISP_STACK)
+		return src->level_height * n_components(src);
 	return src->level_height;
 }
 
-static inline void inc_uint16(uint16_t *c) { if (*c<65535) ++*c; }
+static inline void inc_uint16(uint16_t *c)
+{
+	if (*c < 65535)
+		++*c;
+}
 
 static inline void his_calculate_max(struct his_source *src, uint32_t *hi_max, const uint32_t *dbuf)
 {
@@ -342,10 +343,13 @@ static inline void his_calculate_max(struct his_source *src, uint32_t *hi_max, c
 	hi_max[0] = 1;
 	hi_max[1] = 1;
 	hi_max[2] = 1;
-	for (int i=0; i<HI_SIZE; i++) {
-		if (calc_r && dbuf[i*4+0] > hi_max[0]) hi_max[0] = dbuf[i*4+0];
-		if (calc_g && dbuf[i*4+1] > hi_max[1]) hi_max[1] = dbuf[i*4+1];
-		if (calc_b && dbuf[i*4+2] > hi_max[2]) hi_max[2] = dbuf[i*4+2];
+	for (int i = 0; i < HI_SIZE; i++) {
+		if (calc_r && dbuf[i * 4 + 0] > hi_max[0])
+			hi_max[0] = dbuf[i * 4 + 0];
+		if (calc_g && dbuf[i * 4 + 1] > hi_max[1])
+			hi_max[1] = dbuf[i * 4 + 1];
+		if (calc_b && dbuf[i * 4 + 2] > hi_max[2])
+			hi_max[2] = dbuf[i * 4 + 2];
 	}
 }
 
@@ -357,13 +361,14 @@ static inline void his_fix_max_level(uint32_t *hi_max, uint32_t x)
 	hi_max[2] = v;
 }
 
-static inline void his_draw_histogram(struct his_source *src, uint8_t *tex_buf, uint32_t *hi_max, const struct cm_surface_data *surface_data)
+static inline void his_draw_histogram(struct his_source *src, uint8_t *tex_buf, uint32_t *hi_max,
+				      const struct cm_surface_data *surface_data)
 {
 	const uint32_t height = surface_data->height;
 	const uint32_t width = surface_data->width;
 
 	uint32_t *dbuf = (uint32_t *)tex_buf;
-	for (int i=0; i<HI_SIZE*4; i++)
+	for (int i = 0; i < HI_SIZE * 4; i++)
 		dbuf[i] = 0;
 
 	const uint8_t *video_data = NULL;
@@ -378,17 +383,21 @@ static inline void his_draw_histogram(struct his_source *src, uint8_t *tex_buf, 
 	const bool calc_g = (src->components & 0x22) ? true : false;
 	const bool calc_r = (src->components & 0x44) ? true : false;
 
-	for (uint32_t y=0; y<height; y++) {
+	for (uint32_t y = 0; y < height; y++) {
 		const uint8_t *v = video_data + surface_data->linesize * y;
-		for (uint32_t x=0; x<width; x++) {
+		for (uint32_t x = 0; x < width; x++) {
 			const uint8_t b = *v++;
 			const uint8_t g = *v++;
 			const uint8_t r = *v++;
 			const uint8_t a = *v++;
-			if (!a) continue;
-			if (calc_r) dbuf[r * 4 + 0]++;
-			if (calc_g) dbuf[g * 4 + 1]++;
-			if (calc_b) dbuf[b * 4 + 2]++;
+			if (!a)
+				continue;
+			if (calc_r)
+				dbuf[r * 4 + 0]++;
+			if (calc_g)
+				dbuf[g * 4 + 1]++;
+			if (calc_b)
+				dbuf[b * 4 + 2]++;
 		}
 	}
 
@@ -399,19 +408,18 @@ static inline void his_draw_histogram(struct his_source *src, uint8_t *tex_buf, 
 	else
 		his_calculate_max(src, hi_max, dbuf);
 
-	float *flt = (float*)tex_buf;
+	float *flt = (float *)tex_buf;
 	if (src->logscale) {
-		for (int j=0, mask=0x44; j<3; j++, mask>>=1) {
+		for (int j = 0, mask = 0x44; j < 3; j++, mask >>= 1) {
 			if (!(src->components & mask))
 				continue;
 			const float s = 1.0f / logf((float)(hi_max[j] + 1));
-			for (int i=0; i<HI_SIZE; i++)
-				flt[i*4+j] = dbuf[i*4+j] ? logf((float)(dbuf[i*4+j] + 1)) * s : 0;
+			for (int i = 0; i < HI_SIZE; i++)
+				flt[i * 4 + j] = dbuf[i * 4 + j] ? logf((float)(dbuf[i * 4 + j] + 1)) * s : 0;
 			hi_max[j] = 1;
 		}
-	}
-	else {
-		for (int i=0; i<HI_SIZE*4; i++)
+	} else {
+		for (int i = 0; i < HI_SIZE * 4; i++)
 			flt[i] = (float)dbuf[i];
 	}
 }
@@ -422,7 +430,7 @@ static void his_set_image(struct his_source *src, const uint8_t *tex_buf, uint32
 	if (!src->tex_hi)
 		src->tex_hi = gs_texture_create(HI_SIZE, 1, GS_RGBA32F, 1, &tex_buf, GS_DYNAMIC);
 	else
-		gs_texture_set_image(src->tex_hi, tex_buf, sizeof(float)*HI_SIZE*4, false);
+		gs_texture_set_image(src->tex_hi, tex_buf, sizeof(float) * HI_SIZE * 4, false);
 
 	for (int i = 0; i < 3; i++)
 		src->vec_hi_max.ptr[i] = (float)hi_max[i];
@@ -493,8 +501,8 @@ static void his_render_graticule(struct his_source *src)
 	gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_SOLID);
 	gs_effect_set_color(gs_effect_get_param_by_name(effect, "color"), 0x80FFBF00); // amber
 	while (gs_effect_loop(effect, "Solid")) {
-		bool stack = src->display==DISP_STACK;
-		bool parade = src->display==DISP_PARADE;
+		bool stack = src->display == DISP_STACK;
+		bool parade = src->display == DISP_PARADE;
 		int n_parade = parade ? n_components(src) : 1;
 		int n_stack = stack ? n_components(src) : 1;
 		for (int j = 0; j < n_stack; j++) {
@@ -503,10 +511,10 @@ static void his_render_graticule(struct his_source *src)
 				const float yoff = (float)(src->level_height * j);
 				const float xoff = parade ? HI_SIZE * i + 0.0f : 1.0f;
 				struct matrix4 tr = {
-					{ 1.0f, 0.0f, 0.0f, 0.0f },
-					{ 0.0f, ycoe, 0.0f, 0.0f },
-					{ 0.0f, 0.0f, 1.0f, 0.0f },
-					{ xoff, yoff, 0.0f, 1.0f, }
+					{.ptr = {1.0f, 0.0f, 0.0f, 0.0f}},
+					{.ptr = {0.0f, ycoe, 0.0f, 0.0f}},
+					{.ptr = {0.0f, 0.0f, 1.0f, 0.0f}},
+					{.ptr = {xoff, yoff, 0.0f, 1.0f}},
 				};
 				gs_matrix_push();
 				gs_matrix_mul(&tr);
@@ -527,19 +535,20 @@ static inline void render_histogram(struct his_source *src)
 	int w = HI_SIZE;
 	int h = src->level_height;
 	int n = n_components(src);
-	if (src->effect) switch(src->display) {
+	if (src->effect)
+		switch (src->display) {
 		case DISP_STACK:
-			name = n==3 ? "DrawStack" : n==2 ? "DrawStackUV" : "DrawOverlay";
+			name = n == 3 ? "DrawStack" : n == 2 ? "DrawStackUV" : "DrawOverlay";
 			h *= n;
 			break;
 		case DISP_PARADE:
-			name = n==3 ? "DrawParade" : n==2 ? "DrawParadeUV" : "DrawOverlay";
+			name = n == 3 ? "DrawParade" : n == 2 ? "DrawParadeUV" : "DrawOverlay";
 			w *= n;
 			break;
 		default:
 			name = "DrawOverlay";
 			break;
-	}
+		}
 	while (gs_effect_loop(effect, name)) {
 		gs_draw_sprite(src->tex_hi, 0, w, h);
 	}

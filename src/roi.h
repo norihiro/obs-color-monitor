@@ -24,7 +24,6 @@ struct roi_source
 	DARRAY(struct cm_source *) sources;
 };
 
-
 struct roi_source *roi_from_source(obs_source_t *);
 bool roi_target_render(struct roi_source *src);
 

@@ -32,13 +32,11 @@ gs_vertbuffer_t *create_uv_vbuffer(uint32_t num_verts, bool add_color)
 	vrect->num = num_verts;
 	vrect->points = (struct vec3 *)bmalloc(sizeof(struct vec3) * num_verts);
 	vrect->num_tex = 1;
-	vrect->tvarray =
-		(struct gs_tvertarray *)bmalloc(sizeof(struct gs_tvertarray));
+	vrect->tvarray = (struct gs_tvertarray *)bmalloc(sizeof(struct gs_tvertarray));
 	vrect->tvarray[0].width = 2;
 	vrect->tvarray[0].array = bmalloc(sizeof(struct vec2) * num_verts);
 	if (add_color)
-		vrect->colors =
-			(uint32_t *)bmalloc(sizeof(uint32_t) * num_verts);
+		vrect->colors = (uint32_t *)bmalloc(sizeof(uint32_t) * num_verts);
 
 	memset(vrect->points, 0, sizeof(struct vec3) * num_verts);
 	memset(vrect->tvarray[0].array, 0, sizeof(struct vec2) * num_verts);
@@ -56,8 +54,8 @@ gs_vertbuffer_t *create_uv_vbuffer(uint32_t num_verts, bool add_color)
 	return tmp;
 }
 
-void draw_uv_vbuffer(gs_vertbuffer_t *vbuf, gs_texture_t *tex,
-		     gs_effect_t *effect, const char *tech_name, uint32_t num_verts)
+void draw_uv_vbuffer(gs_vertbuffer_t *vbuf, gs_texture_t *tex, gs_effect_t *effect, const char *tech_name,
+		     uint32_t num_verts)
 {
 	gs_texture_t *texture = tex;
 	gs_technique_t *tech = gs_effect_get_technique(effect, tech_name);

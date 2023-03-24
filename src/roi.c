@@ -126,9 +126,20 @@ static uint32_t roi_get_height_1(void *data)
 	return roi_get_height(data);
 }
 
-static inline int min_int(int a, int b) { return a<b ? a : b; }
-static inline int max_int(int a, int b) { return a>b ? a : b; }
-static inline void swap_int (int *a, int *b) { int c=*a; *a=*b; *b=c; }
+static inline int min_int(int a, int b)
+{
+	return a < b ? a : b;
+}
+static inline int max_int(int a, int b)
+{
+	return a > b ? a : b;
+}
+static inline void swap_int(int *a, int *b)
+{
+	int c = *a;
+	*a = *b;
+	*b = c;
+}
 
 static inline int handle_size(const struct roi_source *src)
 {
@@ -170,19 +181,25 @@ static inline bool handle_is_outside_y(const struct roi_source *src, int x0, int
 
 static inline void draw_add_handle_x(int xh, int x, int y0, int y1, bool outside)
 {
-	gs_vertex2f((float)xh, (float)y0); gs_vertex2f((float)xh, (float)y1);
+	gs_vertex2f((float)xh, (float)y0);
+	gs_vertex2f((float)xh, (float)y1);
 	if (outside) {
-		gs_vertex2f((float)xh, (float)y0); gs_vertex2f((float)x, (float)y0);
-		gs_vertex2f((float)xh, (float)y1); gs_vertex2f((float)x, (float)y1);
+		gs_vertex2f((float)xh, (float)y0);
+		gs_vertex2f((float)x, (float)y0);
+		gs_vertex2f((float)xh, (float)y1);
+		gs_vertex2f((float)x, (float)y1);
 	}
 }
 
 static inline void draw_add_handle_y(int x0, int x1, int yh, int y, bool outside)
 {
-	gs_vertex2f((float)x0, (float)yh); gs_vertex2f((float)x1, (float)yh);
+	gs_vertex2f((float)x0, (float)yh);
+	gs_vertex2f((float)x1, (float)yh);
 	if (outside) {
-		gs_vertex2f((float)x0, (float)yh); gs_vertex2f((float)x0, (float)y);
-		gs_vertex2f((float)x1, (float)yh); gs_vertex2f((float)x1, (float)y);
+		gs_vertex2f((float)x0, (float)yh);
+		gs_vertex2f((float)x0, (float)y);
+		gs_vertex2f((float)x1, (float)yh);
+		gs_vertex2f((float)x1, (float)y);
 	}
 }
 
@@ -203,10 +220,14 @@ static inline void draw_roi_rect(struct roi_source *src, int x0, int y0, int x1,
 	const int y1e = y_outside ? y1 : y1h;
 	while (gs_effect_loop(effect, "Solid")) {
 		gs_render_start(false);
-		gs_vertex2f((float)x0, (float)y1); gs_vertex2f((float)x0, (float)y0);
-		gs_vertex2f((float)x0, (float)y0); gs_vertex2f((float)x1, (float)y0);
-		gs_vertex2f((float)x1, (float)y0); gs_vertex2f((float)x1, (float)y1);
-		gs_vertex2f((float)x1, (float)y1); gs_vertex2f((float)x0, (float)y1);
+		gs_vertex2f((float)x0, (float)y1);
+		gs_vertex2f((float)x0, (float)y0);
+		gs_vertex2f((float)x0, (float)y0);
+		gs_vertex2f((float)x1, (float)y0);
+		gs_vertex2f((float)x1, (float)y0);
+		gs_vertex2f((float)x1, (float)y1);
+		gs_vertex2f((float)x1, (float)y1);
+		gs_vertex2f((float)x0, (float)y1);
 		if (flags & (INTERACT_HANDLE_LI | INTERACT_HANDLE_LO))
 			draw_add_handle_x(x0h, x0, y0e, y1e, !y_outside || x_outside);
 		if (flags & (INTERACT_HANDLE_RI | INTERACT_HANDLE_RO))
@@ -244,12 +265,12 @@ static inline void draw_roi_range(const struct roi_source *src, float x0, float 
 bool roi_target_render(struct roi_source *src)
 {
 	src->interleave_rendered = true;
-	if (src->i_interleave!=0 && src->n_interleave>0)
+	if (src->i_interleave != 0 && src->n_interleave > 0)
 		return true;
 
 	cm_render_target(&src->cm);
 
-	if (src->n_interleave<=0)
+	if (src->n_interleave <= 0)
 		return true;
 	return false;
 }
@@ -332,8 +353,7 @@ static uint32_t handle_from_pos(struct roi_source *src, int x, int y)
 			flags |= INTERACT_HANDLE_RO;
 		if (src->x0in - hh <= x && x <= src->x1in + hh)
 			x_inside = true;
-	}
-	else {
+	} else {
 		if (src->x0in <= x && x <= src->x0in + hh)
 			flags |= INTERACT_HANDLE_LI;
 		if (src->x1in - hh <= x && x <= src->x1in)
@@ -349,8 +369,7 @@ static uint32_t handle_from_pos(struct roi_source *src, int x, int y)
 			flags |= INTERACT_HANDLE_BO;
 		if (src->y0in - hh <= y && y <= src->y1in + hh)
 			y_inside = true;
-	}
-	else {
+	} else {
 		if (src->y0in <= y && y <= src->y0in + hh)
 			flags |= INTERACT_HANDLE_TI;
 		if (src->y1in - hh <= y && y <= src->y1in)
@@ -394,8 +413,7 @@ static void roi_mouse_move(void *data, const struct obs_mouse_event *event, bool
 
 	if (src->x_start == INT_MIN && src->y_start == INT_MIN) {
 		src->flags_interact = handle_from_pos(src, x, y);
-	}
-	else if (src->x_start!=INT_MIN && src->y_start != INT_MIN) {
+	} else if (src->x_start != INT_MIN && src->y_start != INT_MIN) {
 		if (src->flags_interact & INTERACT_DRAG_MOVE) {
 			drag_move_pos(src, x - src->x_start, y - src->y_start);
 			src->x_start = x;
@@ -406,14 +424,19 @@ static void roi_mouse_move(void *data, const struct obs_mouse_event *event, bool
 
 static inline bool is_resize(uint32_t flags)
 {
-	if (flags & (INTERACT_HANDLE_LO | INTERACT_HANDLE_LI)) return true;
-	if (flags & (INTERACT_HANDLE_RO | INTERACT_HANDLE_RI)) return true;
-	if (flags & (INTERACT_HANDLE_TO | INTERACT_HANDLE_TI)) return true;
-	if (flags & (INTERACT_HANDLE_BO | INTERACT_HANDLE_BI)) return true;
+	if (flags & (INTERACT_HANDLE_LO | INTERACT_HANDLE_LI))
+		return true;
+	if (flags & (INTERACT_HANDLE_RO | INTERACT_HANDLE_RI))
+		return true;
+	if (flags & (INTERACT_HANDLE_TO | INTERACT_HANDLE_TI))
+		return true;
+	if (flags & (INTERACT_HANDLE_BO | INTERACT_HANDLE_BI))
+		return true;
 	return false;
 }
 
-static void roi_mouse_click(void *data, const struct obs_mouse_event *event, int32_t type, bool mouse_up, uint32_t click_count)
+static void roi_mouse_click(void *data, const struct obs_mouse_event *event, int32_t type, bool mouse_up,
+			    uint32_t click_count)
 {
 	struct roi_source *src = data;
 
@@ -426,13 +449,12 @@ static void roi_mouse_click(void *data, const struct obs_mouse_event *event, int
 	src->y_mouse = event->y;
 
 	if (mouse_up && (src->flags_interact & INTERACT_DRAG_FIRST)) {
-		if (src->x_start==event->x || src->y_start==event->y) {
+		if (src->x_start == event->x || src->y_start == event->y) {
 			src->x0in = -1;
 			src->x1in = -1;
 			src->y0in = -1;
 			src->y1in = -1;
-		}
-		else {
+		} else {
 			src->x0in = min_int(src->x_start, event->x);
 			src->y0in = min_int(src->y_start, event->y);
 			src->x1in = max_int(src->x_start, event->x);
@@ -441,8 +463,7 @@ static void roi_mouse_click(void *data, const struct obs_mouse_event *event, int
 		src->x_start = INT_MIN;
 		src->y_start = INT_MIN;
 		src->flags_interact = 0;
-	}
-	else if (!mouse_up) {
+	} else if (!mouse_up) {
 		src->x_start = event->x;
 		src->y_start = event->y;
 		if (src->flags_interact & INTERACT_DRAW_ROI_RECT) {
@@ -450,16 +471,13 @@ static void roi_mouse_click(void *data, const struct obs_mouse_event *event, int
 				src->flags_interact |= INTERACT_DRAG_RESIZE;
 			else
 				src->flags_interact |= INTERACT_DRAG_MOVE;
-		}
-		else
+		} else
 			src->flags_interact |= INTERACT_DRAG_FIRST;
-	}
-	else if (mouse_up && (src->flags_interact & INTERACT_DRAG_MOVE)) {
+	} else if (mouse_up && (src->flags_interact & INTERACT_DRAG_MOVE)) {
 		src->x_start = INT_MIN;
 		src->y_start = INT_MIN;
 		src->flags_interact &= ~INTERACT_DRAG_MOVE;
-	}
-	else if (mouse_up && (src->flags_interact & INTERACT_DRAG_RESIZE)) {
+	} else if (mouse_up && (src->flags_interact & INTERACT_DRAG_RESIZE)) {
 		if (src->flags_interact & (INTERACT_HANDLE_LO | INTERACT_HANDLE_LI))
 			src->x0in += event->x - src->x_start;
 		if (src->flags_interact & (INTERACT_HANDLE_RO | INTERACT_HANDLE_RI))
@@ -468,8 +486,10 @@ static void roi_mouse_click(void *data, const struct obs_mouse_event *event, int
 			src->y0in += event->y - src->y_start;
 		if (src->flags_interact & (INTERACT_HANDLE_BO | INTERACT_HANDLE_BI))
 			src->y1in += event->y - src->y_start;
-		if (src->x0in > src->x1in) swap_int(&src->x0in, &src->x1in);
-		if (src->y0in > src->y1in) swap_int(&src->y0in, &src->y1in);
+		if (src->x0in > src->x1in)
+			swap_int(&src->x0in, &src->x1in);
+		if (src->y0in > src->y1in)
+			swap_int(&src->y0in, &src->y1in);
 		src->x_start = INT_MIN;
 		src->y_start = INT_MIN;
 		src->flags_interact &= ~INTERACT_DRAG_RESIZE;
@@ -486,11 +506,13 @@ static void roi_send_range(struct roi_source *src)
 	int y0 = src->y0in;
 	int x1 = src->x1in;
 	int y1 = src->y1in;
-	if (x0<0) x0 = 0;
-	if (x1<0 || w < x1)
+	if (x0 < 0)
+		x0 = 0;
+	if (x1 < 0 || w < x1)
 		x1 = w;
-	if (y0<0) y0 = 0;
-	if (y1<0 || h < y1)
+	if (y0 < 0)
+		y0 = 0;
+	if (y1 < 0 || h < y1)
 		y1 = h;
 	src->cm.x0 = x0;
 	src->cm.y0 = y0;
@@ -527,7 +549,7 @@ static void roi_tick(void *data, float unused)
 		src->i_interleave = 0;
 	src->interleave_rendered = false;
 
-	if (src->i_interleave==0 || src->n_interleave<=0)
+	if (src->i_interleave == 0 || src->n_interleave <= 0)
 		cm_tick(data, unused);
 
 	src->cm.flags = ROI_DEFAULT_CM_FLAG;

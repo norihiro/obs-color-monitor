@@ -21,11 +21,10 @@ static obs_properties_t *scopewidget_properties(const obs_source_t *source)
 	return props;
 }
 
-ScopeWidgetProperties::ScopeWidgetProperties(QWidget *parent, obs_source_t *source_[])
-	: QDialog(parent)
+ScopeWidgetProperties::ScopeWidgetProperties(QWidget *parent, obs_source_t *source_[]) : QDialog(parent)
 {
 	acceptClicked = false;
-	for (int i=0; i<SCOPE_WIDGET_N_SRC; i++) {
+	for (int i = 0; i < SCOPE_WIDGET_N_SRC; i++) {
 		source[i] = source_[i];
 		// TODO: connect(obs_source_get_signal_handler(source[i]), "remove", ScopeWidgetProperties::SourceRemoved, this);
 	}
@@ -41,14 +40,14 @@ ScopeWidgetProperties::ScopeWidgetProperties(QWidget *parent, obs_source_t *sour
 
 	tabWidget = new QTabWidget(this);
 
-	for (int i=0; i<SCOPE_WIDGET_N_SRC; i++) {
+	for (int i = 0; i < SCOPE_WIDGET_N_SRC; i++) {
 		if (!source[i])
 			continue;
 		OBSData settings = obs_source_get_settings(source[i]);
 		obs_data_release(settings);
 
 		PropertiesReloadCallback prop_cb = (PropertiesReloadCallback)scopewidget_properties;
-		if (i==0)
+		if (i == 0)
 			prop_cb = (PropertiesReloadCallback)obs_source_properties;
 
 		PropertiesUpdateCallback handle_memory = [](void *vp, obs_data_t *new_settings) {
@@ -69,14 +68,14 @@ ScopeWidgetProperties::ScopeWidgetProperties(QWidget *parent, obs_source_t *sour
 
 ScopeWidgetProperties::~ScopeWidgetProperties()
 {
-	static_cast<ScopeWidget*>(parent())->properties = NULL;
+	static_cast<ScopeWidget *>(parent())->properties = NULL;
 	// TODO: main->SaveProject();
 }
 
 void ScopeWidgetProperties::setTabIndex(int ix)
 {
 	blog(LOG_INFO, "ScopeWidgetProperties::setTabIndex(%d)", ix);
-	if (tabWidget && 0<=ix && ix<tabWidget->count())
+	if (tabWidget && 0 <= ix && ix < tabWidget->count())
 		tabWidget->setCurrentIndex(ix);
 }
 
@@ -85,9 +84,7 @@ void ScopeWidgetProperties::Init()
 	show();
 }
 
-void ScopeWidgetProperties::Cleanup()
-{
-}
+void ScopeWidgetProperties::Cleanup() {}
 
 void ScopeWidgetProperties::closeEvent(QCloseEvent *event)
 {
@@ -104,13 +101,11 @@ void ScopeWidgetProperties::on_buttonBox_clicked(QAbstractButton *button)
 	if (val == QDialogButtonBox::AcceptRole) {
 		acceptClicked = true;
 		close();
-	}
-	else if (val == QDialogButtonBox::RejectRole) {
+	} else if (val == QDialogButtonBox::RejectRole) {
 		// TODO: clear data
-		static_cast<ScopeWidget*>(parent())->load_properties(oldSettings);
+		static_cast<ScopeWidget *>(parent())->load_properties(oldSettings);
 		close();
-	}
-	else if (val == QDialogButtonBox::ResetRole) {
+	} else if (val == QDialogButtonBox::ResetRole) {
 		// TODO: implement me
 	}
 }

@@ -18,7 +18,11 @@ public:
 	~ScopeDock();
 	void closeEvent(QCloseEvent *event) override;
 
-	void SetWidget(class ScopeWidget *w) { widget = w; setWidget((QWidget*)w); }
+	void SetWidget(class ScopeWidget *w)
+	{
+		widget = w;
+		setWidget((QWidget *)w);
+	}
 
 private:
 	void showEvent(QShowEvent *event) override;

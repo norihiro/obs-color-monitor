@@ -6,7 +6,6 @@
 #include <string>
 #include <algorithm>
 
-
 struct add_sources_s
 {
 	obs_source_t *self;
@@ -15,7 +14,7 @@ struct add_sources_s
 
 static bool add_sources(void *data, obs_source_t *source)
 {
-	auto &ctx = *(add_sources_s*)data;
+	auto &ctx = *(add_sources_s *)data;
 
 	if (source == ctx.self)
 		return true;
@@ -44,7 +43,8 @@ void property_list_add_sources(obs_property_t *prop, obs_source_t *self)
 	for (size_t i = 0; i < sceneList.sources.num; i++) {
 		obs_source_t *source = sceneList.sources.array[i];
 		const char *c_name = obs_source_get_name(source);
-		std::string name = obs_module_text("srclist.prefix.scene"); name += c_name;
+		std::string name = obs_module_text("srclist.prefix.scene");
+		name += c_name;
 		obs_property_list_add_string(prop, name.c_str(), c_name);
 	}
 	obs_frontend_source_list_free(&sceneList);
@@ -56,7 +56,7 @@ void property_list_add_sources(obs_property_t *prop, obs_source_t *self)
 
 	std::sort(ctx.source_names.begin(), ctx.source_names.end());
 
-	for (size_t i=0; i<ctx.source_names.size(); i++) {
+	for (size_t i = 0; i < ctx.source_names.size(); i++) {
 		const std::string name = obs_module_text("srclist.prefix.source") + ctx.source_names[i];
 		obs_property_list_add_string(prop, name.c_str(), ctx.source_names[i].c_str());
 	}

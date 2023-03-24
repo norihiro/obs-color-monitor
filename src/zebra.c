@@ -167,7 +167,8 @@ static void zb_get_properties(obs_properties_t *props, bool is_falsecolor)
 		obs_property_int_set_suffix(prop, "%");
 	}
 
-	prop = obs_properties_add_list(props, "colorspace", obs_module_text("Color space"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	prop = obs_properties_add_list(props, "colorspace", obs_module_text("Color space"), OBS_COMBO_TYPE_LIST,
+				       OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, obs_module_text("Auto"), 0);
 	obs_property_list_add_int(prop, obs_module_text("601"), 1);
 	obs_property_list_add_int(prop, obs_module_text("709"), 2);
@@ -233,9 +234,9 @@ static uint32_t zbs_get_height(void *data)
 
 const char *draw_name(int colorspace, bool is_falsecolor)
 {
-	if (colorspace==1 && is_falsecolor)
+	if (colorspace == 1 && is_falsecolor)
 		return "DrawFalseColor601";
-	else if (colorspace==1)
+	else if (colorspace == 1)
 		return "DrawZebra601";
 	else if (is_falsecolor)
 		return "DrawFalseColor709";
@@ -318,7 +319,7 @@ static void zbs_tick(void *data, float seconds)
 }
 
 struct obs_source_info colormonitor_zebra = {
-	.id = ID_PREFIX"zebra_source",
+	.id = ID_PREFIX "zebra_source",
 	.type = OBS_SOURCE_TYPE_INPUT,
 	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW,
 	.get_name = zb_get_name,
@@ -335,7 +336,7 @@ struct obs_source_info colormonitor_zebra = {
 };
 
 struct obs_source_info colormonitor_zebra_filter = {
-	.id = ID_PREFIX"zebra_filter",
+	.id = ID_PREFIX "zebra_filter",
 	.type = OBS_SOURCE_TYPE_FILTER,
 	.output_flags = OBS_SOURCE_VIDEO,
 	.get_name = zb_get_name,
@@ -349,7 +350,7 @@ struct obs_source_info colormonitor_zebra_filter = {
 };
 
 struct obs_source_info colormonitor_falsecolor = {
-	.id = ID_PREFIX"falsecolor_source",
+	.id = ID_PREFIX "falsecolor_source",
 	.type = OBS_SOURCE_TYPE_INPUT,
 	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW,
 	.get_name = fc_get_name,
@@ -366,7 +367,7 @@ struct obs_source_info colormonitor_falsecolor = {
 };
 
 struct obs_source_info colormonitor_falsecolor_filter = {
-	.id = ID_PREFIX"falsecolor_filter",
+	.id = ID_PREFIX "falsecolor_filter",
 	.type = OBS_SOURCE_TYPE_FILTER,
 	.output_flags = OBS_SOURCE_VIDEO,
 	.get_name = fc_get_name,

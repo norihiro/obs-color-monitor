@@ -39,4 +39,3 @@ public:
 protected:
 	void closeEvent(QCloseEvent *event) override;
 };
-

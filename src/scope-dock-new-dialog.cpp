@@ -11,8 +11,7 @@
 #include "scope-dock-new-dialog.hpp"
 #include "scope-widget.hpp"
 
-ScopeDockNewDialog::ScopeDockNewDialog(QMainWindow *parent)
-	: QDialog(parent)
+ScopeDockNewDialog::ScopeDockNewDialog(QMainWindow *parent) : QDialog(parent)
 {
 	QLabel *label;
 	int ix = 0;
@@ -42,9 +41,7 @@ ScopeDockNewDialog::ScopeDockNewDialog(QMainWindow *parent)
 	setLayout(mainLayout);
 }
 
-ScopeDockNewDialog::~ScopeDockNewDialog()
-{
-}
+ScopeDockNewDialog::~ScopeDockNewDialog() {}
 
 void ScopeDockNewDialog::accept()
 {
