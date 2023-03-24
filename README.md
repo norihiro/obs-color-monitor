@@ -29,6 +29,3 @@ In addition, a dock widget is available.
    1. If the plugin increases rendering time too much, increase `scale` to scale down the image before processing.
    1. `Bypass` checkbox will show the scaled image to ensure you've select the right source.
 1. You may open a windowed projector of the scene so that you can switch preview and program scene while monitoring color.
-
-## Known Issue
-- Performance is much slower on macOS than on Linux.
