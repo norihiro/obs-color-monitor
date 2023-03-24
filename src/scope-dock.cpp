@@ -72,13 +72,13 @@ ScopeDock::~ScopeDock()
 	}
 }
 
-void ScopeDock::showEvent(QShowEvent *event)
+void ScopeDock::showEvent(QShowEvent *)
 {
 	blog(LOG_INFO, "ScopeDock::showEvent");
 	widget->setShown(true);
 }
 
-void ScopeDock::hideEvent(QHideEvent *event)
+void ScopeDock::hideEvent(QHideEvent *)
 {
 	blog(LOG_INFO, "ScopeDock::hideEvent");
 	widget->setShown(false);

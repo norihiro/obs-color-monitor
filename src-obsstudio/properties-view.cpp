@@ -833,6 +833,9 @@ void OBSPropertiesView::AddProperty(obs_property_t *property,
 		break;
 	case OBS_PROPERTY_GROUP:
 		AddGroup(property, layout);
+		break;
+	default:
+		blog(LOG_ERROR, "%s: type %d is not handled", __func__, (int)type);
 	}
 
 	if (widget && !obs_property_enabled(property))
@@ -1188,6 +1191,8 @@ void DockProp_WidgetInfo::ControlChanged()
 	case OBS_PROPERTY_GROUP:
 		GroupChanged(setting);
 		break;
+	default:
+		blog(LOG_ERROR, "%s: type %d is not handled", __func__, (int)type);
 	}
 
 	if (view->callback && !view->deferUpdate)
