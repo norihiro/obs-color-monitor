@@ -13,6 +13,8 @@
 static obs_properties_t *scopewidget_properties(const obs_source_t *source)
 {
 	obs_properties_t *props = obs_source_properties(source);
+	if (!props)
+		return NULL;
 	obs_property_set_visible(obs_properties_get(props, "target_name"), false);
 	obs_property_set_visible(obs_properties_get(props, "target_scale"), false);
 	obs_property_set_visible(obs_properties_get(props, "bypass"), false);
@@ -40,6 +42,8 @@ ScopeWidgetProperties::ScopeWidgetProperties(QWidget *parent, obs_source_t *sour
 	tabWidget = new QTabWidget(this);
 
 	for (int i=0; i<SCOPE_WIDGET_N_SRC; i++) {
+		if (!source[i])
+			continue;
 		OBSData settings = obs_source_get_settings(source[i]);
 		obs_data_release(settings);
 
