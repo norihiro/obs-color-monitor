@@ -39,8 +39,8 @@ private:
 	void TogglePasswordText(bool checked);
 
 public:
-	inline DockProp_WidgetInfo(OBSPropertiesView *view_, obs_property_t *prop,
-			  QWidget *widget_)
+	inline DockProp_WidgetInfo(OBSPropertiesView *view_,
+				   obs_property_t *prop, QWidget *widget_)
 		: view(view_), property(prop), widget(widget_)
 	{
 	}
