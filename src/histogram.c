@@ -120,9 +120,6 @@ static void his_update(void *data, obs_data_t *settings)
 	src->cm.flags = (src->components & COMP_RGB ? CM_FLAG_CONVERT_RGB : 0) |
 			(src->components & COMP_YUV ? CM_FLAG_CONVERT_YUV : 0);
 
-	int colorspace = (int)obs_data_get_int(settings, "colorspace");
-	src->cm.colorspace = calc_colorspace(colorspace);
-
 	src->level_height = (int)obs_data_get_int(settings, "level_height");
 
 	bool logscale = obs_data_get_bool(settings, "logscale");
@@ -257,11 +254,7 @@ static obs_properties_t *his_get_properties(void *data)
 	obs_property_list_add_int(prop, obs_module_text("YUV"), COMP_YUV);
 
 	// TODO: Disable this property if ROI target is selected.
-	prop = obs_properties_add_list(props, "colorspace", obs_module_text("Color space"), OBS_COMBO_TYPE_LIST,
-				       OBS_COMBO_FORMAT_INT);
-	obs_property_list_add_int(prop, obs_module_text("Auto"), 0);
-	obs_property_list_add_int(prop, obs_module_text("601"), 1);
-	obs_property_list_add_int(prop, obs_module_text("709"), 2);
+	properties_add_colorspace(props, "colorspace", obs_module_text("Color space"));
 
 	obs_properties_add_int(props, "level_height", obs_module_text("Height"), 50, 2048, 1);
 	obs_properties_add_bool(props, "logscale", obs_module_text("Log scale"));

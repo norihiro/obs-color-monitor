@@ -12,6 +12,16 @@ gs_effect_t *create_effect_from_module_file(const char *basename)
 	return effect;
 }
 
+obs_property_t *properties_add_colorspace(obs_properties_t *props, const char *name, const char *description)
+{
+	obs_property_t *prop =
+		obs_properties_add_list(props, name, description, OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	obs_property_list_add_int(prop, obs_module_text("Auto"), 0);
+	obs_property_list_add_int(prop, obs_module_text("601"), 1);
+	obs_property_list_add_int(prop, obs_module_text("709"), 2);
+	return prop;
+}
+
 int calc_colorspace(int colorspace)
 {
 	if (1 <= colorspace && colorspace <= 2)

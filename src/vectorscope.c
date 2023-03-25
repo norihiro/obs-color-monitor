@@ -6,7 +6,6 @@
 #include "obs-convenience.h"
 #include "common.h"
 #include "util.h"
-#include "roi.h"
 
 #ifdef ENABLE_PROFILE
 #define PROFILE_START(x) profile_start(x)
@@ -40,6 +39,7 @@ struct vss_source
 
 	gs_texture_t *tex_vs;
 	uint8_t *tex_buf[2];
+	int tex_cs[2];
 	volatile int w_tex_buf;
 
 	gs_image_file_t graticule_img;
@@ -51,7 +51,7 @@ struct vss_source
 	int graticule;
 	int graticule_color;
 	int graticule_skintone_color;
-	int colorspace;
+	int graticule_cs;
 	bool update_graticule;
 
 	float zoom;
@@ -142,12 +142,6 @@ static void vss_update(void *data, obs_data_t *settings)
 		src->graticule_skintone_color = graticule_skintone_color;
 		src->update_graticule = 1;
 	}
-
-	int colorspace = (int)obs_data_get_int(settings, "colorspace");
-	if (colorspace != src->colorspace) {
-		src->colorspace = colorspace;
-		src->update_graticule = 1;
-	}
 }
 
 static void vss_get_defaults(obs_data_t *settings)
@@ -178,11 +172,12 @@ static obs_properties_t *vss_get_properties(void *data)
 
 	obs_properties_add_color(props, "graticule_skintone_color", obs_module_text("Skin tone color"));
 
-	prop = obs_properties_add_list(props, "colorspace", obs_module_text("Color space"), OBS_COMBO_TYPE_LIST,
-				       OBS_COMBO_FORMAT_INT);
-	obs_property_list_add_int(prop, obs_module_text("Auto"), 0);
-	obs_property_list_add_int(prop, obs_module_text("601"), 1);
-	obs_property_list_add_int(prop, obs_module_text("709"), 2);
+	prop = properties_add_colorspace(props, "colorspace", obs_module_text("Color space"));
+	if (src) {
+		// Disable colorspace setting if the target is ROI
+		bool vis = !cm_is_roi(&src->cm);
+		obs_property_set_visible(prop, vis);
+	}
 
 	return props;
 }
@@ -243,15 +238,24 @@ static void vss_surface_cb(void *data, struct cm_surface_data *surface_data)
 	PROFILE_START(prof_draw_vectorscope_name);
 	vss_draw_vectorscope(src->tex_buf[src->w_tex_buf], surface_data);
 	PROFILE_END(prof_draw_vectorscope_name);
+
+	src->tex_cs[src->w_tex_buf] = surface_data->colorspace;
+
 	src->w_tex_buf ^= 1;
 }
 
-static void create_graticule_vbuf(struct vss_source *src)
+static void create_graticule_vbuf(struct vss_source *src, int colorspace)
 {
-	if (src->graticule_vbuf)
+	if (src->update_graticule || colorspace != src->graticule_cs) {
+		src->update_graticule = false;
+		gs_vertexbuffer_destroy(src->graticule_vbuf);
+		src->graticule_vbuf = NULL;
+		gs_vertexbuffer_destroy(src->graticule_line_vbuf);
+		src->graticule_line_vbuf = NULL;
+	} else if (src->graticule_vbuf) {
 		return;
+	}
 
-	obs_enter_graphics();
 	src->graticule_vbuf = create_uv_vbuffer(N_GRATICULES * 6, false);
 	struct gs_vb_data *vdata = gs_vertexbuffer_get_data(src->graticule_vbuf);
 	struct vec2 *tvarray = (struct vec2 *)vdata->tvarray[0].array;
@@ -288,7 +292,7 @@ static void create_graticule_vbuf(struct vss_source *src)
 			{44, 136},
 		},
 	};
-	const int ppi = src->cm.colorspace - 1;
+	const int ppi = colorspace - 1;
 
 	// label
 	for (int i = 0; i < 6; i++) {
@@ -326,7 +330,7 @@ static void create_graticule_vbuf(struct vss_source *src)
 	int stl_b = src->graticule_skintone_color >> 16 & 0xFF;
 	int stl_g = src->graticule_skintone_color >> 8 & 0xFF;
 	int stl_r = src->graticule_skintone_color & 0xFF;
-	switch (src->cm.colorspace) {
+	switch (colorspace) {
 	case 1: // BT.601
 		stl_u = (float)RGB2U_601(stl_r, stl_g, stl_b);
 		stl_v = (float)RGB2V_601(stl_r, stl_g, stl_b);
@@ -353,8 +357,6 @@ static void create_graticule_vbuf(struct vss_source *src)
 
 	// boxes and skin tone line
 	src->graticule_line_vbuf = gs_render_save();
-
-	obs_leave_graphics();
 }
 
 static void vss_render(void *data, gs_effect_t *effect)
@@ -367,18 +369,6 @@ static void vss_render(void *data, gs_effect_t *effect)
 	}
 
 	PROFILE_START(prof_render_name);
-
-	if (src->update_graticule || src->cm.colorspace < 1) {
-		src->cm.colorspace = calc_colorspace(src->colorspace);
-		// TODO: how to set the same colorspace for ROI and all referred sources?
-		if (cm_is_roi(&src->cm))
-			src->cm.roi->cm.colorspace = src->cm.colorspace;
-		src->update_graticule = 0;
-		gs_vertexbuffer_destroy(src->graticule_vbuf);
-		src->graticule_vbuf = NULL;
-		gs_vertexbuffer_destroy(src->graticule_line_vbuf);
-		src->graticule_line_vbuf = NULL;
-	}
 
 	cm_render_target(&src->cm);
 
@@ -413,7 +403,7 @@ static void vss_render(void *data, gs_effect_t *effect)
 
 	PROFILE_START(prof_draw_graticule_name);
 	if (src->graticule_img.loaded && src->graticule && src->effect) {
-		create_graticule_vbuf(src);
+		create_graticule_vbuf(src, src->tex_cs[r_tex_buf]);
 		gs_effect_t *effect = src->effect;
 		gs_effect_set_color(gs_effect_get_param_by_name(effect, "color"), src->graticule_color);
 		draw_uv_vbuffer(src->graticule_vbuf, src->graticule_img.texture, effect, "DrawGraticule",

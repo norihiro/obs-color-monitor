@@ -90,6 +90,9 @@ void cm_update(struct cm_source *src, obs_data_t *settings)
 		src->target_scale = 1;
 
 	src->bypass = obs_data_get_bool(settings, "bypass");
+
+	int colorspace = (int)obs_data_get_int(settings, "colorspace");
+	src->colorspace = calc_colorspace(colorspace);
 }
 
 void cm_enum_sources(void *data, obs_source_enum_proc_t enum_callback, void *param)
@@ -277,6 +280,7 @@ void cm_render_target(struct cm_source *src)
 	item->cb_data = src->callback_data;
 	item->flags = src->bypass ? CM_FLAG_RAW_TEXTURE
 				  : src->flags & (CM_FLAG_CONVERT_RGB | CM_FLAG_CONVERT_YUV | CM_FLAG_RAW_TEXTURE);
+	item->colorspace = src->colorspace;
 
 	prepare_stagesurface(item, cx, cy, sheight);
 
@@ -336,6 +340,7 @@ static void cm_pipeline_thread_loop(struct cm_surface_queue_item *item)
 		.linesize = video_linesize,
 		.width = item->width,
 		.height = item->height,
+		.colorspace = item->colorspace,
 	};
 	if (item->flags & CM_FLAG_CONVERT_RGB) {
 		surface_data.rgb_data = video_data;

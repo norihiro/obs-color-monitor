@@ -20,6 +20,7 @@ struct cm_surface_data
 {
 	uint8_t *rgb_data, *yuv_data;
 	uint32_t linesize, width, height;
+	int colorspace;
 	gs_texture_t *tex; // for bypass mode
 };
 
@@ -31,6 +32,7 @@ struct cm_surface_queue_item
 	gs_stagesurf_t *stagesurface;
 	uint32_t width, height, sheight;
 	uint32_t flags; // RGB or YUV
+	int colorspace;
 
 	cm_surface_cb_t cb;
 	void *cb_data;

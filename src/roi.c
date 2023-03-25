@@ -6,6 +6,7 @@
 #include "obs-convenience.h"
 #include "roi.h"
 #include "common.h"
+#include "util.h"
 
 #ifdef ENABLE_PROFILE
 #define PROFILE_START(x) profile_start(x)
@@ -100,6 +101,7 @@ static obs_properties_t *roi_get_properties(void *data)
 	cm_get_properties(&src->cm, props);
 
 	obs_properties_add_int(props, "interleave", obs_module_text("Interleave"), 0, 1, 1);
+	properties_add_colorspace(props, "colorspace", obs_module_text("Color space"));
 
 	return props;
 }

@@ -134,9 +134,6 @@ static void zbs_update(void *data, obs_data_t *settings)
 	struct zbs_source *src = data;
 	cm_update(&src->cm, settings);
 	zb_update(&src->zb, settings);
-
-	int colorspace = (int)obs_data_get_int(settings, "colorspace");
-	src->cm.colorspace = calc_colorspace(colorspace);
 }
 
 static void zbf_update(void *data, obs_data_t *settings)
@@ -165,11 +162,7 @@ static void zb_get_properties(obs_properties_t *props, bool is_falsecolor)
 		obs_property_int_set_suffix(prop, "%");
 	}
 
-	prop = obs_properties_add_list(props, "colorspace", obs_module_text("Color space"), OBS_COMBO_TYPE_LIST,
-				       OBS_COMBO_FORMAT_INT);
-	obs_property_list_add_int(prop, obs_module_text("Auto"), 0);
-	obs_property_list_add_int(prop, obs_module_text("601"), 1);
-	obs_property_list_add_int(prop, obs_module_text("709"), 2);
+	properties_add_colorspace(props, "colorspace", obs_module_text("Color space"));
 }
 
 static obs_properties_t *zbs_get_properties(void *data)
