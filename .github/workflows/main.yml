@@ -279,7 +279,6 @@ jobs:
         obs: [27, 28]
         arch: [x64]
     env:
-      visualStudio: 'Visual Studio 17 2022'
       Configuration: 'RelWithDebInfo'
     defaults:
       run:
@@ -297,7 +296,6 @@ jobs:
       - name: Build plugin
         run: |
           $CmakeArgs = @(
-            '-G', "${{ env.visualStudio }}"
             '-DQT_VERSION=${{ steps.obsdeps.outputs.OBS_QT_VERSION_MAJOR }}'
             '-DCMAKE_SYSTEM_VERSION=10.0.18363.657'
             "-DCMAKE_INSTALL_PREFIX=$(Resolve-Path -Path "./obs-build-dependencies/plugin-deps-${{ matrix.arch }}")"
