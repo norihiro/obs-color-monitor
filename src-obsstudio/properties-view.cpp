@@ -2,8 +2,6 @@
 #include <QScrollBar>
 #include <QLabel>
 #include <QCheckBox>
-#include <QFont>
-#include <QFontDialog>
 #include <QLineEdit>
 #include <QSpinBox>
 #include <QSlider>
@@ -12,7 +10,6 @@
 #include <QListWidget>
 #include <QPushButton>
 #include <QStandardItem>
-#include <QFileDialog>
 #include <QColorDialog>
 #include <QPlainTextEdit>
 #include <QDialogButtonBox>
@@ -259,36 +256,6 @@ QWidget *OBSPropertiesView::AddText(obs_property_t *prop, QFormLayout *layout,
 	edit->setToolTip(QT_UTF8(obs_property_long_description(prop)));
 
 	return NewWidget(prop, edit, SIGNAL(textEdited(const QString &)));
-}
-
-void OBSPropertiesView::AddPath(obs_property_t *prop, QFormLayout *layout,
-				QLabel **label)
-{
-	const char *name = obs_property_name(prop);
-	const char *val = obs_data_get_string(settings, name);
-	QLayout *subLayout = new QHBoxLayout();
-	QLineEdit *edit = new QLineEdit();
-	QPushButton *button = new QPushButton(QTStr("Browse"));
-
-	if (!obs_property_enabled(prop)) {
-		edit->setEnabled(false);
-		button->setEnabled(false);
-	}
-
-	button->setProperty("themeID", "settingsButtons");
-	edit->setText(QT_UTF8(val));
-	edit->setReadOnly(true);
-	edit->setToolTip(QT_UTF8(obs_property_long_description(prop)));
-
-	subLayout->addWidget(edit);
-	subLayout->addWidget(button);
-
-	DockProp_WidgetInfo *info = new DockProp_WidgetInfo(this, prop, edit);
-	connect(button, SIGNAL(clicked()), info, SLOT(ControlChanged()));
-	children.emplace_back(info);
-
-	*label = new QLabel(QT_UTF8(obs_property_description(prop)));
-	layout->addRow(*label, subLayout);
 }
 
 void OBSPropertiesView::AddInt(obs_property_t *prop, QFormLayout *layout,
@@ -659,85 +626,6 @@ void OBSPropertiesView::AddColor(obs_property_t *prop, QFormLayout *layout,
 	layout->addRow(label, subLayout);
 }
 
-void MakeQFont(obs_data_t *font_obj, QFont &font, bool limit = false)
-{
-	const char *face = obs_data_get_string(font_obj, "face");
-	const char *style = obs_data_get_string(font_obj, "style");
-	int size = (int)obs_data_get_int(font_obj, "size");
-	uint32_t flags = (uint32_t)obs_data_get_int(font_obj, "flags");
-
-	if (face) {
-		font.setFamily(face);
-		font.setStyleName(style);
-	}
-
-	if (size) {
-		if (limit) {
-			int max_size = font.pointSize();
-			if (max_size < 28)
-				max_size = 28;
-			if (size > max_size)
-				size = max_size;
-		}
-		font.setPointSize(size);
-	}
-
-	if (flags & OBS_FONT_BOLD)
-		font.setBold(true);
-	if (flags & OBS_FONT_ITALIC)
-		font.setItalic(true);
-	if (flags & OBS_FONT_UNDERLINE)
-		font.setUnderline(true);
-	if (flags & OBS_FONT_STRIKEOUT)
-		font.setStrikeOut(true);
-}
-
-void OBSPropertiesView::AddFont(obs_property_t *prop, QFormLayout *layout,
-				QLabel *&label)
-{
-	const char *name = obs_property_name(prop);
-	obs_data_t *font_obj = obs_data_get_obj(settings, name);
-	const char *face = obs_data_get_string(font_obj, "face");
-	const char *style = obs_data_get_string(font_obj, "style");
-	QPushButton *button = new QPushButton;
-	QLabel *fontLabel = new QLabel;
-	QFont font;
-
-	if (!obs_property_enabled(prop)) {
-		button->setEnabled(false);
-		fontLabel->setEnabled(false);
-	}
-
-	font = fontLabel->font();
-	MakeQFont(font_obj, font, true);
-
-	button->setProperty("themeID", "settingsButtons");
-	button->setText(QTStr("Basic.PropertiesWindow.SelectFont"));
-	button->setToolTip(QT_UTF8(obs_property_long_description(prop)));
-
-	fontLabel->setFrameStyle(QFrame::Sunken | QFrame::Panel);
-	fontLabel->setFont(font);
-	fontLabel->setText(QString("%1 %2").arg(face, style));
-	fontLabel->setAlignment(Qt::AlignCenter);
-	fontLabel->setToolTip(QT_UTF8(obs_property_long_description(prop)));
-
-	QHBoxLayout *subLayout = new QHBoxLayout;
-	subLayout->setContentsMargins(0, 0, 0, 0);
-
-	subLayout->addWidget(fontLabel);
-	subLayout->addWidget(button);
-
-	DockProp_WidgetInfo *info =
-		new DockProp_WidgetInfo(this, prop, fontLabel);
-	connect(button, SIGNAL(clicked()), info, SLOT(ControlChanged()));
-	children.emplace_back(info);
-
-	label = new QLabel(QT_UTF8(obs_property_description(prop)));
-	layout->addRow(label, subLayout);
-
-	obs_data_release(font_obj);
-}
-
 namespace std {
 
 template<> struct default_delete<obs_data_t> {
@@ -817,25 +705,17 @@ void OBSPropertiesView::AddProperty(obs_property_t *property,
 	case OBS_PROPERTY_TEXT:
 		widget = AddText(property, layout, label);
 		break;
-	case OBS_PROPERTY_PATH:
-		AddPath(property, layout, &label);
-		break;
 	case OBS_PROPERTY_LIST:
 		widget = AddList(property, warning);
 		break;
 	case OBS_PROPERTY_COLOR:
 		AddColor(property, layout, label);
 		break;
-	case OBS_PROPERTY_FONT:
-		AddFont(property, layout, label);
-		break;
 	case OBS_PROPERTY_BUTTON:
 		widget = AddButton(property);
 		break;
 	case OBS_PROPERTY_EDITABLE_LIST:
 		AddEditableList(property, layout, label);
-		break;
-	case OBS_PROPERTY_FRAME_RATE:
 		break;
 	case OBS_PROPERTY_GROUP:
 		AddGroup(property, layout);
@@ -954,33 +834,6 @@ void DockProp_WidgetInfo::TextChanged(const char *setting)
 	obs_data_set_string(view->settings, setting, QT_TO_UTF8(edit->text()));
 }
 
-bool DockProp_WidgetInfo::PathChanged(const char *setting)
-{
-	const char *desc = obs_property_description(property);
-	obs_path_type type = obs_property_path_type(property);
-	const char *filter = obs_property_path_filter(property);
-	const char *default_path = obs_property_path_default_path(property);
-	QString path;
-
-	if (type == OBS_PATH_DIRECTORY)
-		path = SelectDirectory(view, QT_UTF8(desc),
-				       QT_UTF8(default_path));
-	else if (type == OBS_PATH_FILE)
-		path = OpenFile(view, QT_UTF8(desc), QT_UTF8(default_path),
-				QT_UTF8(filter));
-	else if (type == OBS_PATH_FILE_SAVE)
-		path = SaveFile(view, QT_UTF8(desc), QT_UTF8(default_path),
-				QT_UTF8(filter));
-
-	if (path.isEmpty())
-		return false;
-
-	QLineEdit *edit = static_cast<QLineEdit *>(widget);
-	edit->setText(path);
-	obs_data_set_string(view->settings, setting, QT_TO_UTF8(path));
-	return true;
-}
-
 void DockProp_WidgetInfo::ListChanged(const char *setting)
 {
 	QComboBox *combo = static_cast<QComboBox *>(widget);
@@ -1050,55 +903,6 @@ bool DockProp_WidgetInfo::ColorChanged(const char *setting)
 
 	obs_data_set_int(view->settings, setting, color_to_int(color));
 
-	return true;
-}
-
-bool DockProp_WidgetInfo::FontChanged(const char *setting)
-{
-	obs_data_t *font_obj = obs_data_get_obj(view->settings, setting);
-	bool success;
-	uint32_t flags;
-	QFont font;
-
-	QFontDialog::FontDialogOptions options;
-
-#ifndef _WIN32
-	options = QFontDialog::DontUseNativeDialog;
-#endif
-
-	if (!font_obj) {
-		QFont initial;
-		font = QFontDialog::getFont(&success, initial, view,
-					    "Pick a Font", options);
-	} else {
-		MakeQFont(font_obj, font);
-		font = QFontDialog::getFont(&success, font, view, "Pick a Font",
-					    options);
-		obs_data_release(font_obj);
-	}
-
-	if (!success)
-		return false;
-
-	font_obj = obs_data_create();
-
-	obs_data_set_string(font_obj, "face", QT_TO_UTF8(font.family()));
-	obs_data_set_string(font_obj, "style", QT_TO_UTF8(font.styleName()));
-	obs_data_set_int(font_obj, "size", font.pointSize());
-	flags = font.bold() ? OBS_FONT_BOLD : 0;
-	flags |= font.italic() ? OBS_FONT_ITALIC : 0;
-	flags |= font.underline() ? OBS_FONT_UNDERLINE : 0;
-	flags |= font.strikeOut() ? OBS_FONT_STRIKEOUT : 0;
-	obs_data_set_int(font_obj, "flags", flags);
-
-	QLabel *label = static_cast<QLabel *>(widget);
-	QFont labelFont;
-	MakeQFont(font_obj, labelFont, true);
-	label->setFont(labelFont);
-	label->setText(QString("%1 %2").arg(font.family(), font.styleName()));
-
-	obs_data_set_obj(view->settings, setting, font_obj);
-	obs_data_release(font_obj);
 	return true;
 }
 

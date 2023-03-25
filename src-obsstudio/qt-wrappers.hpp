@@ -30,27 +30,12 @@
 #define QT_UTF8(str) QString::fromUtf8(str)
 #define QT_TO_UTF8(str) str.toUtf8().constData()
 
-class QDataStream;
 class QWidget;
 class QLayout;
 class QString;
 struct gs_window;
 
-void OBSErrorBox(QWidget *parent, const char *msg, ...);
-
 void QTToGSWindow(WId windowId, gs_window &gswindow);
-
-uint32_t TranslateQtKeyboardEventModifiers(Qt::KeyboardModifiers mods);
-
-QDataStream &
-operator<<(QDataStream &out,
-	   const std::vector<std::shared_ptr<OBSSignal>> &signal_vec);
-QDataStream &operator>>(QDataStream &in,
-			std::vector<std::shared_ptr<OBSSignal>> &signal_vec);
-QDataStream &operator<<(QDataStream &out, const OBSScene &scene);
-QDataStream &operator>>(QDataStream &in, OBSScene &scene);
-QDataStream &operator<<(QDataStream &out, const OBSSceneItem &si);
-QDataStream &operator>>(QDataStream &in, OBSSceneItem &si);
 
 static inline Qt::ConnectionType WaitConnection()
 {
@@ -61,11 +46,3 @@ static inline Qt::ConnectionType WaitConnection()
 
 bool LineEditCanceled(QEvent *event);
 bool LineEditChanged(QEvent *event);
-
-QString SelectDirectory(QWidget *parent, QString title, QString path);
-QString SaveFile(QWidget *parent, QString title, QString path,
-		 QString extensions);
-QString OpenFile(QWidget *parent, QString title, QString path,
-		 QString extensions);
-QStringList OpenFiles(QWidget *parent, QString title, QString path,
-		      QString extensions);

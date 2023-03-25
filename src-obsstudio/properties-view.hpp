@@ -28,10 +28,8 @@ private:
 	void IntChanged(const char *setting);
 	void FloatChanged(const char *setting);
 	void TextChanged(const char *setting);
-	bool PathChanged(const char *setting);
 	void ListChanged(const char *setting);
 	bool ColorChanged(const char *setting);
-	bool FontChanged(const char *setting);
 	void GroupChanged(const char *setting);
 	void EditableListChanged();
 	void ButtonClicked();
@@ -91,7 +89,6 @@ private:
 	QWidget *AddCheckbox(obs_property_t *prop);
 	QWidget *AddText(obs_property_t *prop, QFormLayout *layout,
 			 QLabel *&label);
-	void AddPath(obs_property_t *prop, QFormLayout *layout, QLabel **label);
 	void AddInt(obs_property_t *prop, QFormLayout *layout, QLabel **label);
 	void AddFloat(obs_property_t *prop, QFormLayout *layout,
 		      QLabel **label);
@@ -101,9 +98,6 @@ private:
 	QWidget *AddButton(obs_property_t *prop);
 	void AddColor(obs_property_t *prop, QFormLayout *layout,
 		      QLabel *&label);
-	void AddFont(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
-	void AddFrameRate(obs_property_t *prop, bool &warning,
-			  QFormLayout *layout, QLabel *&label);
 
 	void AddGroup(obs_property_t *prop, QFormLayout *layout);
 
