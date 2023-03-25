@@ -146,6 +146,8 @@ static bool render_target_to_texrender(obs_source_t *target, uint32_t target_wid
 	vec4_zero(&background);
 
 	gs_clear(GS_CLEAR_COLOR, &background, 0.0f, 0);
+
+	gs_projection_push();
 	gs_ortho(0.0f, (float)target_width, 0.0f, (float)target_height, -100.0f, 100.0f);
 
 	gs_blend_state_push();
@@ -156,6 +158,7 @@ static bool render_target_to_texrender(obs_source_t *target, uint32_t target_wid
 		obs_render_main_texture();
 	}
 	gs_blend_state_pop();
+	gs_projection_pop();
 
 	gs_texrender_end(texrender);
 	return true;
@@ -169,6 +172,7 @@ static bool render_rgb_yuv(struct cm_source *src, struct cm_surface_queue_item *
 	gs_texrender_reset(item->texrender);
 	if (src->effect && gs_texrender_begin(item->texrender, item->width, item->sheight)) {
 		PROFILE_START(prof_convert_yuv_name);
+		gs_projection_push();
 		gs_ortho(0.0f, (float)item->width, 0.0f, (float)item->sheight, -100.0f, 100.0f);
 
 		gs_texture_t *tex = gs_texrender_get_texture(src->texrender);
@@ -201,6 +205,7 @@ static bool render_rgb_yuv(struct cm_source *src, struct cm_surface_queue_item *
 			}
 		}
 		gs_texrender_end(item->texrender);
+		gs_projection_pop();
 		PROFILE_END(prof_convert_yuv_name);
 	}
 
