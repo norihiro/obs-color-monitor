@@ -1,7 +1,7 @@
 #include <obs-module.h>
 #include <obs-frontend-api.h>
 #include "plugin-macros.generated.h"
-#include "common.h"
+#include "util.h"
 #include <vector>
 #include <string>
 #include <algorithm>

@@ -4,6 +4,7 @@
 #include "plugin-macros.generated.h"
 #include "obs-convenience.h"
 #include "common.h"
+#include "util.h"
 #include "roi.h"
 
 #ifdef ENABLE_PROFILE
@@ -18,16 +19,6 @@ static const char *prof_stagesurface_map_name = "stage_surface_map";
 #define PROFILE_START(x)
 #define PROFILE_END(x)
 #endif // ! ENABLE_PROFILE
-
-gs_effect_t *create_effect_from_module_file(const char *basename)
-{
-	char *f = obs_module_file(basename);
-	gs_effect_t *effect = gs_effect_create_from_file(f, NULL);
-	if (!effect)
-		blog(LOG_ERROR, "Cannot load '%s'", f);
-	bfree(f);
-	return effect;
-}
 
 void cm_create(struct cm_source *src, obs_data_t *settings, obs_source_t *source)
 {
@@ -562,24 +553,6 @@ void cm_tick(void *data, float unused)
 	src->rendered = 0;
 
 	src->i_bypass_queue = (src->i_write_queue + CM_SURFACE_QUEUE_SIZE - 1) % CM_SURFACE_QUEUE_SIZE;
-}
-
-int calc_colorspace(int colorspace)
-{
-	if (1 <= colorspace && colorspace <= 2)
-		return colorspace;
-	struct obs_video_info ovi;
-	if (obs_get_video_info(&ovi)) {
-		switch (ovi.colorspace) {
-		case VIDEO_CS_601:
-			return 1;
-		case VIDEO_CS_709:
-			return 2;
-		default:
-			return 2; // TODO: Implement
-		}
-	}
-	return 2; // default
 }
 
 uint32_t cm_bypass_get_width(struct cm_source *src)

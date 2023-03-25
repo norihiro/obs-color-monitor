@@ -3,8 +3,7 @@
 #include "plugin-macros.generated.h"
 #include <graphics/matrix4.h>
 #include "common.h"
-
-#define debug(format, ...)
+#include "util.h"
 
 #ifdef ENABLE_PROFILE
 #define PROFILE_START(x) profile_start(x)

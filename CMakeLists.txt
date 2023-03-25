@@ -55,7 +55,8 @@ set(PLUGIN_SOURCES
 	src/zebra.c
 	src/roi.c
 	src/common.c
-	src/common-cpp.cc
+	src/util.c
+	src/util-cpp.cc
 	src/obs-convenience.c
 	src/scope-dock.cpp
 	src/scope-dock-new-dialog.cpp

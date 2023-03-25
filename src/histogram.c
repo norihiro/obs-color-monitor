@@ -3,8 +3,8 @@
 #include "plugin-macros.generated.h"
 #include <graphics/matrix4.h>
 #include "common.h"
+#include "util.h"
 
-#define debug(format, ...)
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 
 #ifdef ENABLE_PROFILE

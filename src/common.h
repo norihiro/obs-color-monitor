@@ -6,8 +6,6 @@
 extern "C" {
 #endif
 
-void property_list_add_sources(obs_property_t *prop, obs_source_t *self);
-
 static inline bool is_program_name(const char *name)
 {
 	return *name && name[0] == 0;
@@ -108,10 +106,7 @@ static inline bool cm_is_roi(const struct cm_source *src)
 	return src->roi_src && src->roi;
 }
 
-int calc_colorspace(int);
 bool is_roi_source_name(const char *name);
-
-gs_effect_t *create_effect_from_module_file(const char *basename);
 
 #ifdef __cplusplus
 }

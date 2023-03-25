@@ -7,8 +7,6 @@
 #include "roi.h"
 #include "common.h"
 
-#define debug(format, ...)
-
 #ifdef ENABLE_PROFILE
 #define PROFILE_START(x) profile_start(x)
 #define PROFILE_END(x) profile_end(x)

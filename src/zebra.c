@@ -2,9 +2,7 @@
 #include <util/platform.h>
 #include "plugin-macros.generated.h"
 #include "common.h"
-#include "roi.h"
-
-#define debug(format, ...)
+#include "util.h"
 
 #ifdef ENABLE_PROFILE
 #define PROFILE_START(x) profile_start(x)
