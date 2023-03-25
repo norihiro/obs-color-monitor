@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Color Scope Dock shows vectorscope, waveform, histogram and ROI (region of interest).
+Color Scope Dock shows ROI (region of interest), and all other scopes including vectorscope, waveform, histogram.
 
 ## Opening the Color Scope Dock
 
@@ -31,7 +31,7 @@ drag the edge of the region to resize the edge of the region.
 When you move your mouse close to the edge, a square will appear in addition to the region outline. The square indicates you can resize the edge.
 
 ## Selecting Scopes
-The dock provides ROI and 3 types of scopes.
+The dock provides ROI and some types of scopes.
 All scopes are on by default.
 Each scope can be turned off from a right-click menu.
 
