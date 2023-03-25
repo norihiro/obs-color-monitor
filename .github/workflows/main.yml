@@ -279,7 +279,7 @@ jobs:
         obs: [27, 28]
         arch: [x64]
     env:
-      visualStudio: 'NMake Makefiles'
+      visualStudio: 'Ninja Multi-Config'
       Configuration: 'RelWithDebInfo'
     defaults:
       run:
