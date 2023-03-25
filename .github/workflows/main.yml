@@ -279,6 +279,7 @@ jobs:
         obs: [27, 28]
         arch: [x64]
     env:
+      visualStudio: 'NMake Makefiles'
       Configuration: 'RelWithDebInfo'
     defaults:
       run:
@@ -297,6 +298,7 @@ jobs:
         run: |
           cmake -G
           $CmakeArgs = @(
+            '-G', "${{ env.visualStudio }}"
             '-DQT_VERSION=${{ steps.obsdeps.outputs.OBS_QT_VERSION_MAJOR }}'
             '-DCMAKE_SYSTEM_VERSION=10.0.18363.657'
             "-DCMAKE_INSTALL_PREFIX=$(Resolve-Path -Path "./obs-build-dependencies/plugin-deps-${{ matrix.arch }}")"
