@@ -295,6 +295,7 @@ jobs:
           obs: ${{ matrix.obs }}
       - name: Build plugin
         run: |
+          cmake -G
           $CmakeArgs = @(
             '-DQT_VERSION=${{ steps.obsdeps.outputs.OBS_QT_VERSION_MAJOR }}'
             '-DCMAKE_SYSTEM_VERSION=10.0.18363.657'
