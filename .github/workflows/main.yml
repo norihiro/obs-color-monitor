@@ -18,6 +18,22 @@ env:
   artifactName: ${{ contains(github.ref_name, '/') && 'artifact' || github.ref_name }}
 
 jobs:
+  config:
+    runs-on: ubuntu-latest
+    outputs:
+      cmake_files_hash: ${{ steps.config.outputs.cmake_files_hash }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: 'Configure jobs'
+        id: config
+        run: |
+          echo cmake_files_hash=$(git ls-files |
+            grep -i 'cmake' | LC_ALL=C sort |
+            xargs cat |
+            sha256sum | cut -f1 '-d '
+          ) >> $GITHUB_OUTPUT
+
   linux_build:
     runs-on: ${{ matrix.ubuntu }}
     strategy:
@@ -278,9 +294,11 @@ jobs:
       matrix:
         obs: [27, 28]
         arch: [x64]
+    needs: [config]
     env:
       visualStudio: 'Visual Studio 17 2022'
       Configuration: 'RelWithDebInfo'
+      cmake_files_hash: ${{ needs.config.outputs.cmake_files_hash }}
     defaults:
       run:
         shell: pwsh
@@ -294,7 +312,14 @@ jobs:
         uses: norihiro/obs-studio-devel-action@v1-beta
         with:
           obs: ${{ matrix.obs }}
-      - name: Build plugin
+      - name: Restore build configuration from cache
+        if: ${{ ! startsWith(github.ref, 'refs/tags/') }}
+        id: cmake-build-cache
+        uses: actions/cache/restore@v3
+        with:
+          path: ${{ github.workspace }}/build
+          key: win-cmake-env-obs${{ matrix.obs }}-${{ matrix.arch }}-${{ env.cmake_files_hash }}
+      - name: Configure plugin
         run: |
           $CmakeArgs = @(
             '-G', "${{ env.visualStudio }}"
@@ -304,6 +329,14 @@ jobs:
             "-DCMAKE_PREFIX_PATH=$(Resolve-Path -Path "./obs-build-dependencies/plugin-deps-${{ matrix.arch }}")"
           )
           cmake -S . -B build @CmakeArgs
+      - name: Save build configuration to cache
+        if: ${{ steps.cmake-build-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v3
+        with:
+          path: ${{ github.workspace }}/build
+          key: win-cmake-env-obs${{ matrix.obs }}-${{ matrix.arch }}-${{ env.cmake_files_hash }}
+      - name: Build plugin
+        run: |
           cmake --build build --config RelWithDebInfo -j 4
           cmake --install build --config RelWithDebInfo --prefix "$(Resolve-Path -Path .)/release"
       - name: Package plugin
