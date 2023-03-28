@@ -50,6 +50,8 @@ static void *roi_create(obs_data_t *settings, obs_source_t *source)
 {
 	struct roi_source *src = bzalloc(sizeof(struct roi_source));
 
+	pthread_mutex_init(&src->sources_mutex, NULL);
+
 	src->cm.flags = ROI_DEFAULT_CM_FLAG;
 	cm_create(&src->cm, settings, source);
 	cm_request(&src->cm, roi_surface_cb, src);
@@ -76,6 +78,7 @@ static void roi_destroy(void *data)
 
 	cm_destroy(&src->cm);
 	da_free(src->sources);
+	pthread_mutex_destroy(&src->sources_mutex);
 
 	bfree(src);
 }
