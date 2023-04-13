@@ -8,12 +8,12 @@ extern "C" {
 
 static inline bool is_program_name(const char *name)
 {
-	return *name && name[0] == 0;
+	return name && name[0] == 0;
 }
 
 static inline bool is_preview_name(const char *name)
 {
-	return *name && name[0] == 0x10 && name[1] == 0;
+	return name && name[0] == 0x10 && name[1] == 0;
 }
 
 struct cm_surface_data
