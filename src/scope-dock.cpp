@@ -86,11 +86,14 @@ void ScopeDock::hideEvent(QHideEvent *)
 
 static void close_all_docks()
 {
-	if (docks)
+	if (docks && docks->size()) {
+		blog(LOG_INFO, "Closing %d remaining scope docks...", (int)docks->size());
 		while (docks->size()) {
 			(*docks)[docks->size() - 1]->close();
 			delete (*docks)[docks->size() - 1];
 		}
+		blog(LOG_INFO, "Closed all remaining scope docks.");
+	}
 }
 
 static void save_load_scope_docks(obs_data_t *save_data, bool saving, void *)
