@@ -142,7 +142,11 @@ static void save_load_scope_docks(obs_data_t *save_data, bool saving, void *)
 
 static void frontend_event(enum obs_frontend_event event, void *)
 {
-	if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP || event == OBS_FRONTEND_EVENT_EXIT) {
+	if (
+#if LIBOBS_API_VER >= MAKE_SEMANTIC_VERSION(28, 0, 0)
+		event == OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN ||
+#endif
+		event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP || event == OBS_FRONTEND_EVENT_EXIT) {
 		close_all_docks();
 	}
 }
