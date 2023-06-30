@@ -11,7 +11,7 @@ Y-axis shows the population. The Y-axis is automatically scaled to the maximum p
 
 ### Source
 
-Selects one of Program, Preview, Scene, or Source.
+Selects one of Program, Main view, Preview, Scene, or Source.
 Default is Program.
 
 ### Scale

@@ -15,7 +15,7 @@ RGB color `#000000` corresponds to 0&nbsp;IRE `#FFFFFF` corresponds to 100&nbsp;
 ### Source
 (Not available for False Color Filter.)
 
-Selects one of Program, Preview, Scene, or Source.
+Selects one of Program, Main view, Preview, Scene, or Source.
 The default is Program.
 
 ### Color space

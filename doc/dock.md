@@ -39,8 +39,12 @@ Each scope can be turned off from a right-click menu.
 
 ### Source
 
-Selects one of Program, Preview, Scene, or Source.
+Selects one of Program, Main view, Preview, Scene, or Source.
 Default is Program.
+
+If you select Main view,
+the texture before overlaying scenes made by [Downstream Keyer](https://github.com/exeldro/obs-downstream-keyer) plugin.
+Without Downstream Keyer, there is no difference between Program and Main view.
 
 ### Scale
 

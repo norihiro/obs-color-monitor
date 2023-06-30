@@ -11,6 +11,11 @@ static inline bool is_program_name(const char *name)
 	return name && name[0] == 0;
 }
 
+static inline bool is_mainview_name(const char *name)
+{
+	return name && name[0] == 0x01 && name[1] == 0;
+}
+
 static inline bool is_preview_name(const char *name)
 {
 	return name && name[0] == 0x10 && name[1] == 0;

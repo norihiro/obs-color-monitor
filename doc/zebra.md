@@ -10,7 +10,7 @@ This plugin provides lower threshold and upper threshold.
 ### Source
 (Not available for Zebra Filter.)
 
-Selects one of Program, Preview, Scene, or Source.
+Selects one of Program, Main view, Preview, Scene, or Source.
 The default is Program.
 
 ### Threshold (lower, higher)

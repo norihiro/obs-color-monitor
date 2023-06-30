@@ -13,7 +13,7 @@ The intensity shows the population of each color.
 
 ### Source
 
-Selects one of Program, Preview, Scene, or Source.
+Selects one of Program, Main view, Preview, Scene, or Source.
 Default is Program.
 
 ### Scale

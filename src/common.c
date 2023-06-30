@@ -453,6 +453,22 @@ static bool update_target_unlocked_program(struct cm_source *src)
 	return false;
 }
 
+static bool update_target_unlocked_mainview(struct cm_source *src)
+{
+	obs_source_t *target = obs_get_output_source(0);
+	obs_weak_source_t *weak_target = obs_source_get_weak_source(target);
+	obs_source_release(target);
+
+	if (weak_target != src->weak_target) {
+		obs_weak_source_release(src->weak_target);
+		src->weak_target = weak_target;
+		return true;
+	} else {
+		obs_weak_source_release(weak_target);
+		return false;
+	}
+}
+
 static bool update_target_unlocked_preview(struct cm_source *src)
 {
 	obs_source_t *target = obs_frontend_get_current_preview_scene();
@@ -506,6 +522,9 @@ static bool update_target_unlocked(struct cm_source *src)
 
 	if (is_program_name(src->target_name))
 		return update_target_unlocked_program(src);
+
+	if (is_mainview_name(src->target_name))
+		return update_target_unlocked_mainview(src);
 
 	if (is_preview_name(src->target_name))
 		return update_target_unlocked_preview(src);

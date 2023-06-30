@@ -35,6 +35,7 @@ void property_list_add_sources(obs_property_t *prop, obs_source_t *self)
 {
 	// current scene
 	obs_property_list_add_string(prop, obs_module_text("Program"), "");
+	obs_property_list_add_string(prop, obs_module_text("MainView"), "\x01");
 	obs_property_list_add_string(prop, obs_module_text("Preview"), "\x10");
 
 	// scenes, same order as the scene list
