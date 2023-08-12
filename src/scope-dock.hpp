@@ -31,4 +31,3 @@ private:
 
 extern "C" void scope_dock_add(const char *name, obs_data_t *props);
 extern "C" void scope_docks_init();
-extern "C" void scope_docks_release();

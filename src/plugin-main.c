@@ -33,7 +33,6 @@ extern struct obs_source_info colormonitor_falsecolor;
 extern struct obs_source_info colormonitor_falsecolor_filter;
 extern struct obs_source_info colormonitor_roi;
 void scope_docks_init();
-void scope_docks_release();
 
 bool obs_module_load(void)
 {
@@ -62,10 +61,4 @@ bool obs_module_load(void)
 	blog(LOG_INFO, "plugin loaded (plugin version %s, API version %d.%d.%d)", PLUGIN_VERSION, LIBOBS_API_MAJOR_VER,
 	     LIBOBS_API_MINOR_VER, LIBOBS_API_PATCH_VER);
 	return true;
-}
-
-void obs_module_unload()
-{
-	scope_docks_release();
-	blog(LOG_INFO, "plugin unloaded");
 }

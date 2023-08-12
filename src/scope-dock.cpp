@@ -143,14 +143,23 @@ static void save_load_scope_docks(obs_data_t *save_data, bool saving, void *)
 	}
 }
 
+static void scope_docks_release();
+
 static void frontend_event(enum obs_frontend_event event, void *)
 {
-	if (
+	switch (event) {
 #if LIBOBS_API_VER >= MAKE_SEMANTIC_VERSION(28, 0, 0)
-		event == OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN ||
+	case OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN:
 #endif
-		event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP || event == OBS_FRONTEND_EVENT_EXIT) {
+	case OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP:
+	case OBS_FRONTEND_EVENT_EXIT:
 		close_all_docks();
+
+		if (event == OBS_FRONTEND_EVENT_EXIT)
+			scope_docks_release();
+		break;
+	default:
+		break;
 	}
 }
 
@@ -176,4 +185,7 @@ void scope_docks_release()
 {
 	delete docks;
 	docks = NULL;
+
+	obs_frontend_remove_save_callback(save_load_scope_docks, NULL);
+	obs_frontend_remove_event_callback(frontend_event, nullptr);
 }
