@@ -11,6 +11,7 @@
 #include "scope-widget.hpp"
 #include "scope-widget-properties.hpp"
 #include "obsgui-helper.hpp"
+#include "SurfaceEventFilter.hpp"
 
 #define N_SRC SCOPE_WIDGET_N_SRC
 
@@ -42,6 +43,8 @@ struct scope_widget_s
 	// last drawn coordinates for each rect
 	src_rect_s src_rect[N_SRC];
 	int i_mouse_last, i_src_menu;
+
+	bool destroying;
 };
 
 static obs_source_t *create_scope_source_roi(const char *id, obs_data_t *settings, const char *name)
@@ -146,7 +149,8 @@ static void draw(void *param, uint32_t cx, uint32_t cy)
 	pthread_mutex_unlock(&data->mutex);
 }
 
-ScopeWidget::ScopeWidget(QWidget *parent) : QWidget(parent), eventFilter(BuildEventFilter())
+ScopeWidget::ScopeWidget(QWidget *parent)
+	: QWidget(parent), eventFilter(BuildEventFilter()), surfaceEventFilter(new SurfaceEventFilter(this))
 {
 	properties = NULL;
 	setAttribute(Qt::WA_PaintOnScreen);
@@ -164,15 +168,17 @@ ScopeWidget::ScopeWidget(QWidget *parent) : QWidget(parent), eventFilter(BuildEv
 	data->src_shown = (1 << N_SRC) - 1;
 	data->i_mouse_last = -1;
 	data->i_src_menu = -1;
+
+	windowHandle()->installEventFilter(surfaceEventFilter.get());
 }
 
 ScopeWidget::~ScopeWidget()
 {
+	windowHandle()->removeEventFilter(surfaceEventFilter.get());
 	removeEventFilter(eventFilter.get());
 
 	if (data) {
-		obs_display_destroy(data->disp);
-		data->disp = NULL;
+		DestroyDisplay();
 
 		pthread_mutex_lock(&data->mutex);
 		for (int i = 0; i < N_SRC; i++)
@@ -217,9 +223,16 @@ void ScopeWidget::CreateDisplay()
 	if (data->disp || !windowHandle() || !windowHandle()->isExposed())
 		return;
 
+	if (data->destroying)
+		return;
+
 	blog(LOG_INFO, "ScopeWidget::CreateDisplay %p", this);
 
 	QSize size = GetPixelSize(this);
+	if (size.width() <= 0 || size.height() <= 0) {
+		blog(LOG_WARNING, "ScopeWidget::CreateDisplay: Not creating obs_display because the size is zero.");
+		return;
+	}
 	gs_init_data info = {};
 	info.cx = size.width();
 	info.cy = size.height();
@@ -238,13 +251,30 @@ void ScopeWidget::CreateDisplay()
 	obs_display_add_draw_callback(data->disp, draw, data);
 }
 
+void ScopeWidget::DestroyDisplay()
+{
+	if (!data) {
+		blog(LOG_ERROR, "ScopeWidget::DestroyDisplay() accessing released object");
+		return;
+	}
+
+	obs_display_destroy(data->disp);
+	data->disp = NULL;
+	data->destroying = true;
+}
+
 void ScopeWidget::resizeEvent(QResizeEvent *event)
 {
 	QWidget::resizeEvent(event);
+
+	if (!isVisible())
+		return;
+
 	CreateDisplay();
 
 	QSize size = GetPixelSize(this);
-	obs_display_resize(data->disp, size.width(), size.height());
+	if (data->disp && size.width() > 0 && size.height() > 0)
+		obs_display_resize(data->disp, size.width(), size.height());
 }
 
 void ScopeWidget::paintEvent(QPaintEvent *)

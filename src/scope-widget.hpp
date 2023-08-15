@@ -7,6 +7,7 @@
 #define SCOPE_WIDGET_N_SRC 6
 
 class OBSEventFilter;
+template<typename QTDisplay_class> class SurfaceEventFilter;
 
 class ScopeWidget : public QWidget {
 	Q_OBJECT
@@ -14,8 +15,8 @@ class ScopeWidget : public QWidget {
 	struct scope_widget_s *data;
 	class ScopeWidgetProperties *properties;
 	std::unique_ptr<OBSEventFilter> eventFilter;
+	std::unique_ptr<SurfaceEventFilter<ScopeWidget>> surfaceEventFilter;
 
-	void CreateDisplay();
 	void resizeEvent(QResizeEvent *event) override;
 	void paintEvent(QPaintEvent *event) override;
 	class QPaintEngine *paintEngine() const override;
@@ -35,6 +36,8 @@ public slots:
 public:
 	ScopeWidget(QWidget *parent);
 	~ScopeWidget();
+	void CreateDisplay();
+	void DestroyDisplay();
 	static void default_properties(obs_data_t *);
 	void save_properties(obs_data_t *);
 	void load_properties(obs_data_t *);
