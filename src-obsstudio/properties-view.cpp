@@ -866,6 +866,9 @@ void DockProp_WidgetInfo::ListChanged(const char *setting)
 		obs_data_set_string(view->settings, setting,
 				    data.toByteArray().constData());
 		break;
+	default:
+		blog(LOG_ERROR, "%s: Unimplemented format %d", __FUNCTION__,
+		     (int)format);
 	}
 }
 
