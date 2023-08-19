@@ -62,6 +62,8 @@ set(PLUGIN_SOURCES
 	src/scope-dock-new-dialog.cpp
 	src/scope-widget.cpp
 	src/scope-widget-properties.cpp
+	src/SurfaceEventFilter.cpp
+	src/ScopeWidgetInteractiveEventFilter.cpp
 	src-obsstudio/properties-view.cpp
 	src-obsstudio/vertical-scroll-area.cpp
 	src-obsstudio/combobox-ignorewheel.cpp

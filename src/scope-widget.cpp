@@ -11,6 +11,7 @@
 #include "scope-widget.hpp"
 #include "scope-widget-properties.hpp"
 #include "obsgui-helper.hpp"
+#include "ScopeWidgetInteractiveEventFilter.hpp"
 #include "SurfaceEventFilter.hpp"
 
 #define N_SRC SCOPE_WIDGET_N_SRC
@@ -149,8 +150,7 @@ static void draw(void *param, uint32_t cx, uint32_t cy)
 	pthread_mutex_unlock(&data->mutex);
 }
 
-ScopeWidget::ScopeWidget(QWidget *parent)
-	: QWidget(parent), eventFilter(BuildEventFilter()), surfaceEventFilter(new SurfaceEventFilter(this))
+ScopeWidget::ScopeWidget(QWidget *parent) : QWidget(parent)
 {
 	properties = NULL;
 	setAttribute(Qt::WA_PaintOnScreen);
@@ -161,7 +161,7 @@ ScopeWidget::ScopeWidget(QWidget *parent)
 	setAttribute(Qt::WA_NativeWindow);
 
 	setMouseTracking(true);
-	QObject::installEventFilter(eventFilter.get());
+	QObject::installEventFilter(new ScopeWidgetInteractiveEventFilter(this));
 
 	data = (struct scope_widget_s *)bzalloc(sizeof(struct scope_widget_s));
 	pthread_mutex_init(&data->mutex, NULL);
@@ -169,14 +169,11 @@ ScopeWidget::ScopeWidget(QWidget *parent)
 	data->i_mouse_last = -1;
 	data->i_src_menu = -1;
 
-	windowHandle()->installEventFilter(surfaceEventFilter.get());
+	windowHandle()->installEventFilter(new SurfaceEventFilter(this));
 }
 
 ScopeWidget::~ScopeWidget()
 {
-	windowHandle()->removeEventFilter(surfaceEventFilter.get());
-	removeEventFilter(eventFilter.get());
-
 	if (data) {
 		DestroyDisplay();
 
@@ -192,30 +189,6 @@ ScopeWidget::~ScopeWidget()
 	}
 	bfree(data);
 	data = NULL;
-}
-
-OBSEventFilter *ScopeWidget::BuildEventFilter()
-{
-	return new OBSEventFilter([this](QObject *obj, QEvent *event) {
-		UNUSED_PARAMETER(obj);
-
-		switch (event->type()) {
-		case QEvent::MouseButtonPress:
-		case QEvent::MouseButtonRelease:
-		case QEvent::MouseButtonDblClick:
-			return this->HandleMouseClickEvent(static_cast<QMouseEvent *>(event));
-		case QEvent::MouseMove:
-			return this->HandleMouseMoveEvent(static_cast<QMouseEvent *>(event));
-
-		case QEvent::Wheel:
-			return this->HandleMouseWheelEvent(static_cast<QWheelEvent *>(event));
-		case QEvent::KeyPress:
-		case QEvent::KeyRelease:
-			return this->HandleKeyEvent(static_cast<QKeyEvent *>(event));
-		default:
-			return false;
-		}
-	});
 }
 
 void ScopeWidget::CreateDisplay()

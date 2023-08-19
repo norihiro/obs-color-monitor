@@ -1,34 +1,15 @@
 #pragma once
 #include <QObject>
+#include <QPlatformSurfaceEvent>
+#include "scope-widget.hpp"
 
-template<typename QTDisplay_class> class SurfaceEventFilter : public QObject {
-	QTDisplay_class *w;
+class SurfaceEventFilter : public QObject {
+	Q_OBJECT
+	ScopeWidget *w;
 
 public:
-	SurfaceEventFilter(QTDisplay_class *w_) : w(w_) {}
+	SurfaceEventFilter(ScopeWidget *w_) : QObject(static_cast<QWidget *>(w_)), w(w_) {}
 
 protected:
-	bool eventFilter(QObject *obj, QEvent *event) override
-	{
-		bool result = QObject::eventFilter(obj, event);
-		QPlatformSurfaceEvent *surfaceEvent;
-
-		switch (event->type()) {
-		case QEvent::PlatformSurface:
-			surfaceEvent = static_cast<QPlatformSurfaceEvent *>(event);
-
-			switch (surfaceEvent->surfaceEventType()) {
-			case QPlatformSurfaceEvent::SurfaceAboutToBeDestroyed:
-				w->DestroyDisplay();
-				break;
-			default:
-				break;
-			}
-			break;
-		default:
-			break;
-		}
-
-		return result;
-	}
+	bool eventFilter(QObject *obj, QEvent *event) override;
 };

@@ -6,16 +6,11 @@
 
 #define SCOPE_WIDGET_N_SRC 6
 
-class OBSEventFilter;
-template<typename QTDisplay_class> class SurfaceEventFilter;
-
 class ScopeWidget : public QWidget {
 	Q_OBJECT
 
 	struct scope_widget_s *data;
 	class ScopeWidgetProperties *properties;
-	std::unique_ptr<OBSEventFilter> eventFilter;
-	std::unique_ptr<SurfaceEventFilter<ScopeWidget>> surfaceEventFilter;
 
 	void resizeEvent(QResizeEvent *event) override;
 	void paintEvent(QPaintEvent *event) override;
@@ -28,7 +23,6 @@ class ScopeWidget : public QWidget {
 	bool HandleMouseWheelEvent(QWheelEvent *event);
 	bool HandleKeyEvent(QKeyEvent *event);
 	bool openMenu(QMouseEvent *event);
-	OBSEventFilter *BuildEventFilter();
 
 public slots:
 	void createProperties();
@@ -44,18 +38,5 @@ public:
 	void setShown(bool shown);
 
 	friend class ScopeWidgetProperties;
-};
-
-typedef std::function<bool(QObject *, QEvent *)> EventFilterFunc;
-
-class OBSEventFilter : public QObject {
-	Q_OBJECT
-public:
-	OBSEventFilter(EventFilterFunc filter_) : filter(filter_) {}
-
-protected:
-	bool eventFilter(QObject *obj, QEvent *event) { return filter(obj, event); }
-
-public:
-	EventFilterFunc filter;
+	friend class ScopeWidgetInteractiveEventFilter;
 };
