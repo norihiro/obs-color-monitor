@@ -99,6 +99,7 @@ endif()
 
 if(OS_LINUX)
 	target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -Wall -Wextra)
+	target_link_options(${CMAKE_PROJECT_NAME} PRIVATE -Wl,-z,defs)
 	if(ENABLE_COVERAGE)
 		target_compile_options(${PROJECT_NAME} PRIVATE -coverage)
 		target_link_options(${PROJECT_NAME} PRIVATE -coverage)
