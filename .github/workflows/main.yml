@@ -23,8 +23,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        obs: [27, 28]
+        obs: [27, 28, 30]
         ubuntu: ['ubuntu-20.04', 'ubuntu-22.04']
+        exclude:
+          - obs: 30
+            ubuntu: 'ubuntu-20.04'
     defaults:
       run:
         shell: bash
