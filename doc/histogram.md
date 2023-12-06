@@ -16,7 +16,7 @@ Default is Program.
 
 ### Scale
 
-Scale factor before calculating vectorscope.
+Scale factor before calculating histogram.
 The width and height of the source will be scaled by this number.
 Main purpose is to shorten the rendering time.
 Larger value will degrade the accuracy and intensity.
