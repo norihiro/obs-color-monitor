@@ -18,11 +18,15 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include <obs-module.h>
 #include <stdlib.h>
+#include <util/config-file.h>
+#include <obs-frontend-api.h>
 
 #include "plugin-macros.generated.h"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
+
+#define CONFIG_SECTION_NAME "ColorMonitor"
 
 extern const struct obs_source_info colormonitor_vectorscope;
 extern const struct obs_source_info colormonitor_waveform;
@@ -34,6 +38,20 @@ extern const struct obs_source_info colormonitor_falsecolor_filter;
 extern const struct obs_source_info colormonitor_roi;
 void scope_docks_init();
 
+static bool register_source_with_flags(const struct obs_source_info *const_info, uint32_t flags)
+{
+	struct obs_source_info info = *const_info;
+	info.output_flags |= flags;
+	obs_register_source(&info);
+
+	if (!obs_get_latest_input_type_id(info.id)) {
+		blog(LOG_ERROR, "failed to load source '%s'", info.id);
+		return false;
+	}
+
+	return true;
+}
+
 bool obs_module_load(void)
 {
 	int version_major = atoi(obs_get_version_string());
@@ -43,19 +61,32 @@ bool obs_module_load(void)
 		return false;
 	}
 
-	obs_register_source(&colormonitor_vectorscope);
-	obs_register_source(&colormonitor_waveform);
-	obs_register_source(&colormonitor_histogram);
-	obs_register_source(&colormonitor_zebra);
-	obs_register_source(&colormonitor_zebra_filter);
-	obs_register_source(&colormonitor_falsecolor);
-	obs_register_source(&colormonitor_falsecolor_filter);
-	obs_register_source(&colormonitor_roi);
+	config_t *cfg = obs_frontend_get_global_config();
+	config_set_default_bool(cfg, CONFIG_SECTION_NAME, "ShowSource", true);
+	config_set_default_bool(cfg, CONFIG_SECTION_NAME, "ShowFilter", true);
 
-	if (!obs_get_latest_input_type_id(colormonitor_roi.id)) {
-		blog(LOG_ERROR, "failed to load source '%s'", colormonitor_roi.id);
+	bool show_source = config_get_bool(cfg, CONFIG_SECTION_NAME, "ShowSource");
+	uint32_t src_flags = show_source ? 0 : OBS_SOURCE_CAP_DISABLED;
+
+	bool show_filter = config_get_bool(cfg, CONFIG_SECTION_NAME, "ShowFilter");
+	uint32_t flt_flags = show_filter ? 0 : OBS_SOURCE_CAP_DISABLED;
+
+	if (!register_source_with_flags(&colormonitor_vectorscope, src_flags))
 		return false;
-	}
+	if (!register_source_with_flags(&colormonitor_waveform, src_flags))
+		return false;
+	if (!register_source_with_flags(&colormonitor_histogram, src_flags))
+		return false;
+	if (!register_source_with_flags(&colormonitor_zebra, src_flags))
+		return false;
+	if (!register_source_with_flags(&colormonitor_zebra_filter, flt_flags))
+		return false;
+	if (!register_source_with_flags(&colormonitor_falsecolor, src_flags))
+		return false;
+	if (!register_source_with_flags(&colormonitor_falsecolor_filter, flt_flags))
+		return false;
+	if (!register_source_with_flags(&colormonitor_roi, src_flags))
+		return false;
 
 	scope_docks_init();
 	blog(LOG_INFO, "plugin loaded (plugin version %s, API version %d.%d.%d)", PLUGIN_VERSION, LIBOBS_API_MAJOR_VER,

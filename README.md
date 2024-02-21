@@ -13,6 +13,9 @@ This plugin provides these sources to monitor color balances.
 In addition, a dock widget is available.
 - [Dock](doc/dock.md)
 
+To hide the source and filter types from the add-source and add-filter menues, refer this document.
+- [Global Configuration](doc/global_config.md)
+
 ## Quick Usage
 
 ### Dock
