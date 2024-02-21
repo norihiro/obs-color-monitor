@@ -309,7 +309,7 @@ static void zbs_tick(void *data, float seconds)
 	zb_tick(&src->zb, seconds);
 }
 
-struct obs_source_info colormonitor_zebra = {
+const struct obs_source_info colormonitor_zebra = {
 	.id = ID_PREFIX "zebra_source",
 	.type = OBS_SOURCE_TYPE_INPUT,
 	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW,
@@ -326,7 +326,7 @@ struct obs_source_info colormonitor_zebra = {
 	.video_tick = zbs_tick,
 };
 
-struct obs_source_info colormonitor_zebra_filter = {
+const struct obs_source_info colormonitor_zebra_filter = {
 	.id = ID_PREFIX "zebra_filter",
 	.type = OBS_SOURCE_TYPE_FILTER,
 	.output_flags = OBS_SOURCE_VIDEO,
@@ -340,7 +340,7 @@ struct obs_source_info colormonitor_zebra_filter = {
 	.video_tick = zb_tick,
 };
 
-struct obs_source_info colormonitor_falsecolor = {
+const struct obs_source_info colormonitor_falsecolor = {
 	.id = ID_PREFIX "falsecolor_source",
 	.type = OBS_SOURCE_TYPE_INPUT,
 	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW,
@@ -357,7 +357,7 @@ struct obs_source_info colormonitor_falsecolor = {
 	.video_tick = zbs_tick,
 };
 
-struct obs_source_info colormonitor_falsecolor_filter = {
+const struct obs_source_info colormonitor_falsecolor_filter = {
 	.id = ID_PREFIX "falsecolor_filter",
 	.type = OBS_SOURCE_TYPE_FILTER,
 	.output_flags = OBS_SOURCE_VIDEO,

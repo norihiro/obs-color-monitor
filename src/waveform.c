@@ -396,7 +396,7 @@ static void wvs_tick(void *data, float second)
 	src->r_tex_buf = src->w_tex_buf ^ 1;
 }
 
-struct obs_source_info colormonitor_waveform = {
+const struct obs_source_info colormonitor_waveform = {
 	.id = "waveform_source",
 	.type = OBS_SOURCE_TYPE_INPUT,
 	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW,

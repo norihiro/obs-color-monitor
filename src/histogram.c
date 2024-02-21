@@ -577,7 +577,7 @@ static void his_render(void *data, gs_effect_t *effect)
 	PROFILE_END(prof_render_name);
 }
 
-struct obs_source_info colormonitor_histogram = {
+const struct obs_source_info colormonitor_histogram = {
 	.id = "histogram_source",
 	.type = OBS_SOURCE_TYPE_INPUT,
 	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW,

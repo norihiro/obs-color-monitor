@@ -24,14 +24,14 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
-extern struct obs_source_info colormonitor_vectorscope;
-extern struct obs_source_info colormonitor_waveform;
-extern struct obs_source_info colormonitor_histogram;
-extern struct obs_source_info colormonitor_zebra;
-extern struct obs_source_info colormonitor_zebra_filter;
-extern struct obs_source_info colormonitor_falsecolor;
-extern struct obs_source_info colormonitor_falsecolor_filter;
-extern struct obs_source_info colormonitor_roi;
+extern const struct obs_source_info colormonitor_vectorscope;
+extern const struct obs_source_info colormonitor_waveform;
+extern const struct obs_source_info colormonitor_histogram;
+extern const struct obs_source_info colormonitor_zebra;
+extern const struct obs_source_info colormonitor_zebra_filter;
+extern const struct obs_source_info colormonitor_falsecolor;
+extern const struct obs_source_info colormonitor_falsecolor_filter;
+extern const struct obs_source_info colormonitor_roi;
 void scope_docks_init();
 
 bool obs_module_load(void)

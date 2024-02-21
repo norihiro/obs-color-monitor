@@ -593,7 +593,7 @@ bool is_roi_source_name(const char *name)
 	return !!roi;
 }
 
-struct obs_source_info colormonitor_roi = {
+const struct obs_source_info colormonitor_roi = {
 	.id = "colormonitor_roi",
 	.type = OBS_SOURCE_TYPE_INPUT,
 	.output_flags =

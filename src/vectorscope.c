@@ -438,7 +438,7 @@ void vss_mouse_wheel(void *data, const struct obs_mouse_event *event, int x_delt
 		src->zoom = 1.0f;
 }
 
-struct obs_source_info colormonitor_vectorscope = {
+const struct obs_source_info colormonitor_vectorscope = {
 	.id = "vectorscope_source",
 	.type = OBS_SOURCE_TYPE_INPUT,
 	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW | OBS_SOURCE_INTERACTION,
