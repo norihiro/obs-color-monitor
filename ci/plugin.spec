@@ -1,4 +1,4 @@
-Name: @PLUGIN_NAME@
+Name: @PLUGIN_NAME_FEDORA@
 Version: @VERSION@
 Release: @RELEASE@%{?dist}
 Summary: Color monitor plugin for OBS Studio
@@ -9,6 +9,7 @@ Requires: obs-studio >= @OBS_VERSION@
 BuildRequires: cmake, gcc, gcc-c++
 BuildRequires: obs-studio-devel
 BuildRequires: qt5-qtbase-devel qt5-qtbase-private-devel
+Obsoletes: @PLUGIN_NAME@ < %{version}
 
 %description
 Color monitor plugin contains vectorscope, waveform, histogram, zebra, and
@@ -25,5 +26,5 @@ false color to help color correction.
 %{cmake_install}
 
 %files
-%{_libdir}/obs-plugins/%{name}.so
-%{_datadir}/obs/obs-plugins/%{name}/
+%{_libdir}/obs-plugins/@PLUGIN_NAME@.so
+%{_datadir}/obs/obs-plugins/@PLUGIN_NAME@/
