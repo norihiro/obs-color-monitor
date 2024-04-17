@@ -1,4 +1,4 @@
-FROM fedora:36
+FROM fedora:%releasever%
 
 RUN dnf install -y rpm-build python3-dnf-plugins-core && dnf clean all
 

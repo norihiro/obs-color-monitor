@@ -24,8 +24,8 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - fedora36
-          - fedora37
+          - fedora38
+          - fedora39
     defaults:
       run:
         shell: bash
@@ -38,6 +38,12 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
+
+      - name: Generate container directory
+        run: |
+          cp -a .github/containers/fedora-template .github/containers/$target
+          releasever="$(cut -b 7- <<< "$target")"
+          sed -i "s/%releasever%/$releasever/g" .github/containers/$target/*
 
       - name: Restore docker from cache
         id: docker-cache
