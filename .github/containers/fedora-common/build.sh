@@ -45,7 +45,7 @@ git archive --format=tar --prefix=$PLUGIN_NAME_FEDORA-$VERSION/ HEAD | bzip2 > $
 
 docker run -v $rpmbuild:/home/rpm/rpmbuild $docker_image bash -c "
 sudo dnf builddep -y ~/rpmbuild/SPECS/$PLUGIN_NAME_FEDORA.spec &&
-sudo chown 0.0 ~/rpmbuild/SOURCES/* &&
-sudo chown 0.0 ~/rpmbuild/SPECS/* &&
+sudo chown 0:0 ~/rpmbuild/SOURCES/* &&
+sudo chown 0:0 ~/rpmbuild/SPECS/* &&
 rpmbuild -ba ~/rpmbuild/SPECS/$PLUGIN_NAME_FEDORA.spec
 "
