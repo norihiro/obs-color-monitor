@@ -1,5 +1,5 @@
-#define MyAppName "@CMAKE_PROJECT_NAME@"
-#define MyAppVersion "@CMAKE_PROJECT_VERSION@"
+#define MyAppName "@PROJECT_NAME@"
+#define MyAppVersion "@PROJECT_VERSION@"
 #define MyAppPublisher "@PLUGIN_AUTHOR@"
 #define MyAppURL "@PLUGIN_URL@"
 
