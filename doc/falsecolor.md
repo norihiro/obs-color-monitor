@@ -28,6 +28,8 @@ If 'Use LUT' is enabled, choose an image file for the color map.
 The image file should be 1-pixel height and can have any width.
 The left most pixel represents the black and the right most pixel represents the white.
 
+An example is [available here](falsecolor-lut-default.png).
+
 ### Color space
 
 Choice of color space; Auto, BT.601, or BT.709.
