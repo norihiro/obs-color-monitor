@@ -18,10 +18,19 @@ RGB color `#000000` corresponds to 0&nbsp;IRE `#FFFFFF` corresponds to 100&nbsp;
 Selects one of Program, Main view, Preview, Scene, or Source.
 The default is Program.
 
+### Use LUT
+
+Enable if you want to customize the color map.
+
+### LUT file name
+
+If 'Use LUT' is enabled, choose an image file for the color map.
+The image file should be 1-pixel height and can have any width.
+The left most pixel represents the black and the right most pixel represents the white.
+
 ### Color space
 
 Choice of color space; Auto, BT.601, or BT.709.
 If Auto, the color space is retrieved from the settings of OBS Studio.
 Coefficients to convert from RGB to Luminance will be changed.
 Default is Auto.
-

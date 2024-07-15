@@ -1,8 +1,16 @@
 uniform float4x4 ViewProj;
 uniform texture2d image;
+uniform bool use_lut;
+uniform texture2d lut;
 
 sampler_state def_sampler {
 	Filter   = Linear;
+	AddressU = Clamp;
+	AddressV = Clamp;
+};
+
+sampler_state lut_sampler {
+	Filter   = Point;
 	AddressU = Clamp;
 	AddressV = Clamp;
 };
@@ -25,7 +33,9 @@ float4 PSDrawFalseColor601(VertInOut vert_in) : TARGET
 	float4 rgba = image.Sample(def_sampler, vert_in.uv);
 	float y = dot(rgba.xyz, float3(0.299000, 0.587000, 0.114000));
 
-	if (y < 0.02)
+	if (use_lut)
+		return lut.Sample(lut_sampler, float2(y, 0.5));
+	else if (y < 0.02)
 		return float4(0.85, 0.22, 1.0, 1.0); // bright purple
 	else if (y < 0.10)
 		return float4(0.0, 0.0, 1.0, 1.0); // blue
@@ -56,7 +66,9 @@ float4 PSDrawFalseColor709(VertInOut vert_in) : TARGET
 	float4 rgba = image.Sample(def_sampler, vert_in.uv);
 	float y = dot(rgba.xyz, float3(0.212600, 0.715200, 0.072200));
 
-	if (y < 0.02)
+	if (use_lut)
+		return lut.Sample(lut_sampler, float2(y, 0.5));
+	else if (y < 0.02)
 		return float4(0.85, 0.22, 1.0, 1.0); // bright purple
 	else if (y < 0.10)
 		return float4(0.0, 0.0, 1.0, 1.0); // blue

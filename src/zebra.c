@@ -1,5 +1,7 @@
 #include <obs-module.h>
 #include <util/platform.h>
+#include <util/dstr.h>
+#include <graphics/image-file.h>
 #include "plugin-macros.generated.h"
 #include "common.h"
 #include "util.h"
@@ -19,6 +21,8 @@ struct zb_source
 	gs_effect_t *effect;
 	float zebra_th_low, zebra_th_high;
 	float zebra_tm;
+	char *falsecolor_lut_filename;
+	gs_image_file_t falsecolor_lut;
 	bool is_falsecolor;
 };
 
@@ -109,24 +113,71 @@ static void *fcf_create(obs_data_t *settings, obs_source_t *source)
 	return src;
 }
 
+static void falsecolor_lut_unload(struct zb_source *src)
+{
+	if (!src->falsecolor_lut.loaded)
+		return;
+	obs_enter_graphics();
+	gs_image_file_free(&src->falsecolor_lut);
+	obs_leave_graphics();
+}
+
+static void zb_destroy(struct zb_source *src)
+{
+	if (src->is_falsecolor) {
+		falsecolor_lut_unload(src);
+		bfree(src->falsecolor_lut_filename);
+	}
+}
+
 static void zbs_destroy(void *data)
 {
 	struct zbs_source *src = data;
 
 	cm_destroy(&src->cm);
+	zb_destroy(&src->zb);
 	bfree(src);
 }
 
 static void zbf_destroy(void *data)
 {
 	struct zbf_source *src = data;
+	zb_destroy(&src->zb);
 	bfree(src);
+}
+
+static void falsecolor_lut_load(struct zb_source *src, const char *lut_filename)
+{
+	falsecolor_lut_unload(src);
+
+	blog(LOG_INFO, "Loading LUT file '%s'...", lut_filename);
+	gs_image_file_init(&src->falsecolor_lut, lut_filename);
+
+	obs_enter_graphics();
+	gs_image_file_init_texture(&src->falsecolor_lut);
+	obs_leave_graphics();
 }
 
 static void zb_update(struct zb_source *src, obs_data_t *settings)
 {
-	src->zebra_th_low = obs_data_get_int(settings, "zebra_th_low") * 1e-2f;
-	src->zebra_th_high = obs_data_get_int(settings, "zebra_th_high") * 1e-2f;
+	if (!src->is_falsecolor) {
+		/* zebra */
+		src->zebra_th_low = obs_data_get_int(settings, "zebra_th_low") * 1e-2f;
+		src->zebra_th_high = obs_data_get_int(settings, "zebra_th_high") * 1e-2f;
+	} else {
+		/* falsecolor */
+		bool lut = obs_data_get_bool(settings, "falsecolor_lut");
+		const char *lut_filename = lut ? obs_data_get_string(settings, "falsecolor_lut_filename") : NULL;
+		if (!lut_filename) {
+			falsecolor_lut_unload(src);
+			bfree(src->falsecolor_lut_filename);
+			src->falsecolor_lut_filename = NULL;
+		} else if (!src->falsecolor_lut_filename || strcmp(lut_filename, src->falsecolor_lut_filename) != 0) {
+			falsecolor_lut_load(src, lut_filename);
+			bfree(src->falsecolor_lut_filename);
+			src->falsecolor_lut_filename = bstrdup(lut_filename);
+		}
+	}
 }
 
 static void zbs_update(void *data, obs_data_t *settings)
@@ -156,10 +207,22 @@ static void zb_get_properties(obs_properties_t *props, bool is_falsecolor)
 	obs_property_t *prop;
 
 	if (!is_falsecolor) {
+		/* zebra */
 		prop = obs_properties_add_int(props, "zebra_th_low", obs_module_text("Threshold (lower)"), 50, 100, 1);
 		obs_property_int_set_suffix(prop, "%");
 		prop = obs_properties_add_int(props, "zebra_th_high", obs_module_text("Threshold (high)"), 50, 100, 1);
 		obs_property_int_set_suffix(prop, "%");
+	} else {
+		/* falsecolor */
+		struct dstr filename_filters = {0};
+		dstr_copy(&filename_filters, obs_module_text("FalseColor.Prop.LUTFile.Filter.Image"));
+		dstr_cat(&filename_filters, " (*.bmp *.jpg *.jpeg *.tga *.gif *.png);;");
+		dstr_cat(&filename_filters, obs_module_text("FalseColor.Prop.LUTFile.Filter.All"));
+		dstr_cat(&filename_filters, " (*.*)");
+		obs_properties_add_bool(props, "falsecolor_lut", obs_module_text("FalseColor.Prop.LUT"));
+		obs_properties_add_path(props, "falsecolor_lut_filename", obs_module_text("FalseColor.Prop.LUTFile"),
+					OBS_PATH_FILE, filename_filters.array, NULL);
+		dstr_free(&filename_filters);
 	}
 
 	properties_add_colorspace(props, "colorspace", obs_module_text("Color space"));
@@ -235,6 +298,24 @@ const char *draw_name(int colorspace, bool is_falsecolor)
 		return "DrawZebra709";
 }
 
+static void set_effect_params(struct zb_source *src)
+{
+	gs_effect_t *e = src->effect;
+
+	if (!src->is_falsecolor) {
+		/* zebra */
+		gs_effect_set_float(gs_effect_get_param_by_name(e, "zebra_th_low"), src->zebra_th_low);
+		gs_effect_set_float(gs_effect_get_param_by_name(e, "zebra_th_high"), src->zebra_th_high);
+		gs_effect_set_float(gs_effect_get_param_by_name(e, "zebra_tm"), src->zebra_tm);
+	} else {
+		/* falsecolor */
+		gs_texture_t *lut = src->falsecolor_lut.texture;
+		gs_effect_set_bool(gs_effect_get_param_by_name(e, "use_lut"), !!lut);
+		if (lut)
+			gs_effect_set_texture(gs_effect_get_param_by_name(e, "lut"), lut);
+	}
+}
+
 static void zbs_render(void *data, gs_effect_t *effect)
 {
 	UNUSED_PARAMETER(effect);
@@ -255,11 +336,7 @@ static void zbs_render(void *data, gs_effect_t *effect)
 		uint32_t cy = cm_bypass_get_height(&src->cm);
 
 		gs_effect_set_texture(gs_effect_get_param_by_name(e, "image"), tex);
-		if (!src->zb.is_falsecolor) {
-			gs_effect_set_float(gs_effect_get_param_by_name(e, "zebra_th_low"), src->zb.zebra_th_low);
-			gs_effect_set_float(gs_effect_get_param_by_name(e, "zebra_th_high"), src->zb.zebra_th_high);
-			gs_effect_set_float(gs_effect_get_param_by_name(e, "zebra_tm"), src->zb.zebra_tm);
-		}
+		set_effect_params(&src->zb);
 		const char *draw = draw_name(src->cm.colorspace, src->zb.is_falsecolor);
 		while (gs_effect_loop(e, draw))
 			gs_draw_sprite_subregion(tex, 0, 0, 0, cx, cy);
@@ -280,11 +357,7 @@ static void zbf_render(void *data, gs_effect_t *effect)
 	if (!obs_source_process_filter_begin(src->context, GS_RGBA, OBS_ALLOW_DIRECT_RENDERING))
 		return;
 
-	if (!src->zb.is_falsecolor) {
-		gs_effect_set_float(gs_effect_get_param_by_name(e, "zebra_th_low"), src->zb.zebra_th_low);
-		gs_effect_set_float(gs_effect_get_param_by_name(e, "zebra_th_high"), src->zb.zebra_th_high);
-		gs_effect_set_float(gs_effect_get_param_by_name(e, "zebra_tm"), src->zb.zebra_tm);
-	}
+	set_effect_params(&src->zb);
 
 	gs_blend_state_push();
 	gs_reset_blend_state();
