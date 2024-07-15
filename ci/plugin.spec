@@ -8,7 +8,7 @@ Source0: %{name}-%{version}.tar.bz2
 Requires: obs-studio >= @OBS_VERSION@
 BuildRequires: cmake, gcc, gcc-c++
 BuildRequires: obs-studio-devel
-BuildRequires: qt5-qtbase-devel qt5-qtbase-private-devel
+BuildRequires: qt6-qtbase-devel qt6-qtbase-private-devel
 Obsoletes: @PLUGIN_NAME@ < %{version}
 
 %description
@@ -19,7 +19,7 @@ false color to help color correction.
 %autosetup -p1
 
 %build
-%{cmake} -DLINUX_PORTABLE=OFF -DLINUX_RPATH=OFF
+%{cmake} -DLINUX_PORTABLE=OFF -DLINUX_RPATH=OFF -DQT_VERSION=6
 %{cmake_build}
 
 %install
