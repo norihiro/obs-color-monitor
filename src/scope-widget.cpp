@@ -2,6 +2,7 @@
 #include <obs.h>
 #include <obs-frontend-api.h>
 #include <util/threading.h>
+#include <util/dstr.hpp>
 #include <string>
 #include <algorithm>
 #include <QMenu>
@@ -48,6 +49,22 @@ struct scope_widget_s
 	bool destroying;
 };
 
+static void generate_source_name(std::string &result, const char *id)
+{
+	DStr name;
+	dstr_init_copy(name, "dock-");
+	dstr_cat(name, id);
+	for (int inc = 0;;) {
+		OBSSourceAutoRelease source = obs_get_source_by_name(name->array);
+		if (!source) {
+			result = name->array;
+			return;
+		}
+
+		dstr_printf(name, "dock-%s-%d", id, inc++);
+	}
+}
+
 static obs_source_t *create_scope_source_roi(const char *id, obs_data_t *settings, const char *name)
 {
 	const char *v_id = obs_get_latest_input_type_id(id);
@@ -63,15 +80,14 @@ static obs_source_t *create_scope_source_roi(const char *id, obs_data_t *setting
 static obs_source_t *create_scope_source(const char *id, obs_data_t *settings)
 {
 	std::string name;
-	name = "dock-";
-	name += id;
+	generate_source_name(name, id);
 
 	const char *v_id = obs_get_latest_input_type_id(id);
 	if (!v_id) {
 		blog(LOG_ERROR, "create_scope_source(id=%s): obs_get_latest_input_type_id failed", id);
 		return NULL;
 	}
-	obs_source_t *src = obs_source_create_private(v_id, name.c_str(), settings);
+	obs_source_t *src = obs_source_create(v_id, name.c_str(), settings, NULL);
 
 	return src;
 }
@@ -501,6 +517,15 @@ bool ScopeWidget::openMenu(QMouseEvent *)
 
 	act = new QAction(obs_module_text("dock.menu.properties"), this);
 	connect(act, &QAction::triggered, this, &ScopeWidget::createProperties);
+	popup.addAction(act);
+
+	act = new QAction(obs_module_text("dock.menu.projector"), this);
+	connect(act, &QAction::triggered, this, [&]() {
+		int i_src = data->i_src_menu;
+		if (0 <= i_src && i_src <= N_SRC && data->src[i_src]) {
+			obs_frontend_open_projector("Source", -1, "", obs_source_get_name(data->src[i_src]));
+		}
+	});
 	popup.addAction(act);
 
 	act = new QAction(obs_module_text("dock.menu.close"), this);
