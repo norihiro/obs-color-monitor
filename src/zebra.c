@@ -1,8 +1,10 @@
 #include <obs-module.h>
 #include <util/platform.h>
 #include <util/dstr.h>
+#include <graphics/matrix4.h>
 #include <graphics/image-file.h>
 #include "plugin-macros.generated.h"
+#include "obs-convenience.h"
 #include "common.h"
 #include "util.h"
 
@@ -15,13 +17,31 @@ static const char *prof_render_name = "zebra_render";
 #define PROFILE_END(x)
 #endif // ! ENABLE_PROFILE
 
+enum show_key_e {
+	show_key_none = 0,
+	show_key_left = 1,
+	show_key_right = 2,
+	show_key_outside = 3,
+	show_key_top = 4,
+	show_key_bottom = 5,
+	show_key_below = 6,
+};
+
 // common structure for source and filter
 struct zb_source
 {
 	gs_effect_t *effect;
+
+	/* properties */
 	float zebra_th_low, zebra_th_high;
 	float zebra_tm;
+	enum show_key_e show_key;
 	char *falsecolor_lut_filename;
+
+	/* internal data */
+	gs_texture_t *key_tex;
+	gs_image_file_t key_label_img;
+	gs_vertbuffer_t *key_label_vbuf;
 	gs_image_file_t falsecolor_lut;
 	bool is_falsecolor;
 };
@@ -124,6 +144,14 @@ static void falsecolor_lut_unload(struct zb_source *src)
 
 static void zb_destroy(struct zb_source *src)
 {
+	if (src->key_tex) {
+		obs_enter_graphics();
+		gs_texture_destroy(src->key_tex);
+		gs_image_file_free(&src->key_label_img);
+		gs_vertexbuffer_destroy(src->key_label_vbuf);
+		obs_leave_graphics();
+	}
+
 	if (src->is_falsecolor) {
 		falsecolor_lut_unload(src);
 		bfree(src->falsecolor_lut_filename);
@@ -178,6 +206,8 @@ static void zb_update(struct zb_source *src, obs_data_t *settings)
 			src->falsecolor_lut_filename = bstrdup(lut_filename);
 		}
 	}
+
+	src->show_key = obs_data_get_int(settings, "show_key");
 }
 
 static void zbs_update(void *data, obs_data_t *settings)
@@ -223,6 +253,16 @@ static void zb_get_properties(obs_properties_t *props, bool is_falsecolor)
 		obs_properties_add_path(props, "falsecolor_lut_filename", obs_module_text("FalseColor.Prop.LUTFile"),
 					OBS_PATH_FILE, filename_filters.array, NULL);
 		dstr_free(&filename_filters);
+
+		prop = obs_properties_add_list(props, "show_key", obs_module_text("Prop.ShowKey"), OBS_COMBO_TYPE_LIST,
+					       OBS_COMBO_FORMAT_INT);
+		obs_property_list_add_int(prop, obs_module_text("Prop.ShowKey.None"), show_key_none);
+		obs_property_list_add_int(prop, obs_module_text("Prop.ShowKey.Left"), show_key_left);
+		obs_property_list_add_int(prop, obs_module_text("Prop.ShowKey.Right"), show_key_right);
+		obs_property_list_add_int(prop, obs_module_text("Prop.ShowKey.Outside"), show_key_outside);
+		obs_property_list_add_int(prop, obs_module_text("Prop.ShowKey.Top"), show_key_top);
+		obs_property_list_add_int(prop, obs_module_text("Prop.ShowKey.Bottom"), show_key_bottom);
+		obs_property_list_add_int(prop, obs_module_text("Prop.ShowKey.Below"), show_key_below);
 	}
 
 	properties_add_colorspace(props, "colorspace", obs_module_text("Color space"));
@@ -277,13 +317,39 @@ static obs_properties_t *fcf_get_properties(void *data)
 static uint32_t zbs_get_width(void *data)
 {
 	struct zbs_source *src = data;
-	return cm_bypass_get_width(&src->cm);
+	uint32_t w = cm_bypass_get_width(&src->cm);
+	if (!src->cm.bypass && src->zb.show_key == show_key_outside)
+		return w * 11 / 10;
+	return w;
 }
 
 static uint32_t zbs_get_height(void *data)
 {
 	struct zbs_source *src = data;
-	return cm_bypass_get_height(&src->cm);
+	uint32_t h = cm_bypass_get_height(&src->cm);
+	if (!src->cm.bypass && src->zb.show_key == show_key_below)
+		return h * 12 / 10;
+	return h;
+}
+
+static uint32_t fcf_get_width(void *data)
+{
+	struct zbf_source *src = data;
+	obs_source_t *target = obs_filter_get_target(src->context);
+	uint32_t w = obs_source_get_base_width(target);
+	if (src->zb.show_key == show_key_outside)
+		return w * 11 / 10;
+	return w;
+}
+
+static uint32_t fcf_get_height(void *data)
+{
+	struct zbf_source *src = data;
+	obs_source_t *target = obs_filter_get_target(src->context);
+	uint32_t h = obs_source_get_base_height(target);
+	if (src->zb.show_key == show_key_below)
+		return h * 12 / 10;
+	return h;
 }
 
 const char *draw_name(int colorspace, bool is_falsecolor)
@@ -316,6 +382,220 @@ static void set_effect_params(struct zb_source *src)
 	}
 }
 
+static void zb_create_key_tex(struct zb_source *src)
+{
+#define N 256
+	uint8_t *buf = bmalloc(1 * N * 4);
+	for (uint32_t i = 0; i < N; i++) {
+		buf[i * 4 + 0] = i * 256 / N;
+		buf[i * 4 + 1] = i * 256 / N;
+		buf[i * 4 + 2] = i * 256 / N;
+		buf[i * 4 + 3] = 0xFF;
+	}
+	const uint8_t *cbuf = buf;
+	src->key_tex = gs_texture_create(N, 1, GS_BGRX, 1, &cbuf, 0);
+	bfree(buf);
+#undef N
+
+	if (!src->key_label_img.loaded) {
+		char *f = obs_module_file("falsecolor-key.png");
+		gs_image_file_init(&src->key_label_img, f);
+		if (!src->key_label_img.loaded)
+			blog(LOG_ERROR, "Cannot load falsecolor-key.png (%s)", f);
+		gs_image_file_init_texture(&src->key_label_img);
+		bfree(f);
+	}
+}
+
+static void zb_render_key(struct zb_source *src, const char *draw, uint32_t width, uint32_t height)
+{
+	struct key_def_s
+	{
+		/* outer box */
+		float x0, y0, x1, y1;
+		/* key */
+		float xk, yk;
+		float cxk, cyk;
+		uint32_t bg_color;
+		bool is_vertical;
+	};
+	const struct key_def_s points[] = {
+		[show_key_left] =
+			{
+				.x0 = 0.01f,
+				.y0 = 0.1f,
+				.x1 = 0.09f,
+				.y1 = 0.9f,
+				.xk = 0.06f,
+				.yk = 0.88f,
+				.cxk = 0.025f,
+				.cyk = -0.76f / 256,
+				.bg_color = 0x80000000,
+				.is_vertical = true,
+			},
+		[show_key_right] =
+			{
+				.x0 = 0.91f,
+				.y0 = 0.1f,
+				.x1 = 0.99f,
+				.y1 = 0.9f,
+				.xk = 0.96f,
+				.yk = 0.88f,
+				.cxk = 0.025f,
+				.cyk = -0.76f / 256,
+				.bg_color = 0x80000000,
+				.is_vertical = true,
+			},
+		[show_key_outside] =
+			{
+				.x0 = 1.00f,
+				.y0 = 0.0f,
+				.x1 = 1.10f,
+				.y1 = 1.0f,
+				.xk = 1.06f,
+				.yk = 0.95f,
+				.cxk = 0.03f,
+				.cyk = -0.90f / 256,
+				.bg_color = 0xFF000000,
+				.is_vertical = true,
+			},
+		[show_key_top] =
+			{
+				.x0 = 0.1f,
+				.y0 = 0.01f,
+				.x1 = 0.9f,
+				.y1 = 0.09f,
+				.xk = 0.12f,
+				.yk = 0.05f,
+				.cxk = 0.76f / 256,
+				.cyk = -0.025f,
+				.bg_color = 0x80000000,
+				.is_vertical = false,
+			},
+		[show_key_bottom] =
+			{
+				.x0 = 0.1f,
+				.y0 = 0.91f,
+				.x1 = 0.9f,
+				.y1 = 0.99f,
+				.xk = 0.12f,
+				.yk = 0.95f,
+				.cxk = 0.76f / 256,
+				.cyk = -0.025f,
+				.bg_color = 0x80000000,
+				.is_vertical = false,
+			},
+		[show_key_below] =
+			{
+				.x0 = 0.0f,
+				.y0 = 1.00f,
+				.x1 = 1.0f,
+				.y1 = 1.20f,
+				.xk = 0.05f,
+				.yk = 1.08f,
+				.cxk = 0.90f / 256,
+				.cyk = -0.060f,
+				.bg_color = 0xFF000000,
+				.is_vertical = false,
+			},
+	};
+
+	if (src->show_key <= show_key_none || src->show_key >= sizeof(points) / sizeof(*points))
+		return;
+
+	const struct key_def_s *def = points + src->show_key;
+
+	if (!src->key_tex)
+		zb_create_key_tex(src);
+
+	gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_SOLID);
+	gs_effect_set_color(gs_effect_get_param_by_name(effect, "color"), def->bg_color);
+	while (gs_effect_loop(effect, "Solid")) {
+		gs_render_start(false);
+		gs_vertex2f(def->x0 * width, def->y0 * height);
+		gs_vertex2f(def->x1 * width, def->y0 * height);
+		gs_vertex2f(def->x1 * width, def->y1 * height);
+		gs_vertex2f(def->x1 * width, def->y1 * height);
+		gs_vertex2f(def->x0 * width, def->y1 * height);
+		gs_vertex2f(def->x0 * width, def->y0 * height);
+		gs_render_stop(GS_TRISTRIP);
+	}
+
+	effect = src->effect;
+	if (!effect)
+		return;
+	gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), src->key_tex);
+	set_effect_params(src);
+
+	gs_matrix_push();
+	struct matrix4 tran;
+	if (def->is_vertical) {
+		vec4_set(&tran.x, 0.0f, def->cyk * height, 0.0f, 0.0f);
+		vec4_set(&tran.y, def->cxk * width, 0.0f, 0.0f, 0.0f);
+	} else {
+		vec4_set(&tran.x, def->cxk * width, 0.0f, 0.0f, 0.0f);
+		vec4_set(&tran.y, 0.0f, def->cyk * height, 0.0f, 0.0f);
+	}
+	vec4_set(&tran.z, 0.0f, 0.0f, 1.0f, 0.0f);
+	vec4_set(&tran.t, def->xk * width, def->yk * height, 0.0f, 1.0f);
+	gs_matrix_mul(&tran);
+
+	while (gs_effect_loop(effect, draw)) {
+		gs_draw_sprite(src->key_tex, 0, 0, 0);
+	}
+
+	gs_matrix_pop();
+
+	if (!src->key_label_img.loaded)
+		return;
+
+	effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
+	if (!src->key_label_vbuf)
+		src->key_label_vbuf = create_uv_vbuffer(11 * 6, false);
+	struct gs_vb_data *vdata = gs_vertexbuffer_get_data(src->key_label_vbuf);
+	struct vec2 *tvarray = (struct vec2 *)vdata->tvarray[0].array;
+	for (uint32_t i = 0; i < 11; i++) {
+		float x, y, w, h;
+		int img_cx, img_cy;
+		if (def->is_vertical) {
+			x = width * def->x0;
+			y = height * (def->yk + def->cyk * 256 * i / 10);
+			w = width * (def->xk - def->x0);
+			h = height * fabs(def->cyk * 256) / 10;
+			img_cx = src->key_label_img.cx * 55; // cx
+			img_cy = src->key_label_img.cy * 2;  // cy * 2 / 55
+		} else {
+			x = width * (def->xk + def->cxk * 256 * i / 10);
+			y = height * def->yk;
+			w = width * def->cxk * 256 / 11;
+			h = height * (def->y1 - def->yk);
+			img_cx = src->key_label_img.cx * 55; // cx
+			img_cy = src->key_label_img.cy * 3;  // cy * 3 / 55
+		}
+		// if w / h > cx / cy
+		if (w * img_cy > h * img_cx) {
+			float nw = h * img_cx / img_cy;
+			if (def->is_vertical)
+				x += (w - nw) * 0.5f;
+			w = nw;
+		} else {
+			h = w * img_cy / img_cx;
+		}
+		if (def->is_vertical)
+			y -= h * 0.5f;
+		else
+			x -= w * 0.5f;
+		set_v3_rect(vdata->points + i * 6, x, y, w, h);
+		if (def->is_vertical) {
+			set_v2_uv(tvarray + i * 6, 0.0f, i / 27.5f, 1.f, (i + 1) / 27.5f);
+		} else {
+			set_v2_uv(tvarray + i * 6, 0.0f, (22 + i * 3) / 55.f, 1.f, (25 + i * 3) / 55.f);
+		}
+	}
+
+	draw_uv_vbuffer(src->key_label_vbuf, src->key_label_img.texture, effect, "Draw", 11 * 6);
+}
+
 static void zbs_render(void *data, gs_effect_t *effect)
 {
 	UNUSED_PARAMETER(effect);
@@ -340,6 +620,8 @@ static void zbs_render(void *data, gs_effect_t *effect)
 		const char *draw = draw_name(src->cm.colorspace, src->zb.is_falsecolor);
 		while (gs_effect_loop(e, draw))
 			gs_draw_sprite_subregion(tex, 0, 0, 0, cx, cy);
+
+		zb_render_key(&src->zb, draw, cx, cy);
 	}
 
 	PROFILE_END(prof_render_name);
@@ -364,6 +646,14 @@ static void zbf_render(void *data, gs_effect_t *effect)
 
 	const char *draw = draw_name(src->colorspace, src->zb.is_falsecolor);
 	obs_source_process_filter_tech_end(src->context, e, 0, 0, draw);
+
+	obs_source_t *target = obs_filter_get_target(src->context);
+	if (target) {
+		uint32_t cx = obs_source_get_base_width(target);
+		uint32_t cy = obs_source_get_base_height(target);
+		zb_render_key(&src->zb, draw, cx, cy);
+	}
+
 	gs_blend_state_pop();
 }
 
@@ -440,6 +730,8 @@ const struct obs_source_info colormonitor_falsecolor_filter = {
 	.update = zbf_update,
 	.get_defaults = zb_get_defaults,
 	.get_properties = fcf_get_properties,
+	.get_width = fcf_get_width,
+	.get_height = fcf_get_height,
 	.video_render = zbf_render,
 	.video_tick = zb_tick,
 };

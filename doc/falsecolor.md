@@ -30,6 +30,21 @@ The left most pixel represents the black and the right most pixel represents the
 
 An example is [available here](falsecolor-lut-default.png).
 
+### Show key
+
+A key will be shown.
+Available options are as below.
+
+| Option | Description |
+| ------ | ----------- |
+| None | The key won't be displayed. |
+| Left | A vertical key will be displayed on the left side on the source. |
+| Right | A vertical key will be displayed on the right side on the source. |
+| Outside (Right) | A vertical key will be displayed right outside of the source. |
+| Top | A horizontal key will be displayed on the top on the source. |
+| Bottom | A horizontal key will be displayed on the bottom on the source. |
+| Outside (Bottom) | A horizontal key will be displayed below the source. |
+
 ### Color space
 
 Choice of color space; Auto, BT.601, or BT.709.
