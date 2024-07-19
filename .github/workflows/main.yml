@@ -278,7 +278,7 @@ jobs:
         obs: [27, 28]
         arch: [x64]
     env:
-      visualStudio: 'Visual Studio 17 2022'
+      visualStudio: 'Ninja Multi-Config'
       Configuration: 'RelWithDebInfo'
     defaults:
       run:
@@ -295,6 +295,7 @@ jobs:
           obs: ${{ matrix.obs }}
       - name: Build plugin
         run: |
+          cmake -G
           $CmakeArgs = @(
             '-G', "${{ env.visualStudio }}"
             '-DQT_VERSION=${{ steps.obsdeps.outputs.OBS_QT_VERSION_MAJOR }}'
