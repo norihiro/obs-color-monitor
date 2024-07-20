@@ -29,6 +29,8 @@ static const char *prof_render_name = "roi_render";
 #define INTERACT_HANDLE_RI 0x080
 #define INTERACT_HANDLE_TI 0x200
 #define INTERACT_HANDLE_BI 0x800
+#define INTERACT_HANDLE_LR_ANY (INTERACT_HANDLE_LO | INTERACT_HANDLE_RO | INTERACT_HANDLE_LI | INTERACT_HANDLE_RI)
+#define INTERACT_HANDLE_TB_ANY (INTERACT_HANDLE_TO | INTERACT_HANDLE_BO | INTERACT_HANDLE_TI | INTERACT_HANDLE_BI)
 
 #define ROI_DEFAULT_CM_FLAG (CM_FLAG_ROI | CM_FLAG_RAW_TEXTURE)
 
@@ -152,34 +154,30 @@ static inline int handle_size(const struct roi_source *src)
 	return wh_min / 12;
 }
 
-static inline bool handle_is_outside_x(const struct roi_source *src, int x0, int x1, uint32_t flags)
+static bool handle_is_outside(const struct roi_source *src, int x0, int x1)
 {
-	uint32_t w = roi_get_width(src);
-	uint32_t h = roi_get_height(src);
-	const int wh_min = min_int(w, h);
-	int size_th = wh_min / 3;
-	if (flags & (INTERACT_HANDLE_LO | INTERACT_HANDLE_RO))
-		return true;
-	if (flags & (INTERACT_HANDLE_LI | INTERACT_HANDLE_RI))
-		return false;
-	if (x1 - x0 <= size_th)
+	const int wh_min = min_int(roi_get_width(src), roi_get_height(src));
+	if (x1 - x0 <= wh_min / 3)
 		return true;
 	return false;
 }
 
+static inline bool handle_is_outside_x(const struct roi_source *src, int x0, int x1, uint32_t flags)
+{
+	if (flags & (INTERACT_HANDLE_LO | INTERACT_HANDLE_RO))
+		return true;
+	if (flags & (INTERACT_HANDLE_LI | INTERACT_HANDLE_RI))
+		return false;
+	return handle_is_outside(src, x0, x1);
+}
+
 static inline bool handle_is_outside_y(const struct roi_source *src, int x0, int x1, uint32_t flags)
 {
-	uint32_t w = roi_get_width(src);
-	uint32_t h = roi_get_height(src);
-	const int wh_min = min_int(w, h);
-	int size_th = wh_min / 3;
 	if (flags & (INTERACT_HANDLE_TO | INTERACT_HANDLE_BO))
 		return true;
 	if (flags & (INTERACT_HANDLE_TI | INTERACT_HANDLE_BI))
 		return false;
-	if (x1 - x0 <= size_th)
-		return true;
-	return false;
+	return handle_is_outside(src, x0, x1);
 }
 
 static inline void draw_add_handle_x(int xh, int x, int y0, int y1, bool outside)
@@ -342,53 +340,38 @@ static void roi_surface_cb(void *data, struct cm_surface_data *surface_data)
 	pthread_mutex_unlock(&src->sources_mutex);
 }
 
-static uint32_t handle_from_pos(struct roi_source *src, int x, int y)
+static uint32_t make_flags_from_mouse(struct roi_source *src, int x0in, int x1in, int x, uint32_t flag_base,
+				      uint32_t flag_x_inside)
 {
 	const int hh = handle_size(src);
-	bool x_inside = false, y_inside = false;
-
 	uint32_t flags = 0;
 
-	if (handle_is_outside_x(src, src->x0in, src->x1in, 0)) {
-		if (src->x0in - hh <= x && x <= src->x0in)
-			flags |= INTERACT_HANDLE_LO;
-		if (src->x1in <= x && x <= src->x1in + hh)
-			flags |= INTERACT_HANDLE_RO;
-		if (src->x0in - hh <= x && x <= src->x1in + hh)
-			x_inside = true;
+	if (handle_is_outside(src, x0in, x1in)) {
+		if (x0in - hh <= x && x <= x0in)
+			flags |= flag_base; // INTERACT_HANDLE_LO;
+		if (x1in <= x && x <= x1in + hh)
+			flags |= flag_base << 2; // INTERACT_HANDLE_RO;
+		if (x0in - hh <= x && x <= x1in + hh)
+			flags |= flag_x_inside;
 	} else {
-		if (src->x0in <= x && x <= src->x0in + hh)
-			flags |= INTERACT_HANDLE_LI;
-		if (src->x1in - hh <= x && x <= src->x1in)
-			flags |= INTERACT_HANDLE_RI;
-		if (src->x0in <= x && x <= src->x1in)
-			x_inside = true;
+		if (x0in <= x && x <= x0in + hh)
+			flags |= flag_base << 1; // INTERACT_HANDLE_LI;
+		if (x1in - hh <= x && x <= x1in)
+			flags |= flag_base << 3; // INTERACT_HANDLE_RI;
+		if (x0in <= x && x <= x1in)
+			flags |= flag_x_inside;
 	}
-
-	if (handle_is_outside_y(src, src->y0in, src->y1in, 0)) {
-		if (src->y0in - hh <= y && y <= src->y0in)
-			flags |= INTERACT_HANDLE_TO;
-		if (src->y1in <= y && y <= src->y1in + hh)
-			flags |= INTERACT_HANDLE_BO;
-		if (src->y0in - hh <= y && y <= src->y1in + hh)
-			y_inside = true;
-	} else {
-		if (src->y0in <= y && y <= src->y0in + hh)
-			flags |= INTERACT_HANDLE_TI;
-		if (src->y1in - hh <= y && y <= src->y1in)
-			flags |= INTERACT_HANDLE_BI;
-		if (src->y0in <= y && y <= src->y1in)
-			y_inside = true;
-	}
-
-	if (!x_inside)
-		flags &= ~INTERACT_HANDLE_TO & ~INTERACT_HANDLE_BO & ~INTERACT_HANDLE_TI & ~INTERACT_HANDLE_BI;
-	if (!y_inside)
-		flags &= ~INTERACT_HANDLE_LO & ~INTERACT_HANDLE_RO & ~INTERACT_HANDLE_LI & ~INTERACT_HANDLE_RI;
-	if (x_inside && y_inside)
-		flags |= INTERACT_DRAW_ROI_RECT;
 
 	return flags;
+}
+
+static uint32_t handle_from_pos(struct roi_source *src, int x, int y)
+{
+	uint32_t fx = make_flags_from_mouse(src, src->x0in, src->x1in, x, INTERACT_HANDLE_LO,
+					    INTERACT_HANDLE_TB_ANY | INTERACT_DRAW_ROI_RECT);
+	uint32_t fy = make_flags_from_mouse(src, src->y0in, src->y1in, y, INTERACT_HANDLE_TO,
+					    INTERACT_HANDLE_LR_ANY | INTERACT_DRAW_ROI_RECT);
+	return fx & fy;
 }
 
 static inline void drag_move_pos(struct roi_source *src, int dx, int dy)
@@ -425,17 +408,43 @@ static void roi_mouse_move(void *data, const struct obs_mouse_event *event, bool
 	}
 }
 
-static inline bool is_resize(uint32_t flags)
+static void roi_mouse_click_start(struct roi_source *src)
 {
-	if (flags & (INTERACT_HANDLE_LO | INTERACT_HANDLE_LI))
-		return true;
-	if (flags & (INTERACT_HANDLE_RO | INTERACT_HANDLE_RI))
-		return true;
-	if (flags & (INTERACT_HANDLE_TO | INTERACT_HANDLE_TI))
-		return true;
-	if (flags & (INTERACT_HANDLE_BO | INTERACT_HANDLE_BI))
-		return true;
-	return false;
+	src->x_start = src->x_mouse;
+	src->y_start = src->y_mouse;
+	if (src->flags_interact & (INTERACT_HANDLE_LR_ANY | INTERACT_HANDLE_TB_ANY))
+		src->flags_interact |= INTERACT_DRAG_RESIZE;
+	else if (src->flags_interact & INTERACT_DRAW_ROI_RECT)
+		src->flags_interact |= INTERACT_DRAG_MOVE;
+	else
+		src->flags_interact |= INTERACT_DRAG_FIRST;
+}
+
+static void roi_mouse_drag_wo_roi_end(struct roi_source *src)
+{
+	bool ok = src->x_start != src->x_mouse && src->y_start != src->y_mouse;
+
+	src->x0in = ok ? min_int(src->x_start, src->x_mouse) : -1;
+	src->y0in = ok ? min_int(src->y_start, src->y_mouse) : -1;
+	src->x1in = ok ? max_int(src->x_start, src->x_mouse) : -1;
+	src->y1in = ok ? max_int(src->y_start, src->y_mouse) : -1;
+}
+
+static void roi_mouse_drag_resize_end(struct roi_source *src)
+{
+	if (src->flags_interact & (INTERACT_HANDLE_LO | INTERACT_HANDLE_LI))
+		src->x0in += src->x_mouse - src->x_start;
+	if (src->flags_interact & (INTERACT_HANDLE_RO | INTERACT_HANDLE_RI))
+		src->x1in += src->x_mouse - src->x_start;
+	if (src->flags_interact & (INTERACT_HANDLE_TO | INTERACT_HANDLE_TI))
+		src->y0in += src->y_mouse - src->y_start;
+	if (src->flags_interact & (INTERACT_HANDLE_BO | INTERACT_HANDLE_BI))
+		src->y1in += src->y_mouse - src->y_start;
+
+	if (src->x0in > src->x1in)
+		swap_int(&src->x0in, &src->x1in);
+	if (src->y0in > src->y1in)
+		swap_int(&src->y0in, &src->y1in);
 }
 
 static void roi_mouse_click(void *data, const struct obs_mouse_event *event, int32_t type, bool mouse_up,
@@ -451,52 +460,19 @@ static void roi_mouse_click(void *data, const struct obs_mouse_event *event, int
 	src->x_mouse = event->x;
 	src->y_mouse = event->y;
 
-	if (mouse_up && (src->flags_interact & INTERACT_DRAG_FIRST)) {
-		if (src->x_start == event->x || src->y_start == event->y) {
-			src->x0in = -1;
-			src->x1in = -1;
-			src->y0in = -1;
-			src->y1in = -1;
-		} else {
-			src->x0in = min_int(src->x_start, event->x);
-			src->y0in = min_int(src->y_start, event->y);
-			src->x1in = max_int(src->x_start, event->x);
-			src->y1in = max_int(src->y_start, event->y);
-		}
-		src->x_start = INT_MIN;
-		src->y_start = INT_MIN;
-		src->flags_interact = 0;
-	} else if (!mouse_up) {
-		src->x_start = event->x;
-		src->y_start = event->y;
-		if (src->flags_interact & INTERACT_DRAW_ROI_RECT) {
-			if (is_resize(src->flags_interact))
-				src->flags_interact |= INTERACT_DRAG_RESIZE;
-			else
-				src->flags_interact |= INTERACT_DRAG_MOVE;
-		} else
-			src->flags_interact |= INTERACT_DRAG_FIRST;
-	} else if (mouse_up && (src->flags_interact & INTERACT_DRAG_MOVE)) {
-		src->x_start = INT_MIN;
-		src->y_start = INT_MIN;
-		src->flags_interact &= ~INTERACT_DRAG_MOVE;
-	} else if (mouse_up && (src->flags_interact & INTERACT_DRAG_RESIZE)) {
-		if (src->flags_interact & (INTERACT_HANDLE_LO | INTERACT_HANDLE_LI))
-			src->x0in += event->x - src->x_start;
-		if (src->flags_interact & (INTERACT_HANDLE_RO | INTERACT_HANDLE_RI))
-			src->x1in += event->x - src->x_start;
-		if (src->flags_interact & (INTERACT_HANDLE_TO | INTERACT_HANDLE_TI))
-			src->y0in += event->y - src->y_start;
-		if (src->flags_interact & (INTERACT_HANDLE_BO | INTERACT_HANDLE_BI))
-			src->y1in += event->y - src->y_start;
-		if (src->x0in > src->x1in)
-			swap_int(&src->x0in, &src->x1in);
-		if (src->y0in > src->y1in)
-			swap_int(&src->y0in, &src->y1in);
-		src->x_start = INT_MIN;
-		src->y_start = INT_MIN;
-		src->flags_interact &= ~INTERACT_DRAG_RESIZE;
+	if (!mouse_up) {
+		roi_mouse_click_start(src);
+		return;
 	}
+
+	if ((src->flags_interact & INTERACT_DRAG_FIRST))
+		roi_mouse_drag_wo_roi_end(src);
+	else if ((src->flags_interact & INTERACT_DRAG_RESIZE))
+		roi_mouse_drag_resize_end(src);
+
+	src->x_start = INT_MIN;
+	src->y_start = INT_MIN;
+	src->flags_interact &= ~INTERACT_DRAG_FIRST & ~INTERACT_DRAG_MOVE & ~INTERACT_DRAG_RESIZE;
 }
 
 static void roi_send_range(struct roi_source *src)
