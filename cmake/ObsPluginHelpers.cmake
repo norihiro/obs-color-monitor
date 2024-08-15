@@ -3,7 +3,6 @@ if(POLICY CMP0087)
 endif()
 
 set(OBS_STANDALONE_PLUGIN_DIR ${CMAKE_SOURCE_DIR}/release)
-set(INCLUDED_LIBOBS_CMAKE_MODULES ON)
 
 include(GNUInstallDirs)
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
@@ -27,56 +26,93 @@ endif()
 if(NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE
 		"RelWithDebInfo"
-		CACHE STRING
-		"OBS build type [Release, RelWithDebInfo, Debug, MinSizeRel]" FORCE)
-	set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Release RelWithDebInfo
-		Debug MinSizeRel)
+		CACHE STRING "OBS build type [Release, RelWithDebInfo, Debug, MinSizeRel]" FORCE)
+	set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Release RelWithDebInfo Debug MinSizeRel)
 endif()
 
 if(NOT QT_VERSION)
 	set(QT_VERSION
-		"5"
-		CACHE STRING "OBS Qt version [5, 6]" FORCE)
-	set_property(CACHE QT_VERSION PROPERTY STRINGS 5 6)
+		AUTO
+		CACHE STRING "OBS Qt version [AUTO, 6, 5]" FORCE)
+	set_property(CACHE QT_VERSION PROPERTY STRINGS AUTO 6 5)
 endif()
 
+# Macro to find best possible Qt version for use with the project:
+#
+# * Use QT_VERSION value as a hint for desired Qt version
+# * If "AUTO" was specified, prefer Qt6 over Qt5
+# * Creates versionless targets of desired component if none had been created by Qt itself (Qt
+#   versions < 5.15)
+#
 macro(find_qt)
-	set(oneValueArgs VERSION)
-	set(multiValueArgs COMPONENTS COMPONENTS_WIN COMPONENTS_MAC COMPONENTS_LINUX)
-	cmake_parse_arguments(FIND_QT "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+  set(multiValueArgs COMPONENTS COMPONENTS_WIN COMPONENTS_MAC COMPONENTS_LINUX)
+  cmake_parse_arguments(FIND_QT "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
-	if(OS_WINDOWS)
-		find_package(
-			Qt${FIND_QT_VERSION}
-			COMPONENTS ${FIND_QT_COMPONENTS} ${FIND_QT_COMPONENTS_WIN}
-			REQUIRED)
-	elseif(OS_MACOS)
-		find_package(
-			Qt${FIND_QT_VERSION}
-			COMPONENTS ${FIND_QT_COMPONENTS} ${FIND_QT_COMPONENTS_MAC}
-			REQUIRED)
-	else()
-		find_package(
-			Qt${FIND_QT_VERSION}
-			COMPONENTS ${FIND_QT_COMPONENTS} ${FIND_QT_COMPONENTS_LINUX}
-			REQUIRED)
-	endif()
+  # Do not use versionless targets in the first step to avoid Qt::Core being clobbered by later
+  # opportunistic find_package runs
+  set(QT_NO_CREATE_VERSIONLESS_TARGETS ON)
 
-	if("Gui" IN_LIST FIND_QT_COMPONENTS)
-		list(APPEND FIND_QT_COMPONENTS "GuiPrivate")
-	endif()
+  # Loop until _QT_VERSION is set or FATAL_ERROR aborts script execution early
+  while(NOT _QT_VERSION)
+    if(QT_VERSION STREQUAL AUTO AND NOT _QT_TEST_VERSION)
+      set(_QT_TEST_VERSION 6)
+    elseif(NOT QT_VERSION STREQUAL AUTO)
+      set(_QT_TEST_VERSION ${QT_VERSION})
+    endif()
 
-	foreach(_COMPONENT IN LISTS FIND_QT_COMPONENTS FIND_QT_COMPONENTS_WIN
-			FIND_QT_COMPONENTS_MAC FIND_QT_COMPONENTS_LINUX)
-		if(NOT TARGET Qt::${_COMPONENT} AND TARGET
-				Qt${FIND_QT_VERSION}::${_COMPONENT})
+    find_package(
+      Qt${_QT_TEST_VERSION}
+      COMPONENTS Core
+      QUIET)
 
-			add_library(Qt::${_COMPONENT} INTERFACE IMPORTED)
-			set_target_properties(
-				Qt::${_COMPONENT} PROPERTIES INTERFACE_LINK_LIBRARIES
-				"Qt${FIND_QT_VERSION}::${_COMPONENT}")
-		endif()
-	endforeach()
+    if(TARGET Qt${_QT_TEST_VERSION}::Core)
+      set(_QT_VERSION
+          ${_QT_TEST_VERSION}
+          CACHE INTERNAL "")
+      message(STATUS "Qt version found: ${_QT_VERSION}")
+      unset(_QT_TEST_VERSION)
+      break()
+    elseif(QT_VERSION STREQUAL AUTO)
+      if(_QT_TEST_VERSION EQUAL 6)
+        message(WARNING "Qt6 was not found, falling back to Qt5")
+        set(_QT_TEST_VERSION 5)
+        continue()
+      endif()
+    endif()
+    message(FATAL_ERROR "Neither Qt6 nor Qt5 found.")
+  endwhile()
+
+  # Enable versionless targets for the remaining Qt components
+  set(QT_NO_CREATE_VERSIONLESS_TARGETS OFF)
+
+  set(_QT_COMPONENTS ${FIND_QT_COMPONENTS})
+  if(OS_WINDOWS)
+    list(APPEND _QT_COMPONENTS ${FIND_QT_COMPONENTS_WIN})
+  elseif(OS_MACOS)
+    list(APPEND _QT_COMPONENTS ${FIND_QT_COMPONENTS_MAC})
+  else()
+    list(APPEND _QT_COMPONENTS ${FIND_QT_COMPONENTS_LINUX})
+  endif()
+
+  find_package(
+    Qt${_QT_VERSION}
+    COMPONENTS ${_QT_COMPONENTS}
+    REQUIRED)
+
+  list(APPEND _QT_COMPONENTS Core)
+
+  if("Gui" IN_LIST FIND_QT_COMPONENTS_LINUX)
+    list(APPEND _QT_COMPONENTS "GuiPrivate")
+  endif()
+
+  # Check for versionless targets of each requested component and create if necessary
+  foreach(_COMPONENT IN LISTS _QT_COMPONENTS)
+    if(NOT TARGET Qt::${_COMPONENT} AND TARGET Qt${_QT_VERSION}::${_COMPONENT})
+      add_library(Qt::${_COMPONENT} INTERFACE IMPORTED)
+      set_target_properties(Qt::${_COMPONENT} PROPERTIES INTERFACE_LINK_LIBRARIES
+                                                         Qt${_QT_VERSION}::${_COMPONENT})
+    endif()
+  endforeach()
 endmacro()
 
 file(RELATIVE_PATH RELATIVE_INSTALL_PATH ${CMAKE_SOURCE_DIR} ${CMAKE_INSTALL_PREFIX})
