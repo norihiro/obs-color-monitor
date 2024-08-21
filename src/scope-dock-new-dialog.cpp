@@ -56,7 +56,7 @@ void ScopeDockNewDialog::accept()
 	obs_data_set_obj(props, "colormonitor_roi-prop", roi_prop);
 	ScopeWidget::default_properties(props);
 
-	scope_dock_add(editTitle->text().toUtf8().constData(), props);
+	scope_dock_add(editTitle->text().toUtf8().constData(), props, true);
 
 	obs_data_release(roi_prop);
 	obs_data_release(props);
