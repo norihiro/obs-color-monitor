@@ -11,6 +11,7 @@
 #include "plugin-macros.generated.h"
 #include "scope-widget.hpp"
 #include "scope-widget-properties.hpp"
+#include "scope-dock.hpp"
 #include "obsgui-helper.hpp"
 #include "ScopeWidgetInteractiveEventFilter.hpp"
 #include "SurfaceEventFilter.hpp"
@@ -190,6 +191,10 @@ ScopeWidget::ScopeWidget(QWidget *parent) : QWidget(parent)
 
 ScopeWidget::~ScopeWidget()
 {
+#if LIBOBS_API_VER >= MAKE_SEMANTIC_VERSION(30, 0, 0)
+	scope_dock_deleted(this);
+#endif
+
 	if (data) {
 		DestroyDisplay();
 
@@ -280,6 +285,13 @@ void ScopeWidget::closeEvent(QCloseEvent *)
 {
 	setShown(false);
 }
+
+#if LIBOBS_API_VER >= MAKE_SEMANTIC_VERSION(30, 0, 0)
+void ScopeWidget::RemoveDock()
+{
+	obs_frontend_remove_dock(name.c_str());
+}
+#endif
 
 void ScopeWidget::setShown(bool shown)
 {
@@ -529,8 +541,12 @@ bool ScopeWidget::openMenu(QMouseEvent *)
 	popup.addAction(act);
 
 	act = new QAction(obs_module_text("dock.menu.close"), this);
+#if LIBOBS_API_VER < MAKE_SEMANTIC_VERSION(30, 0, 0)
 	connect(act, &QAction::triggered, this,
 		[&]() { QMetaObject::invokeMethod(parentWidget(), "close", Qt::QueuedConnection); });
+#else
+	connect(act, &QAction::triggered, this, &ScopeWidget::RemoveDock, Qt::QueuedConnection);
+#endif
 	popup.addAction(act);
 
 	popup.exec(QCursor::pos());

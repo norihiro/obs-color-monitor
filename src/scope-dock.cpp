@@ -10,12 +10,18 @@
 #define SAVE_DATA_NAME PLUGIN_NAME "-dock"
 #define OBJ_NAME_SUFFIX "_scope_dock"
 
+#if LIBOBS_API_VER < MAKE_SEMANTIC_VERSION(30, 0, 0)
 void ScopeDock::closeEvent(QCloseEvent *event)
 {
 	QDockWidget::closeEvent(event);
 }
+#endif
 
+#if LIBOBS_API_VER < MAKE_SEMANTIC_VERSION(30, 0, 0)
 static std::vector<ScopeDock *> *docks;
+#else
+static std::vector<ScopeWidget *> *docks;
+#endif
 
 static inline bool is_program_dock(obs_data_t *props)
 {
@@ -30,9 +36,11 @@ static inline bool is_program_dock(obs_data_t *props)
 	return ret;
 }
 
-void scope_dock_add(const char *name, obs_data_t *props)
+void scope_dock_add(const char *name, obs_data_t *props, bool show)
 {
 	auto *main_window = static_cast<QMainWindow *>(obs_frontend_get_main_window());
+#if LIBOBS_API_VER < MAKE_SEMANTIC_VERSION(30, 0, 0)
+	UNUSED_PARAMETER(show);
 	auto *dock = new ScopeDock(main_window);
 	dock->name = name;
 	dock->setObjectName(QString::fromUtf8(name) + OBJ_NAME_SUFFIX);
@@ -52,8 +60,36 @@ void scope_dock_add(const char *name, obs_data_t *props)
 
 	if (docks)
 		docks->push_back(dock);
+#else
+	ScopeWidget *w = new ScopeWidget(main_window);
+	w->name = name;
+	w->load_properties(props);
+	if (!obs_frontend_add_dock_by_id(name, name, w)) {
+		return;
+	}
+
+	if (docks)
+		docks->push_back(w);
+
+	if (show) {
+		QMetaObject::invokeMethod(
+			w,
+			[w]() {
+				auto *main_window = static_cast<QMainWindow *>(obs_frontend_get_main_window());
+				QList<QDockWidget *> dd = main_window->findChildren<QDockWidget *>();
+				for (QDockWidget *d : dd) {
+					if (d->widget() == w) {
+						d->setVisible(true);
+					}
+				}
+			},
+			Qt::QueuedConnection);
+	}
+
+#endif
 }
 
+#if LIBOBS_API_VER < MAKE_SEMANTIC_VERSION(30, 0, 0)
 ScopeDock::ScopeDock(QWidget *parent) : QDockWidget(parent)
 {
 	setAttribute(Qt::WA_DeleteOnClose);
@@ -83,6 +119,7 @@ void ScopeDock::hideEvent(QHideEvent *)
 	blog(LOG_INFO, "ScopeDock::hideEvent");
 	widget->setShown(false);
 }
+#endif
 
 static void close_all_docks()
 {
@@ -105,10 +142,17 @@ static void save_load_scope_docks(obs_data_t *save_data, bool saving, void *)
 		obs_data_t *props = obs_data_create();
 		obs_data_array_t *array = obs_data_array_create();
 		for (size_t i = 0; i < docks->size(); i++) {
+#if LIBOBS_API_VER < MAKE_SEMANTIC_VERSION(30, 0, 0)
 			ScopeDock *d = (*docks)[i];
+			ScopeWidget *w = d->widget;
+			const char *name = d->name.c_str();
+#else
+			ScopeWidget *w = (*docks)[i];
+			const char *name = w->name.c_str();
+#endif
 			obs_data_t *obj = obs_data_create();
-			d->widget->save_properties(obj);
-			obs_data_set_string(obj, "name", d->name.c_str());
+			w->save_properties(obj);
+			obs_data_set_string(obj, "name", name);
 			obs_data_array_push_back(array, obj);
 			obs_data_release(obj);
 		}
@@ -135,7 +179,7 @@ static void save_load_scope_docks(obs_data_t *save_data, bool saving, void *)
 			const char *name = obs_data_get_string(obj, "name");
 			if (!name)
 				name = "Scope: program";
-			scope_dock_add(name, obj);
+			scope_dock_add(name, obj, false);
 			obs_data_release(obj);
 		}
 		obs_data_array_release(array);
@@ -165,7 +209,11 @@ static void frontend_event(enum obs_frontend_event event, void *)
 
 void scope_docks_init()
 {
+#if LIBOBS_API_VER < MAKE_SEMANTIC_VERSION(30, 0, 0)
 	docks = new std::vector<ScopeDock *>;
+#else
+	docks = new std::vector<ScopeWidget *>;
+#endif
 	obs_frontend_add_save_callback(save_load_scope_docks, NULL);
 	obs_frontend_add_event_callback(frontend_event, nullptr);
 
@@ -189,3 +237,19 @@ void scope_docks_release()
 	obs_frontend_remove_save_callback(save_load_scope_docks, NULL);
 	obs_frontend_remove_event_callback(frontend_event, nullptr);
 }
+
+#if LIBOBS_API_VER >= MAKE_SEMANTIC_VERSION(30, 0, 0)
+void scope_dock_deleted(class ScopeWidget *widget)
+{
+	if (!docks)
+		return;
+
+	for (size_t i = 0; i < docks->size(); i++) {
+		if ((*docks)[i] != widget)
+			continue;
+
+		docks->erase(docks->begin() + i);
+		break;
+	}
+}
+#endif

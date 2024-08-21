@@ -5,6 +5,7 @@
 #include <QAction>
 #include <string>
 
+#if LIBOBS_API_VER < MAKE_SEMANTIC_VERSION(30, 0, 0)
 class ScopeDock : public QDockWidget {
 	Q_OBJECT
 
@@ -28,6 +29,10 @@ private:
 	void showEvent(QShowEvent *event) override;
 	void hideEvent(QHideEvent *event) override;
 };
+#endif
 
-extern "C" void scope_dock_add(const char *name, obs_data_t *props);
+extern "C" void scope_dock_add(const char *name, obs_data_t *props, bool show);
+#if LIBOBS_API_VER >= MAKE_SEMANTIC_VERSION(30, 0, 0)
+extern "C" void scope_dock_deleted(class ScopeWidget *);
+#endif
 extern "C" void scope_docks_init();
