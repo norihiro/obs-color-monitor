@@ -3,6 +3,7 @@
 #include <obs.h>
 #include <QWidget>
 #include <memory>
+#include <string>
 
 #define SCOPE_WIDGET_N_SRC 6
 
@@ -12,10 +13,8 @@ class ScopeWidget : public QWidget {
 	struct scope_widget_s *data;
 	class ScopeWidgetProperties *properties;
 
-#if LIBOBS_API_VER >= MAKE_SEMANTIC_VERSION(30, 0, 0)
 public:
 	std::string name;
-#endif
 
 private:
 	void resizeEvent(QResizeEvent *event) override;
@@ -32,9 +31,7 @@ private:
 
 public slots:
 	void createProperties();
-#if LIBOBS_API_VER >= MAKE_SEMANTIC_VERSION(30, 0, 0)
 	void RemoveDock();
-#endif
 
 public:
 	ScopeWidget(QWidget *parent);
