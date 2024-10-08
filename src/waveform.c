@@ -209,6 +209,9 @@ static inline void ensure_tex_buf_size(struct wvs_source *src, const uint32_t wi
 	if (src->tex_buf[ix] && src->tex_buf_width[ix] == width)
 		return;
 
+	if (!width)
+		return;
+
 	bfree(src->tex_buf[ix]);
 	src->tex_buf[ix] = bzalloc(width * WV_SIZE * 4);
 	src->tex_buf_width[ix] = width;
