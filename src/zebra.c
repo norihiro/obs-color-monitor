@@ -352,7 +352,7 @@ static uint32_t fcf_get_height(void *data)
 	return h;
 }
 
-const char *draw_name(int colorspace, bool is_falsecolor)
+static const char *draw_name(int colorspace, bool is_falsecolor)
 {
 	if (colorspace == 1 && is_falsecolor)
 		return "DrawFalseColor601";
