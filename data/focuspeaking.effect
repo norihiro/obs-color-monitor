@@ -1,0 +1,57 @@
+uniform float4x4 ViewProj;
+uniform texture2d image;
+uniform float2 dxy;
+uniform float4 peaking_color;
+uniform float peaking_threshold;
+
+sampler_state def_sampler {
+	Filter   = Linear;
+	AddressU = Clamp;
+	AddressV = Clamp;
+};
+
+struct VertInOut {
+	float4 pos : POSITION;
+	float2 uv  : TEXCOORD0;
+};
+
+VertInOut VSDefault(VertInOut vert_in)
+{
+	VertInOut vert_out;
+	vert_out.pos = mul(float4(vert_in.pos.xyz, 1.0), ViewProj);
+	vert_out.uv  = vert_in.uv;
+	return vert_out;
+}
+
+float4 PSDrawFocusPeaking(VertInOut vert_in) : TARGET
+{
+	float2 dx = float2(dxy.x, 0.0);
+	float2 dy = float2(0.0, dxy.y);
+	float4 rgba = image.Sample(def_sampler, vert_in.uv);
+	float3 rgb1 = image.Sample(def_sampler, vert_in.uv + dx).xyz;
+	float3 rgb2 = image.Sample(def_sampler, vert_in.uv + dy).xyz;
+	float3 rgb3 = image.Sample(def_sampler, vert_in.uv - dx).xyz;
+	float3 rgb4 = image.Sample(def_sampler, vert_in.uv - dy).xyz;
+
+	float3 drgb = (
+		abs(rgb1 - rgba.xyz) +
+		abs(rgb2 - rgba.xyz) +
+		abs(rgb3 - rgba.xyz) +
+		abs(rgb4 - rgba.xyz) ) * 0.25;
+
+	float d = (drgb.x + drgb.y + drgb.z) * 0.3333;
+
+	if (d < peaking_threshold)
+		return rgba;
+	else
+		return peaking_color;
+}
+
+technique DrawFocusPeaking
+{
+	pass
+	{
+		vertex_shader = VSDefault(vert_in);
+		pixel_shader  = PSDrawFocusPeaking(vert_in);
+	}
+}
