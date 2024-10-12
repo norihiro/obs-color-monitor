@@ -18,10 +18,13 @@
 
 #define N_SRC SCOPE_WIDGET_N_SRC
 
-static const char *id_list[N_SRC] = {
-	"colormonitor_roi", "vectorscope_source",     "waveform_source",
-	"histogram_source", ID_PREFIX "zebra_source", ID_PREFIX "falsecolor_source",
-};
+static const char *id_list[N_SRC] = {"colormonitor_roi",
+				     "vectorscope_source",
+				     "waveform_source",
+				     "histogram_source",
+				     ID_PREFIX "zebra_source",
+				     ID_PREFIX "falsecolor_source",
+				     ID_PREFIX "focuspeaking_source"};
 
 struct src_rect_s
 {
@@ -122,6 +125,7 @@ static void draw(void *param, uint32_t cx, uint32_t cy)
 			case 0: // ROI
 			case 4: // Zebra
 			case 5: // False color
+			case 6: // Focus peaking
 				if (w * h_src > h * w_src)
 					w = h * w_src / h_src;
 				else if (h * w_src > w * h_src)
@@ -503,9 +507,10 @@ bool ScopeWidget::openMenu(QMouseEvent *)
 	QAction *act;
 
 	const char *menu_text[N_SRC] = {
-		obs_module_text("dock.menu.show.roi"),      obs_module_text("dock.menu.show.vectorscope"),
-		obs_module_text("dock.menu.show.waveform"), obs_module_text("dock.menu.show.histogram"),
-		obs_module_text("dock.menu.show.zebra"),    obs_module_text("dock.menu.show.falsecolor"),
+		obs_module_text("dock.menu.show.roi"),          obs_module_text("dock.menu.show.vectorscope"),
+		obs_module_text("dock.menu.show.waveform"),     obs_module_text("dock.menu.show.histogram"),
+		obs_module_text("dock.menu.show.zebra"),        obs_module_text("dock.menu.show.falsecolor"),
+		obs_module_text("dock.menu.show.focuspeaking"),
 	};
 
 	for (int i = 0; i < N_SRC; i++) {
@@ -559,6 +564,8 @@ void ScopeWidget::createProperties()
 void ScopeWidget::default_properties(obs_data_t *props)
 {
 	for (int i = 0; i < N_SRC; i++) {
+		if (strcmp(id_list[i], ID_PREFIX "focuspeaking_source") == 0)
+			continue;
 		char s[64];
 		snprintf(s, sizeof(s), "%s-shown", id_list[i]);
 		s[sizeof(s) - 1] = 0;

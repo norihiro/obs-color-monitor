@@ -5,7 +5,7 @@
 #include <memory>
 #include <string>
 
-#define SCOPE_WIDGET_N_SRC 6
+#define SCOPE_WIDGET_N_SRC 7
 
 class ScopeWidget : public QWidget {
 	Q_OBJECT
