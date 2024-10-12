@@ -107,6 +107,8 @@ if(APPLE)
 	set(MACOSX_PLUGIN_SHORT_VERSION_STRING "1")
 endif()
 
+file(GENERATE OUTPUT .gitignore CONTENT "*\n")
+
 setup_plugin_target(${PROJECT_NAME})
 
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
