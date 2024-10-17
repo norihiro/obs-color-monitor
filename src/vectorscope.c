@@ -427,7 +427,7 @@ static void vss_render(void *data, gs_effect_t *effect)
 	PROFILE_END(prof_render_name);
 }
 
-void vss_mouse_wheel(void *data, const struct obs_mouse_event *event, int x_delta, int y_delta)
+static void vss_mouse_wheel(void *data, const struct obs_mouse_event *event, int x_delta, int y_delta)
 {
 	UNUSED_PARAMETER(event);
 	UNUSED_PARAMETER(x_delta);
