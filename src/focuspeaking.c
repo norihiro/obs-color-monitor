@@ -28,6 +28,7 @@ struct fp_source
 	/* properties */
 	uint32_t peaking_color;
 	float peaking_threshold;
+	bool actual_size;
 };
 
 struct fps_source
@@ -108,6 +109,7 @@ static void fp_update(struct fp_source *src, obs_data_t *settings)
 {
 	src->peaking_color = (uint32_t)obs_data_get_int(settings, "peaking_color");
 	src->peaking_threshold = (float)obs_data_get_double(settings, "peaking_threshold");
+	src->actual_size = obs_data_get_bool(settings, "actual_size");
 }
 
 static void fps_update(void *data, obs_data_t *settings)
@@ -134,6 +136,7 @@ static void fp_get_properties(obs_properties_t *props)
 	obs_properties_add_color(props, "peaking_color", obs_module_text("FocusPeaking.Prop.PeakingColor"));
 	obs_properties_add_float(props, "peaking_threshold", obs_module_text("FocusPeaking.Prop.PeakingThreshold"),
 				 0.001, 0.1, 0.001);
+	obs_properties_add_bool(props, "actual_size", obs_module_text("FocusPeaking.Prop.ActualSize"));
 }
 
 static obs_properties_t *fps_get_properties(void *data)
@@ -197,6 +200,25 @@ static inline uint32_t swap_rb(uint32_t c)
 	return (c & 0xFF00FF00) | (r << 16) | b;
 }
 
+static void set_actual_size_matrix(uint32_t cx, uint32_t cy)
+{
+	struct gs_rect rect;
+	gs_get_viewport(&rect);
+
+	float xcoe = (float)cx / (float)rect.cx;
+	float ycoe = (float)cy / (float)rect.cy;
+	float xoff = (float)(rect.cx - (int)cx) * 0.5f * xcoe;
+	float yoff = (float)(rect.cy - (int)cy) * 0.5f * ycoe;
+
+	struct matrix4 tr = {
+		{.ptr = {xcoe, 0.0f, 0.0f, 0.0f}},
+		{.ptr = {0.0f, ycoe, 0.0f, 0.0f}},
+		{.ptr = {0.0f, 0.0f, 1.0f, 0.0f}},
+		{.ptr = {xoff, yoff, 0.0f, 1.0f}},
+	};
+	gs_matrix_mul(&tr);
+}
+
 static void set_effect_params(struct fp_source *src, uint32_t cx, uint32_t cy)
 {
 	gs_effect_t *e = src->effect;
@@ -230,11 +252,19 @@ static void fps_render(void *data, gs_effect_t *effect)
 		uint32_t cx = cm_bypass_get_width(&src->cm);
 		uint32_t cy = cm_bypass_get_height(&src->cm);
 
+		if (src->fp.actual_size) {
+			gs_matrix_push();
+			set_actual_size_matrix(cx, cy);
+		}
+
 		gs_effect_set_texture(gs_effect_get_param_by_name(e, "image"), tex);
 		set_effect_params(&src->fp, cx, cy);
 		const char *draw = draw_name();
 		while (gs_effect_loop(e, draw))
 			gs_draw_sprite_subregion(tex, 0, 0, 0, cx, cy);
+
+		if (src->fp.actual_size)
+			gs_matrix_pop();
 	}
 
 	PROFILE_END(prof_render_name);
@@ -264,8 +294,16 @@ static void fpf_render(void *data, gs_effect_t *effect)
 	gs_blend_state_push();
 	gs_reset_blend_state();
 
+	if (src->fp.actual_size) {
+		gs_matrix_push();
+		set_actual_size_matrix(cx, cy);
+	}
+
 	const char *draw = draw_name();
 	obs_source_process_filter_tech_end(src->context, e, 0, 0, draw);
+
+	if (src->fp.actual_size)
+		gs_matrix_pop();
 
 	gs_blend_state_pop();
 }
