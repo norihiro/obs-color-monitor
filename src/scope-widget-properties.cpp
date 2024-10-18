@@ -51,7 +51,7 @@ ScopeWidgetProperties::ScopeWidgetProperties(QWidget *parent, obs_source_t *sour
 			prop_cb = (PropertiesReloadCallback)obs_source_properties;
 
 		PropertiesUpdateCallback handle_memory = [](void *vp, obs_data_t *new_settings) {
-			obs_source_t *source = reinterpret_cast<obs_source_t *>(vp);
+			obs_source_t *source = static_cast<obs_source_t *>(vp);
 
 			obs_source_update(source, new_settings);
 		};
