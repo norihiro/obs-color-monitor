@@ -50,6 +50,9 @@ struct scope_widget_s
 	src_rect_s src_rect[N_SRC];
 	int i_mouse_last, i_src_menu;
 
+	// copy of properties
+	bool focuspeaking_actual_size;
+
 	bool destroying;
 };
 
@@ -122,10 +125,13 @@ static void draw(void *param, uint32_t cx, uint32_t cy)
 			int w = cx;
 			int h = (cy - y0) / (n_src - k);
 			switch (i) {
+			case 6: // Focus peaking
+				if (data->focuspeaking_actual_size)
+					break;
+				/* fallthrough */
 			case 0: // ROI
 			case 4: // Zebra
 			case 5: // False color
-			case 6: // Focus peaking
 				if (w * h_src > h * w_src)
 					w = h * w_src / h_src;
 				else if (h * w_src > w * h_src)
@@ -573,6 +579,15 @@ void ScopeWidget::default_properties(obs_data_t *props)
 	}
 }
 
+static void focuspeaking_update_cb(void *data_, calldata_t *cd)
+{
+	auto *data = static_cast<scope_widget_s *>(data_);
+
+	auto *src = static_cast<obs_source_t *>(calldata_ptr(cd, "source"));
+	OBSDataAutoRelease settings = obs_source_get_settings(src);
+	data->focuspeaking_actual_size = obs_data_get_bool(settings, "actual_size");
+}
+
 void ScopeWidget::save_properties(obs_data_t *props)
 {
 	pthread_mutex_lock(&data->mutex);
@@ -619,10 +634,15 @@ void ScopeWidget::load_properties(obs_data_t *props)
 		if (i > 0)
 			obs_data_set_string(prop, "target_name", roi_name);
 
-		if (!data->src[i])
+		if (!data->src[i]) {
 			data->src[i] = i == 0 ? create_scope_source_roi(id_list[i], prop, roi_name)
 					      : create_scope_source(id_list[i], prop);
-		else
+
+			if (i == 6) /* focuspeaking */ {
+				signal_handler_t *sh = obs_source_get_signal_handler(data->src[i]);
+				signal_handler_connect(sh, "update", focuspeaking_update_cb, data);
+			}
+		} else
 			obs_source_update(data->src[i], prop);
 
 		obs_data_release(prop);
