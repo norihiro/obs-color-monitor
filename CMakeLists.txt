@@ -43,6 +43,7 @@ set(PLUGIN_SOURCES
 	src/waveform.c
 	src/histogram.c
 	src/zebra.c
+	src/focuspeaking.c
 	src/roi.c
 	src/common.c
 	src/util.c
