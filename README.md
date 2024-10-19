@@ -9,6 +9,7 @@ This plugin provides these sources to monitor color balances.
 - [Histogram](doc/histogram.md)
 - [Zebra](doc/zebra.md)
 - [False Color](doc/falsecolor.md)
+- [Focus Peaking](doc/focuspeaking.md)
 
 In addition, a dock widget is available.
 - [Dock](doc/dock.md)
