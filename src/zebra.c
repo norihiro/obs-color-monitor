@@ -561,7 +561,7 @@ static void zb_render_key(struct zb_source *src, const char *draw, uint32_t widt
 			x = width * def->x0;
 			y = height * (def->yk + def->cyk * 256 * i / 10);
 			w = width * (def->xk - def->x0);
-			h = height * fabs(def->cyk * 256) / 10;
+			h = height * fabsf(def->cyk * 256) / 10;
 			img_cx = src->key_label_img.cx * 55; // cx
 			img_cy = src->key_label_img.cy * 2;  // cy * 2 / 55
 		} else {
