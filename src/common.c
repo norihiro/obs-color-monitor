@@ -113,6 +113,9 @@ void cm_enum_sources(void *data, obs_source_enum_proc_t enum_callback, void *par
 
 void cm_get_properties(struct cm_source *src, obs_properties_t *props)
 {
+	if (!src)
+		return;
+
 	obs_property_t *prop;
 
 	prop = obs_properties_add_list(props, "target_name", obs_module_text("Source"), OBS_COMBO_TYPE_LIST,

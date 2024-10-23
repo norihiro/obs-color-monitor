@@ -44,6 +44,8 @@ void scope_dock_add(const char *name, obs_data_t *props, bool show)
 			w,
 			[w]() {
 				auto *main_window = static_cast<QMainWindow *>(obs_frontend_get_main_window());
+				if (!main_window)
+					return;
 				QList<QDockWidget *> dd = main_window->findChildren<QDockWidget *>();
 				for (QDockWidget *d : dd) {
 					if (d->widget() == w) {
