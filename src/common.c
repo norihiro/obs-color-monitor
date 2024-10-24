@@ -175,6 +175,11 @@ static bool render_rgb_yuv(struct cm_source *src, struct cm_surface_queue_item *
 	gs_texrender_reset(item->texrender);
 	if (src->effect && gs_texrender_begin(item->texrender, item->width, item->sheight)) {
 		PROFILE_START(prof_convert_yuv_name);
+
+		struct vec4 background;
+		vec4_zero(&background);
+		gs_clear(GS_CLEAR_COLOR, &background, 0.0f, 0);
+
 		gs_projection_push();
 		gs_ortho(0.0f, (float)item->width, 0.0f, (float)item->sheight, -100.0f, 100.0f);
 
