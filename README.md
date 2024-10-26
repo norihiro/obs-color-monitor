@@ -1,4 +1,4 @@
-# OBS Color Monitor
+# Color Monitor plugin for OBS Studio
 
 ## Introduction
 
