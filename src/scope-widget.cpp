@@ -212,7 +212,7 @@ ScopeWidget::ScopeWidget(QWidget *parent) : QWidget(parent)
 		}
 	});
 
-	connect(windowHandle(), &QWindow::screenChanged, [this](QScreen *screen) {
+	connect(windowHandle(), &QWindow::screenChanged, [this](QScreen *) {
 		CreateDisplay();
 
 		if (data->disp) {
