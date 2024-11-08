@@ -196,6 +196,31 @@ ScopeWidget::ScopeWidget(QWidget *parent) : QWidget(parent)
 	data->i_mouse_last = -1;
 	data->i_src_menu = -1;
 
+	connect(windowHandle(), &QWindow::visibleChanged, [this](bool visible) {
+		if (!visible) {
+#if !defined(_WIN32) && !defined(__APPLE__)
+			DestroyDisplay();
+#endif
+			return;
+		}
+
+		if (!data->disp) {
+			CreateDisplay();
+		} else {
+			QSize size = GetPixelSize(this);
+			obs_display_resize(data->disp, size.width(), size.height());
+		}
+	});
+
+	connect(windowHandle(), &QWindow::screenChanged, [this](QScreen *screen) {
+		CreateDisplay();
+
+		if (data->disp) {
+			QSize size = GetPixelSize(this);
+			obs_display_resize(data->disp, size.width(), size.height());
+		}
+	});
+
 	windowHandle()->installEventFilter(new SurfaceEventFilter(this));
 }
 
@@ -204,6 +229,7 @@ ScopeWidget::~ScopeWidget()
 	scope_dock_deleted(this);
 
 	if (data) {
+		data->destroying = true;
 		DestroyDisplay();
 
 		pthread_mutex_lock(&data->mutex);
@@ -262,7 +288,6 @@ void ScopeWidget::DestroyDisplay()
 
 	obs_display_destroy(data->disp);
 	data->disp = NULL;
-	data->destroying = true;
 }
 
 void ScopeWidget::resizeEvent(QResizeEvent *event)
