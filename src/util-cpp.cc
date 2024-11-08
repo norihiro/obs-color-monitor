@@ -1,10 +1,10 @@
 #include <obs-module.h>
 #include <obs-frontend-api.h>
-#include "plugin-macros.generated.h"
-#include "util.h"
 #include <vector>
 #include <string>
 #include <algorithm>
+#include "plugin-macros.generated.h"
+#include "util.h"
 
 struct add_sources_s
 {
@@ -14,7 +14,7 @@ struct add_sources_s
 
 static bool add_sources(void *data, obs_source_t *source)
 {
-	auto &ctx = *(add_sources_s *)data;
+	auto &ctx = *static_cast<add_sources_s *>(data);
 
 	if (source == ctx.self)
 		return true;
