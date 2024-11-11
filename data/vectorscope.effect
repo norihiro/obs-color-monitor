@@ -2,6 +2,8 @@ uniform float4x4 ViewProj;
 uniform texture2d image;
 uniform float intensity;
 uniform float4 color = {1.0, 1.0, 1.0, 1.0};
+uniform float3 color_u = {0.0, 0.0, 0.0};
+uniform float3 color_v = {0.0, 0.0, 0.0};
 
 sampler_state def_sampler {
 	Filter   = Point;
@@ -24,9 +26,10 @@ VertInOut VSDefault(VertInOut vert_in)
 
 float4 PSDrawBare(VertInOut vert_in) : TARGET
 {
+	float3 rgb = color.xyz + color_u * (vert_in.uv.x * 2.0 - 1.0) + color_v * (1.0 - vert_in.uv.y * 2.0);
 	float r = image.Sample(def_sampler, vert_in.uv).x * intensity;
 	if (r>1.0) r = 1.0;
-	return float4(color.xyz*r, 1.0);
+	return float4(rgb * r, color.a);
 }
 
 float4 PSDrawGraticule(VertInOut vert_in) : TARGET

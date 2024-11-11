@@ -27,6 +27,11 @@ Population for each color is multiplied by intensity and drawn on the scope.
 Larger value will increase the visibility of less population colors.
 Default is `25`. Available range is an integer number between `1` - `255`.
 
+### Color Type
+
+- White: The vectorscope will be displayed in grayscale.
+- Chroma: The vectorscope will be displayed with corresponding chrominance components.
+
 ### Graticule
 
 Choice of graticule.

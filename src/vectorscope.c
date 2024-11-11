@@ -33,6 +33,11 @@ static const char *prof_draw_graticule_name = "graticule";
 #define RGB2U_709(r, g, b) ((-102 * (r)-346 * (g) + 450 * (b)) / 1024 + 128)
 #define RGB2V_709(r, g, b) ((+450 * (r)-408 * (g)-40 * (b)) / 1024 + 128)
 
+enum color_type {
+	color_type_white = 0,
+	color_type_uv,
+};
+
 struct vss_source
 {
 	struct cm_source cm;
@@ -48,6 +53,7 @@ struct vss_source
 	gs_effect_t *effect;
 
 	int intensity;
+	enum color_type color_type;
 	int graticule;
 	int graticule_color;
 	int graticule_skintone_color;
@@ -124,6 +130,8 @@ static void vss_update(void *data, obs_data_t *settings)
 	if (src->intensity < 1)
 		src->intensity = 1;
 
+	src->color_type = (enum color_type)obs_data_get_int(settings, "color_type");
+
 	int graticule = (int)obs_data_get_int(settings, "graticule");
 	if ((graticule ^ src->graticule) & GRATICULES_IQ)
 		src->update_graticule = 1;
@@ -162,6 +170,12 @@ static obs_properties_t *vss_get_properties(void *data)
 	cm_get_properties(&src->cm, props);
 
 	obs_properties_add_int(props, "intensity", obs_module_text("Intensity"), 1, 255, 1);
+
+	prop = obs_properties_add_list(props, "color_type", obs_module_text("VS.Prop.ColorType"), OBS_COMBO_TYPE_LIST,
+				       OBS_COMBO_FORMAT_INT);
+	obs_property_list_add_int(prop, obs_module_text("VS.Prop.ColorType.White"), color_type_white);
+	obs_property_list_add_int(prop, obs_module_text("VS.Prop.ColorType.UV"), color_type_uv);
+
 	prop = obs_properties_add_list(props, "graticule", obs_module_text("Graticule"), OBS_COMBO_TYPE_LIST,
 				       OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(prop, obs_module_text("None"), 0);
@@ -394,7 +408,30 @@ static void vss_render(void *data, gs_effect_t *effect)
 		gs_effect_t *effect = src->effect;
 		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), src->tex_vs);
 		gs_effect_set_float(gs_effect_get_param_by_name(effect, "intensity"), (float)src->intensity);
-		gs_effect_set_default(gs_effect_get_param_by_name(effect, "color"));
+
+		switch (src->color_type) {
+		case color_type_uv:
+			if (src->tex_cs[r_tex_buf] == 1) /* BT.601 */ {
+				const struct vec4 color = {{{0.5f, 0.5f, 0.5f, 1.0f}}};
+				const struct vec3 color_u = {{{0.0f, -0.3441f, +1.772f, 0.0f}}};
+				const struct vec3 color_v = {{{+1.402f, -0.7141f, 0.0f, 0.0f}}};
+				gs_effect_set_vec4(gs_effect_get_param_by_name(effect, "color"), &color);
+				gs_effect_set_vec3(gs_effect_get_param_by_name(effect, "color_u"), &color_u);
+				gs_effect_set_vec3(gs_effect_get_param_by_name(effect, "color_v"), &color_v);
+			} else /* BT.709 */ {
+				const struct vec4 color = {{{0.5f, 0.5f, 0.5f, 1.0f}}};
+				const struct vec3 color_u = {{{0.0f, -0.1873f, +1.8556f, 0.0f}}};
+				const struct vec3 color_v = {{{+1.5748f, -0.4681f, 0.0f, 0.0f}}};
+				gs_effect_set_vec4(gs_effect_get_param_by_name(effect, "color"), &color);
+				gs_effect_set_vec3(gs_effect_get_param_by_name(effect, "color_u"), &color_u);
+				gs_effect_set_vec3(gs_effect_get_param_by_name(effect, "color_v"), &color_v);
+			}
+			break;
+		case color_type_white:
+		default:
+			gs_effect_set_default(gs_effect_get_param_by_name(effect, "color"));
+		}
+
 		while (gs_effect_loop(effect, "Draw")) {
 			gs_draw_sprite(src->tex_vs, 0, VS_SIZE, VS_SIZE);
 		}
