@@ -28,6 +28,7 @@ OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
 #define CONFIG_SECTION_NAME "ColorMonitor"
 
+extern const struct obs_source_info colormonitor_vectorscope_v1;
 extern const struct obs_source_info colormonitor_vectorscope;
 extern const struct obs_source_info colormonitor_waveform;
 extern const struct obs_source_info colormonitor_histogram;
@@ -73,6 +74,8 @@ bool obs_module_load(void)
 	bool show_filter = config_get_bool(cfg, CONFIG_SECTION_NAME, "ShowFilter");
 	uint32_t flt_flags = show_filter ? 0 : OBS_SOURCE_CAP_DISABLED;
 
+	if (!register_source_with_flags(&colormonitor_vectorscope_v1, src_flags))
+		return false;
 	if (!register_source_with_flags(&colormonitor_vectorscope, src_flags))
 		return false;
 	if (!register_source_with_flags(&colormonitor_waveform, src_flags))

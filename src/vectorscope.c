@@ -152,12 +152,18 @@ static void vss_update(void *data, obs_data_t *settings)
 	}
 }
 
-static void vss_get_defaults(obs_data_t *settings)
+static void vss_get_defaults_v1(obs_data_t *settings)
 {
 	obs_data_set_default_int(settings, "target_scale", 2);
 	obs_data_set_default_int(settings, "intensity", 25);
 	obs_data_set_default_int(settings, "graticule", 1 | GRATICULES_IQ);
 	obs_data_set_default_int(settings, "graticule_skintone_color", SKIN_TONE_LINE);
+}
+
+static void vss_get_defaults(obs_data_t *settings)
+{
+	vss_get_defaults_v1(settings);
+	obs_data_set_default_int(settings, "color_type", (long long)color_type_uv);
 }
 
 static obs_properties_t *vss_get_properties(void *data)
@@ -475,8 +481,27 @@ static void vss_mouse_wheel(void *data, const struct obs_mouse_event *event, int
 		src->zoom = 1.0f;
 }
 
+const struct obs_source_info colormonitor_vectorscope_v1 = {
+	.id = "vectorscope_source",
+	.type = OBS_SOURCE_TYPE_INPUT,
+	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW | OBS_SOURCE_INTERACTION,
+	.get_name = vss_get_name,
+	.create = vss_create,
+	.destroy = vss_destroy,
+	.update = vss_update,
+	.get_defaults = vss_get_defaults_v1,
+	.get_properties = vss_get_properties,
+	.get_width = vss_get_width,
+	.get_height = vss_get_height,
+	.enum_active_sources = cm_enum_sources,
+	.video_render = vss_render,
+	.video_tick = cm_tick,
+	.mouse_wheel = vss_mouse_wheel,
+};
+
 const struct obs_source_info colormonitor_vectorscope = {
 	.id = "vectorscope_source",
+	.version = 2,
 	.type = OBS_SOURCE_TYPE_INPUT,
 	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW | OBS_SOURCE_INTERACTION,
 	.get_name = vss_get_name,
