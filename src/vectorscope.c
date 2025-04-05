@@ -26,12 +26,12 @@ static const char *prof_draw_graticule_name = "graticule";
 #define SKIN_TONE_LINE 0x0054FF // BGR
 
 #define RGB2Y_601(r, g, b) ((+306 * (r) + 601 * (g) + 117 * (b)) / 1024 + 0)
-#define RGB2U_601(r, g, b) ((-150 * (r)-296 * (g) + 448 * (b)) / 1024 + 128)
-#define RGB2V_601(r, g, b) ((+448 * (r)-374 * (g)-72 * (b)) / 1024 + 128)
+#define RGB2U_601(r, g, b) ((-150 * (r) - 296 * (g) + 448 * (b)) / 1024 + 128)
+#define RGB2V_601(r, g, b) ((+448 * (r) - 374 * (g) - 72 * (b)) / 1024 + 128)
 
 #define RGB2Y_709(r, g, b) ((+218 * (r) + 732 * (g) + 74 * (b)) / 1024 + 16)
-#define RGB2U_709(r, g, b) ((-102 * (r)-346 * (g) + 450 * (b)) / 1024 + 128)
-#define RGB2V_709(r, g, b) ((+450 * (r)-408 * (g)-40 * (b)) / 1024 + 128)
+#define RGB2U_709(r, g, b) ((-102 * (r) - 346 * (g) + 450 * (b)) / 1024 + 128)
+#define RGB2V_709(r, g, b) ((+450 * (r) - 408 * (g) - 40 * (b)) / 1024 + 128)
 
 enum color_type {
 	color_type_white = 0,
