@@ -7,7 +7,7 @@
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #endif
 
-// copied from obs-studio/UI/qt-wrappers.cpp and modified to support OBS-26
+// copied from obs-studio/frontend/widgets/OBSQTDisplay.cpp
 static inline bool QTToGSWindow(QWindow *window, gs_window &gswindow)
 {
 	bool success = true;
@@ -17,22 +17,23 @@ static inline bool QTToGSWindow(QWindow *window, gs_window &gswindow)
 #elif __APPLE__
 	gswindow.view = (id)window->winId();
 #else
-#ifdef ENABLE_WAYLAND
 	switch (obs_get_nix_platform()) {
-	case OBS_NIX_PLATFORM_X11_GLX:
 	case OBS_NIX_PLATFORM_X11_EGL:
-#endif // ENABLE_WAYLAND
 		gswindow.id = window->winId();
 		gswindow.display = obs_get_nix_platform_display();
-#ifdef ENABLE_WAYLAND
 		break;
-	case OBS_NIX_PLATFORM_WAYLAND:
+#ifdef ENABLE_WAYLAND
+	case OBS_NIX_PLATFORM_WAYLAND: {
 		QPlatformNativeInterface *native = QGuiApplication::platformNativeInterface();
 		gswindow.display = native->nativeResourceForWindow("surface", window);
 		success = gswindow.display != nullptr;
 		break;
 	}
-#endif // ENABLE_WAYLAND
+#endif
+	default:
+		success = false;
+		break;
+	}
 #endif
 	return success;
 }
