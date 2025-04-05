@@ -15,7 +15,7 @@ jobs:
 
     - name: Clang
       run: |
-        sudo apt-get install -y clang-format-13
+        sudo apt-get install -y clang-format-18
         clang-format -i -fallback-style=none $(git ls-files src/ src-obsstudio/ | grep '[^/]\.[ch]')
 
     - name: Check
