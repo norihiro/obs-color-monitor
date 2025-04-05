@@ -35,8 +35,6 @@ class QLayout;
 class QString;
 struct gs_window;
 
-void QTToGSWindow(WId windowId, gs_window &gswindow);
-
 static inline Qt::ConnectionType WaitConnection()
 {
 	return QThread::currentThread() == qApp->thread()
