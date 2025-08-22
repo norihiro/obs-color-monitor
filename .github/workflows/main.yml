@@ -23,8 +23,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        obs: [30]
-        ubuntu: ['ubuntu-22.04']
+        include:
+          - obs: 30
+            ubuntu: 'ubuntu-22.04'
+          - obs: 31
+            ubuntu: 'ubuntu-24.04'
     defaults:
       run:
         shell: bash
@@ -75,7 +78,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        obs: [30]
+        obs: [30, 31]
         arch: ['universal']
     defaults:
       run:
@@ -215,7 +218,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        obs: [30]
+        obs: [30, 31]
         arch: [x64]
     env:
       visualStudio: 'Visual Studio 17 2022'
