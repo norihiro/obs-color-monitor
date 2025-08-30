@@ -36,6 +36,9 @@ ScopeWidgetProperties::ScopeWidgetProperties(QWidget *parent, obs_source_t *sour
 
 	setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 
+	setMinimumWidth(360);
+	setMinimumHeight(360);
+
 	QMetaObject::connectSlotsByName(this);
 
 	tabWidget = new QTabWidget(this);
