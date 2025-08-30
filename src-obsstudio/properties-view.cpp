@@ -427,15 +427,6 @@ static QVariant from_obs_data(obs_data_t *data, const char *name,
 			     obs_data_get_string>(data, name, format);
 }
 
-static QVariant from_obs_data_autoselect(obs_data_t *data, const char *name,
-					 obs_combo_format format)
-{
-	return from_obs_data<obs_data_get_autoselect_int,
-			     obs_data_get_autoselect_double,
-			     obs_data_get_autoselect_string>(data, name,
-							     format);
-}
-
 QWidget *OBSPropertiesView::AddList(obs_property_t *prop, bool &warning)
 {
 	const char *name = obs_property_name(prop);
@@ -469,21 +460,6 @@ QWidget *OBSPropertiesView::AddList(obs_property_t *prop, bool &warning)
 
 	if (idx != -1)
 		combo->setCurrentIndex(idx);
-
-	if (obs_data_has_autoselect_value(settings, name)) {
-		QVariant autoselect =
-			from_obs_data_autoselect(settings, name, format);
-		int id = combo->findData(autoselect);
-
-		if (id != -1 && id != idx) {
-			QString actual = combo->itemText(id);
-			QString selected = combo->itemText(idx);
-			QString combined = QTStr(
-				"Basic.PropertiesWindow.AutoSelectFormat");
-			combo->setItemText(idx,
-					   combined.arg(selected).arg(actual));
-		}
-	}
 
 	QAbstractItemModel *model = combo->model();
 	warning = idx != -1 &&
