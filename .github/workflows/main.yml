@@ -28,6 +28,8 @@ jobs:
             ubuntu: 'ubuntu-22.04'
           - obs: 31
             ubuntu: 'ubuntu-24.04'
+          - obs: 32
+            ubuntu: 'ubuntu-24.04'
     defaults:
       run:
         shell: bash
