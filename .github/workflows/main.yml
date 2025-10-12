@@ -220,7 +220,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        obs: [30, 31]
+        obs: [30, 31, 32]
         arch: [x64]
     env:
       visualStudio: 'Visual Studio 17 2022'
