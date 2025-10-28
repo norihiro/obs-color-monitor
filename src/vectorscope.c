@@ -484,7 +484,7 @@ static void vss_mouse_wheel(void *data, const struct obs_mouse_event *event, int
 const struct obs_source_info colormonitor_vectorscope_v1 = {
 	.id = "vectorscope_source",
 	.type = OBS_SOURCE_TYPE_INPUT,
-	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW | OBS_SOURCE_INTERACTION | OBS_ENCODER_CAP_DEPRECATED,
+	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW | OBS_SOURCE_INTERACTION | OBS_SOURCE_CAP_OBSOLETE,
 	.get_name = vss_get_name,
 	.create = vss_create,
 	.destroy = vss_destroy,
