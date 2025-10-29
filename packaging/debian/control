@@ -1,0 +1,21 @@
+Source: color-monitor-plugin-for-obs
+Section: video
+Priority: optional
+Maintainer: Norihiro Kamae <norihiro-ppa-plugins-for-obs-studio@nagater.net>
+Rules-Requires-Root: no
+Build-Depends:
+ debhelper-compat (= 13),
+ cmake,
+ obs-studio,
+ libsimde-dev,
+ qt6-base-dev, qt6-base-private-dev, libqt6svg6-dev, qt6-wayland,
+ libxcb1-dev, libx11-xcb-dev, libwayland-dev, libglvnd-dev
+Conflicts: obs-color-monitor
+Standards-Version: 4.6.0
+Homepage: https://github.com/norihiro/obs-color-monitor
+
+Package: color-monitor-plugin-for-obs
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: color monitor plugin for OBS Studio
+
