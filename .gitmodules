@@ -1,0 +1,3 @@
+[submodule "noriscommonui"]
+	path = noriscommonui
+	url = https://github.com/noris-plugins-for-obs/noriscommonui.git

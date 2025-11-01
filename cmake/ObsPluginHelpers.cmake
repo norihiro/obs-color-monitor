@@ -101,10 +101,6 @@ macro(find_qt)
 
   list(APPEND _QT_COMPONENTS Core)
 
-  if("Gui" IN_LIST FIND_QT_COMPONENTS_LINUX)
-    list(APPEND _QT_COMPONENTS "GuiPrivate")
-  endif()
-
   # Check for versionless targets of each requested component and create if necessary
   foreach(_COMPONENT IN LISTS _QT_COMPONENTS)
     if(NOT TARGET Qt::${_COMPONENT} AND TARGET Qt${_QT_VERSION}::${_COMPONENT})

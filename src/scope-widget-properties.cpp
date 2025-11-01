@@ -7,7 +7,6 @@
 #include <QMessageBox>
 #include "plugin-macros.generated.h"
 #include "scope-widget-properties.hpp"
-#include "obsgui-helper.hpp"
 #include "properties-view.hpp"
 
 static obs_properties_t *scopewidget_properties(const obs_source_t *source)
