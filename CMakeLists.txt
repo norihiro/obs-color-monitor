@@ -15,6 +15,7 @@ set(LINUX_MAINTAINER_EMAIL "norihiro@nagater.net")
 option(ENABLE_PROFILE "Enable profiling to see calculation time" OFF)
 option(SHOW_ROI "Show ROI source to users" OFF)
 option(ENABLE_COVERAGE "Enable coverage option for GCC" OFF)
+option(NORISCOMMONUI_SUBMODULE "Use noriscommonui from submodule" ON)
 
 set(CMAKE_PREFIX_PATH "${QTDIR}")
 set(CMAKE_AUTOMOC ON)
@@ -30,6 +31,13 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
 	include(cmake/ObsPluginHelpers.cmake)
 	add_library(OBS::frontend-api ALIAS OBS::obs-frontend-api)
 	find_qt(VERSION ${QT_VERSION} COMPONENTS Widgets Core COMPONENTS_LINUX Gui)
+endif()
+
+if(NORISCOMMONUI_SUBMODULE)
+	add_subdirectory(noriscommonui)
+	add_library(noriscommonui::noriscommonui ALIAS noriscommonui)
+else()
+	find_package(NorisCommonUI REQUIRED)
 endif()
 
 configure_file(
@@ -53,7 +61,6 @@ set(PLUGIN_SOURCES
 	src/scope-dock-new-dialog.cpp
 	src/scope-widget.cpp
 	src/scope-widget-properties.cpp
-	src/SurfaceEventFilter.cpp
 	src/ScopeWidgetInteractiveEventFilter.cpp
 	src-obsstudio/properties-view.cpp
 	src-obsstudio/vertical-scroll-area.cpp
@@ -73,6 +80,7 @@ target_link_libraries(${PROJECT_NAME}
 	Qt::Widgets
 	Qt::Gui
 	Qt::GuiPrivate
+	noriscommonui::noriscommonui
 )
 
 target_include_directories(${PROJECT_NAME}

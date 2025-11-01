@@ -14,7 +14,6 @@
 #include "scope-dock.hpp"
 #include "obsgui-helper.hpp"
 #include "ScopeWidgetInteractiveEventFilter.hpp"
-#include "SurfaceEventFilter.hpp"
 
 #define N_SRC SCOPE_WIDGET_N_SRC
 
@@ -25,6 +24,8 @@ static const char *id_list[N_SRC] = {"colormonitor_roi",
 				     ID_PREFIX "zebra_source",
 				     ID_PREFIX "falsecolor_source",
 				     ID_PREFIX "focuspeaking_source"};
+
+static void draw(void *param, uint32_t cx, uint32_t cy);
 
 struct src_rect_s
 {
@@ -41,7 +42,6 @@ struct src_rect_s
 
 struct scope_widget_s
 {
-	obs_display_t *disp;
 	obs_source_t *src[N_SRC];
 	volatile uint32_t src_shown;
 	pthread_mutex_t mutex;
@@ -52,8 +52,6 @@ struct scope_widget_s
 
 	// copy of properties
 	bool focuspeaking_actual_size;
-
-	bool destroying;
 };
 
 static void generate_source_name(std::string &result, const char *id)
@@ -177,7 +175,7 @@ static void draw(void *param, uint32_t cx, uint32_t cy)
 	pthread_mutex_unlock(&data->mutex);
 }
 
-ScopeWidget::ScopeWidget(QWidget *parent) : QWidget(parent)
+ScopeWidget::ScopeWidget(QWidget *parent) : OBSQTDisplay(parent)
 {
 	properties = NULL;
 	setAttribute(Qt::WA_PaintOnScreen);
@@ -196,41 +194,18 @@ ScopeWidget::ScopeWidget(QWidget *parent) : QWidget(parent)
 	data->i_mouse_last = -1;
 	data->i_src_menu = -1;
 
-	connect(windowHandle(), &QWindow::visibleChanged, [this](bool visible) {
-		if (!visible) {
-#if !defined(_WIN32) && !defined(__APPLE__)
-			DestroyDisplay();
-#endif
-			return;
-		}
-
-		if (!data->disp) {
-			CreateDisplay();
-		} else {
-			QSize size = GetPixelSize(this);
-			obs_display_resize(data->disp, size.width(), size.height());
-		}
-	});
-
-	connect(windowHandle(), &QWindow::screenChanged, [this](QScreen *) {
-		CreateDisplay();
-
-		if (data->disp) {
-			QSize size = GetPixelSize(this);
-			obs_display_resize(data->disp, size.width(), size.height());
-		}
-	});
-
-	windowHandle()->installEventFilter(new SurfaceEventFilter(this));
+	connect(this, &OBSQTDisplay::DisplayCreated, this, &ScopeWidget::RegisterCallbackToDisplay);
 }
 
 ScopeWidget::~ScopeWidget()
 {
+	disconnect(this, &OBSQTDisplay::DisplayCreated, this, &ScopeWidget::RegisterCallbackToDisplay);
+
 	scope_dock_deleted(this);
 
 	if (data) {
-		data->destroying = true;
-		DestroyDisplay();
+		if (obs_display_t *display = GetDisplay())
+			obs_display_remove_draw_callback(display, draw, data);
 
 		pthread_mutex_lock(&data->mutex);
 		for (int i = 0; i < N_SRC; i++)
@@ -246,93 +221,20 @@ ScopeWidget::~ScopeWidget()
 	data = NULL;
 }
 
-void ScopeWidget::CreateDisplay()
+void ScopeWidget::RegisterCallbackToDisplay()
 {
-	if (data->disp || !windowHandle() || !windowHandle()->isExposed())
-		return;
-
-	if (data->destroying)
-		return;
-
-	blog(LOG_INFO, "ScopeWidget::CreateDisplay %p", this);
-
-	QSize size = GetPixelSize(this);
-	if (size.width() <= 0 || size.height() <= 0) {
-		blog(LOG_WARNING, "ScopeWidget::CreateDisplay: Not creating obs_display because the size is zero.");
-		return;
-	}
-	gs_init_data info = {};
-	info.cx = size.width();
-	info.cy = size.height();
-	info.format = GS_BGRA;
-	info.zsformat = GS_ZS_NONE;
-	QWindow *window = windowHandle();
-	if (!window) {
-		blog(LOG_ERROR, "ScopeWidget %p: windowHandle() returns NULL", this);
-		return;
-	}
-	if (!QTToGSWindow(window, info.window)) {
-		blog(LOG_ERROR, "ScopeWidget %p: QTToGSWindow failed", this);
-		return;
-	}
-	data->disp = obs_display_create(&info, 0);
-	obs_display_add_draw_callback(data->disp, draw, data);
-}
-
-void ScopeWidget::DestroyDisplay()
-{
-	if (!data) {
-		blog(LOG_ERROR, "ScopeWidget::DestroyDisplay() accessing released object");
-		return;
-	}
-
-	obs_display_destroy(data->disp);
-	data->disp = NULL;
-}
-
-void ScopeWidget::resizeEvent(QResizeEvent *event)
-{
-	QWidget::resizeEvent(event);
-
-	if (!isVisible())
-		return;
-
-	CreateDisplay();
-
-	QSize size = GetPixelSize(this);
-	if (data->disp && size.width() > 0 && size.height() > 0)
-		obs_display_resize(data->disp, size.width(), size.height());
-}
-
-void ScopeWidget::paintEvent(QPaintEvent *)
-{
-	CreateDisplay();
-}
-
-class QPaintEngine *ScopeWidget::paintEngine() const
-{
-	return NULL;
+	obs_display_t *display = GetDisplay();
+	obs_display_add_draw_callback(display, draw, data);
 }
 
 void ScopeWidget::closeEvent(QCloseEvent *)
 {
-	setShown(false);
+	DestroyDisplay();
 }
 
 void ScopeWidget::RemoveDock()
 {
 	obs_frontend_remove_dock(name.c_str());
-}
-
-void ScopeWidget::setShown(bool shown)
-{
-	if (shown && !data->disp) {
-		CreateDisplay();
-	}
-	if (!shown && data->disp) {
-		obs_display_destroy(data->disp);
-		data->disp = NULL;
-	}
 }
 
 #define INTERACT_KEEP_SOURCE (1 << 30)
