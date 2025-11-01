@@ -5,6 +5,7 @@ Summary: Color monitor plugin for OBS Studio
 License: GPLv2+
 
 Source0: %{name}-%{version}.tar.bz2
+Source1: %{name}-%{version}-noriscommonui.tar.bz2
 Requires: obs-studio >= @OBS_VERSION@
 BuildRequires: cmake, gcc, gcc-c++
 BuildRequires: obs-studio-devel
@@ -17,6 +18,7 @@ false color to help color correction.
 
 %prep
 %autosetup -p1
+tar -xjf %{SOURCE1}
 
 %build
 %{cmake} -DLINUX_PORTABLE=OFF -DLINUX_RPATH=OFF -DQT_VERSION=6
