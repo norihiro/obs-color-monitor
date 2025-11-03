@@ -1,7 +1,7 @@
 Name: obs-studio-plugin-color-monitor
 Version: @VERSION@
 Release: @RELEASE@%{?dist}
-Summary: Color monitor plugin for OBS Studio
+Summary: Color monitor plugin for OBS Studio providing vectorscope, waveform, histogram, zebra, false color
 License: GPLv2+
 
 Source0: %{name}-%{version}.tar.bz2
