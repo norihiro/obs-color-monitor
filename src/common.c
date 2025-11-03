@@ -377,6 +377,8 @@ static void *cm_pipeline_thread(void *data)
 	blog(LOG_DEBUG, "entering cm_pipeline_thread data=%p", data);
 	struct cm_source *src = data;
 
+	os_set_thread_name("color-monitor");
+
 	pthread_mutex_lock(&src->pipeline_mutex);
 	while (!src->request_exit) {
 		int next = (src->i_read_queue + 1) % CM_SURFACE_QUEUE_SIZE;
