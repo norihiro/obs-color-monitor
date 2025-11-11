@@ -30,7 +30,7 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
 	find_package(obs-frontend-api REQUIRED)
 	include(cmake/ObsPluginHelpers.cmake)
 	add_library(OBS::frontend-api ALIAS OBS::obs-frontend-api)
-	find_qt(VERSION ${QT_VERSION} COMPONENTS Widgets Core COMPONENTS_LINUX Gui)
+	find_qt(VERSION ${QT_VERSION} COMPONENTS Widgets Core Gui)
 endif()
 
 if(NORISCOMMONUI_SUBMODULE)
@@ -79,7 +79,6 @@ target_link_libraries(${PROJECT_NAME}
 	Qt::Core
 	Qt::Widgets
 	Qt::Gui
-	Qt::GuiPrivate
 	noriscommonui::noriscommonui
 )
 
