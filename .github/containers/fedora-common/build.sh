@@ -42,6 +42,11 @@ sed \
 	> $rpmbuild/SPECS/$PLUGIN_NAME_FEDORA.spec
 
 git archive --format=tar --prefix=$PLUGIN_NAME_FEDORA-$VERSION/ HEAD | bzip2 > $rpmbuild/SOURCES/$PLUGIN_NAME_FEDORA-$VERSION.tar.bz2
+git submodule status |
+while read -r sub_hash sub_name garbage; do
+	(cd $sub_name && git archive --format=tar --prefix=$sub_name/ HEAD) < /dev/null |\
+		bzip2 > $rpmbuild/SOURCES/$PLUGIN_NAME_FEDORA-$VERSION-$sub_name.tar.bz2
+done
 
 docker run -v $rpmbuild:/home/rpm/rpmbuild $docker_image bash -c "
 sudo dnf builddep -y ~/rpmbuild/SPECS/$PLUGIN_NAME_FEDORA.spec &&
