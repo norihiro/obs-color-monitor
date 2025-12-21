@@ -143,6 +143,7 @@ void scope_docks_init()
 
 	QAction *action =
 		static_cast<QAction *>(obs_frontend_add_tools_menu_qaction(obs_module_text("New Scope Dock...")));
+	action->setObjectName("actionScopeDockNew");
 	auto cb = [] {
 		obs_frontend_push_ui_translation(obs_module_get_string);
 		auto *dialog = new ScopeDockNewDialog(static_cast<QMainWindow *>(obs_frontend_get_main_window()));
