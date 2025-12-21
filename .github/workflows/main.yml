@@ -63,17 +63,28 @@ jobs:
         with:
           name: ${{ env.artifactName }}-linux-obs${{ matrix.obs }}-${{ matrix.ubuntu }}
           path: '${{ env.FILE_NAME }}'
-      - name: Check package
+
+      - name: 'Setup with onsdriver'
+        uses: noris-plugins-for-obs/onsdriver@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          obs-plugins: ${{ env.FILE_NAME }}
+          first-time-log: ./logs/
+
+      - name: 'Test with onsdriver'
         run: |
-          . build/ci/ci_includes.generated.sh
-          set -ex
-          sudo apt install -y '${{ env.FILE_NAME }}'
-          ldd /usr/lib/x86_64-linux-gnu/obs-plugins/${PLUGIN_NAME}.so > ldd.out
-          if grep not.found ldd.out ; then
-            echo "Error: unresolved shared object." >&2
-            exit 1
-          fi
-          ls /usr/share/obs/obs-plugins/${PLUGIN_NAME}/
+          python -m pip install Pillow
+          python -m unittest discover test-onsdriver/
+
+      - name: 'Upload logs of onsdriver'
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-${{ env.artifactName }}-linux-obs${{ matrix.obs }}-${{ matrix.ubuntu }}
+          path: |
+            logs/*
+            screenshots/*
 
   macos_build:
     runs-on: macos-14
@@ -215,6 +226,28 @@ jobs:
           name: ${{ env.artifactName }}-macos-obs${{ matrix.obs }}-${{ matrix.arch }}
           path: package/*
 
+      - name: 'Setup with onsdriver'
+        uses: noris-plugins-for-obs/onsdriver@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          obs-plugins: package/*.zip
+          first-time-log: ./logs/
+
+      - name: 'Test with onsdriver'
+        run: |
+          python -m pip install Pillow
+          python -m unittest discover test-onsdriver/
+
+      - name: 'Upload logs of onsdriver'
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-${{ env.artifactName }}-macos-obs${{ matrix.obs }}-${{ matrix.arch }}
+          path: |
+            logs/*
+            screenshots/*
+
   windows_build:
     runs-on: windows-2022
     strategy:
@@ -254,3 +287,25 @@ jobs:
         with:
           name: ${{ env.artifactName }}-windows-obs${{ matrix.obs }}-${{ matrix.arch }}
           path: package/*
+
+      - name: 'Setup with onsdriver'
+        uses: noris-plugins-for-obs/onsdriver@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          obs-plugins: package/*.zip
+          first-time-log: ./logs/
+
+      - name: 'Test with onsdriver'
+        run: |
+          python -m pip install Pillow
+          python -m unittest discover test-onsdriver/
+
+      - name: 'Upload logs of onsdriver'
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-${{ env.artifactName }}-windows-obs${{ matrix.obs }}-${{ matrix.arch }}
+          path: |
+            logs/*
+            screenshots/*
