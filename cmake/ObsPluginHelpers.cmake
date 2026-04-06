@@ -103,6 +103,11 @@ macro(find_qt)
 
   if("Gui" IN_LIST FIND_QT_COMPONENTS_LINUX)
     list(APPEND _QT_COMPONENTS "GuiPrivate")
+    if(Qt6_VERSION VERSION_GREATER_EQUAL "6.10.0")
+      set(QT_NO_PRIVATE_MODULE_WARNING ON)
+      find_package(Qt6 COMPONENTS GuiPrivate REQUIRED)
+      message(STATUS "called find_package(Qt6 COMPONENTS GuiPrivate REQUIRED)")
+    endif()
   endif()
 
   # Check for versionless targets of each requested component and create if necessary
