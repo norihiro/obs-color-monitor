@@ -2,7 +2,7 @@
 #include <util/platform.h>
 #include <util/dstr.h>
 #include <graphics/matrix4.h>
-#include <graphics/image-file.h>
+#include "image-file-compat.h"
 #include "plugin-macros.generated.h"
 #include "obs-convenience.h"
 #include "common.h"
@@ -40,9 +40,9 @@ struct zb_source
 
 	/* internal data */
 	gs_texture_t *key_tex;
-	gs_image_file_t key_label_img;
+	colormonitor_image_t key_label_img;
 	gs_vertbuffer_t *key_label_vbuf;
-	gs_image_file_t falsecolor_lut;
+	colormonitor_image_t falsecolor_lut;
 	bool is_falsecolor;
 };
 
@@ -138,7 +138,7 @@ static void falsecolor_lut_unload(struct zb_source *src)
 	if (!src->falsecolor_lut.loaded)
 		return;
 	obs_enter_graphics();
-	gs_image_file_free(&src->falsecolor_lut);
+	colormonitor_image_free(&src->falsecolor_lut);
 	obs_leave_graphics();
 }
 
@@ -147,7 +147,7 @@ static void zb_destroy(struct zb_source *src)
 	if (src->key_tex) {
 		obs_enter_graphics();
 		gs_texture_destroy(src->key_tex);
-		gs_image_file_free(&src->key_label_img);
+		colormonitor_image_free(&src->key_label_img);
 		gs_vertexbuffer_destroy(src->key_label_vbuf);
 		obs_leave_graphics();
 	}
@@ -179,10 +179,10 @@ static void falsecolor_lut_load(struct zb_source *src, const char *lut_filename)
 	falsecolor_lut_unload(src);
 
 	blog(LOG_INFO, "Loading LUT file '%s'...", lut_filename);
-	gs_image_file_init(&src->falsecolor_lut, lut_filename);
+	colormonitor_image_init(&src->falsecolor_lut, lut_filename);
 
 	obs_enter_graphics();
-	gs_image_file_init_texture(&src->falsecolor_lut);
+	colormonitor_image_init_texture(&src->falsecolor_lut);
 	obs_leave_graphics();
 }
 
@@ -399,10 +399,10 @@ static void zb_create_key_tex(struct zb_source *src)
 
 	if (!src->key_label_img.loaded) {
 		char *f = obs_module_file("falsecolor-key.png");
-		gs_image_file_init(&src->key_label_img, f);
+		colormonitor_image_init(&src->key_label_img, f);
 		if (!src->key_label_img.loaded)
 			blog(LOG_ERROR, "Cannot load falsecolor-key.png (%s)", f);
-		gs_image_file_init_texture(&src->key_label_img);
+		colormonitor_image_init_texture(&src->key_label_img);
 		bfree(f);
 	}
 }
