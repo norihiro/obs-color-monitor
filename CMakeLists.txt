@@ -1,14 +1,15 @@
 cmake_minimum_required(VERSION 3.12)
 
-project(obs-color-monitor VERSION 0.9.5)
+project(color-monitor VERSION 0.9.5)
 
 set(PLUGIN_AUTHOR "Norihiro Kamae")
 
-set(MACOS_BUNDLEID "net.nagater.obs-color-monitor")
+set(PLUGIN_URL "https://obsproject.com/forum/resources/color-monitor.1277/")
 set(ID_PREFIX "net.nagater.obs-color-monitor.")
+set(MACOS_BUNDLEID "net.nagater.obs-color-monitor")
 set(MACOS_PACKAGE_UUID "0EA80C5E-945D-4A0A-A30D-593014BB5631")
 set(MACOS_INSTALLER_UUID "A5C3A087-9A85-4E45-B755-C7FBE53177A9")
-set(PLUGIN_URL "https://obsproject.com/forum/resources/color-monitor.1277/")
+set(WIN_INSTALLER_UUID   "5A82180D-8D2A-4BB2-B1B7-5F663514AD21")
 
 set(LINUX_MAINTAINER_EMAIL "norihiro@nagater.net")
 
@@ -21,7 +22,6 @@ set(CMAKE_PREFIX_PATH "${QTDIR}")
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 
-# In case you need C++
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -30,7 +30,8 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
 	find_package(obs-frontend-api REQUIRED)
 	include(cmake/ObsPluginHelpers.cmake)
 	add_library(OBS::frontend-api ALIAS OBS::obs-frontend-api)
-	find_qt(VERSION ${QT_VERSION} COMPONENTS Widgets Core Gui)
+	set(QT_NO_CREATE_VERSIONLESS_TARGETS OFF)
+	find_package(Qt${QT_VERSION} COMPONENTS Widgets Core Gui)
 endif()
 
 if(NORISCOMMONUI_SUBMODULE)
@@ -95,23 +96,30 @@ if(OS_WINDOWS)
 	endif()
 
 	target_link_libraries(${PROJECT_NAME} OBS::w32-pthreads)
+
+	set(LICENSE_DESTINATION "${PROJECT_NAME}/data")
 endif()
 
 if(OS_LINUX)
 	target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra)
 	target_link_options(${PROJECT_NAME} PRIVATE -Wl,-z,defs)
+
+	set(LICENSE_DESTINATION ${CMAKE_INSTALL_DOCDIR})
+
 	if(ENABLE_COVERAGE)
-		target_compile_options(${PROJECT_NAME} PRIVATE -coverage)
+		target_compile_options(${PROJECT_NAME} PRIVATE -coverage -fprofile-update=atomic)
 		target_link_options(${PROJECT_NAME} PRIVATE -coverage)
 		if(NORISCOMMONUI_SUBMODULE)
-			target_compile_options(noriscommonui PRIVATE -coverage)
+			target_compile_options(noriscommonui PRIVATE -coverage -fprofile-update=atomic)
 			target_link_options(noriscommonui PRIVATE -coverage)
 		endif()
 	endif()
 endif()
 
-if(APPLE)
+if(OS_MACOS)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -fvisibility=default")
+
+	set(LICENSE_DESTINATION "${PROJECT_NAME}.plugin/Contents/Resources")
 
 	set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "")
 	set(MACOSX_PLUGIN_GUI_IDENTIFIER "${MACOS_BUNDLEID}")
@@ -131,6 +139,14 @@ endif()
 file(GENERATE OUTPUT .gitignore CONTENT "*\n")
 
 setup_plugin_target(${PROJECT_NAME})
+
+option(INSTALL_LICENSE_FILES "Install license files" ON)
+if(INSTALL_LICENSE_FILES)
+	install(FILES
+		LICENSE
+		DESTINATION ${LICENSE_DESTINATION}
+	)
+endif()
 
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
 	configure_file(

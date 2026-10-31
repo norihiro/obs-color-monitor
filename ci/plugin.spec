@@ -21,7 +21,7 @@ false color to help color correction.
 tar -xjf %{SOURCE1}
 
 %build
-%{cmake} -DLINUX_PORTABLE=OFF -DLINUX_RPATH=OFF -DQT_VERSION=6
+%{cmake} -DQT_VERSION=6 -DINSTALL_LICENSE_FILES:BOOL=OFF
 %{cmake_build}
 
 %install
@@ -30,3 +30,4 @@ tar -xjf %{SOURCE1}
 %files
 %{_libdir}/obs-plugins/@PLUGIN_NAME@.so
 %{_datadir}/obs/obs-plugins/@PLUGIN_NAME@/
+%license LICENSE

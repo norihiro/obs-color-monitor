@@ -16,10 +16,9 @@ false color to help color correction.
 
 %prep
 %autosetup -p1
-sed -i -e 's/project(obs-color-monitor/project(color-monitor/g' CMakeLists.txt
 
 %build
-%{cmake} -DLINUX_PORTABLE=OFF -DLINUX_RPATH=OFF -DQT_VERSION=6
+%{cmake} -DQT_VERSION=6 -DINSTALL_LICENSE_FILES:BOOL=OFF
 %{cmake_build}
 
 %install
