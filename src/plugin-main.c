@@ -55,6 +55,11 @@ static bool register_source_with_flags(const struct obs_source_info *const_info,
 	return true;
 }
 
+const char *obs_module_name(void)
+{
+	return obs_module_text("Module.Name");
+}
+
 bool obs_module_load(void)
 {
 	int version_major = atoi(obs_get_version_string());
