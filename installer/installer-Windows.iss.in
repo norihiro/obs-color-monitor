@@ -30,10 +30,12 @@ Source: "..\release\{#MyAppName}\*"; DestDir: "{app}"; Flags: ignoreversion recu
 [Tasks]
 Name: removeold0; Description: "Remove old plugin '{code:GetLegacyDLLPath|{#MyAppName}.dll}'"; Flags: checkedonce; Check: LegacyDLLExists(ExpandConstant('{#MyAppName}.dll'))
 Name: removeold1; Description: "Remove old plugin '{code:GetLegacyDLLPath|obs-{#MyAppName}.dll}'"; Flags: checkedonce; Check: LegacyDLLExists(ExpandConstant('obs-{#MyAppName}.dll'))
+Name: removeold2; Description: "Remove old plugin '{code:GetLegacy1DLLPath|{#MyAppName}}'"; Flags: checkedonce; Check: Legacy1DLLExists(ExpandConstant('{#MyAppName}'))
 
 [InstallDelete]
 Type: files; Name: "{code:GetLegacyDLLPath|{#MyAppName}.dll}"; Tasks: removeold0
 Type: files; Name: "{code:GetLegacyDLLPath|obs-{#MyAppName}.dll}"; Tasks: removeold1
+Type: files; Name: "{code:GetLegacy1DLLPath|{#MyAppName}}"; Tasks: removeold2
 
 [Code]
 function GetLegacyDLLPath(Value: String): string;
@@ -50,4 +52,13 @@ end;
 function LegacyDLLExists(Value: String): Boolean;
 begin
   Result := FileExists(GetLegacyDLLPath(Value));
+end;
+
+function GetLegacy1DLLPath(Value: String): string;
+begin
+  Result := ExpandConstant('{commonappdata}\obs-studio\plugins\') + Value + '\bin\64bit\' + Value + '.dll';
+end;
+function Legacy1DLLExists(Value: String): Boolean;
+begin
+  Result := FileExists(GetLegacy1DLLPath(Value));
 end;
