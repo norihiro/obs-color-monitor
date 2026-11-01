@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-project(color-monitor VERSION 0.9.5)
+project(color-monitor VERSION 0.10.0)
 
 set(PLUGIN_AUTHOR "Norihiro Kamae")
 
