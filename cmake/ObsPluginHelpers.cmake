@@ -181,8 +181,13 @@ elseif(OS_WINDOWS)
 	function(setup_plugin_target target)
 		set_target_properties(${target} PROPERTIES PREFIX "")
 
-		set(PLUGIN_BIN "${target}/bin/${_ARCH_SUFFIX}bit")
-		set(PLUGIN_DATA "${target}/data")
+		if(libobs_VERSION VERSION_LESS "33.0.0")
+			set(PLUGIN_BIN "${target}/bin/${_ARCH_SUFFIX}bit")
+			set(PLUGIN_DATA "${target}/data")
+		else()
+			set(PLUGIN_BIN "${target}")
+			set(PLUGIN_DATA "${target}/data")
+		endif()
 
 		install(
 			TARGETS ${target}
