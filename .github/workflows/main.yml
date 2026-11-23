@@ -103,7 +103,7 @@ jobs:
             obs-onsdriver: '< 32'
           - obs: 32
             arch: 'universal'
-            obs-onsdriver: '< 33'
+            obs-onsdriver: '<= 33' # 32 does not work from Nov/2026
           - obs: 33
             arch: 'universal'
     defaults:
